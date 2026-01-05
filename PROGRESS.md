@@ -30,7 +30,7 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | Phase 3: SSE 流式 | ✅ 完成 | 2026-01-05 | 流式转发、buffer 复用、client 断开检测 |
 | Phase 4: 高可用 | ✅ 完成 | 2026-01-05 | 熔断器、限流、并发控制 |
 | Phase 5: 可观测性 | ✅ 完成 | 2026-01-05 | OpenTelemetry, 日志脱敏, Request ID |
-| Phase 6: 云原生 | 🔲 待开始 | - | Distroless 镜像, Helm Chart |
+| Phase 6: 云原生 | ✅ 完成 | 2026-01-05 | Distroless 镜像, Helm Chart, CI/CD |
 
 ---
 
@@ -54,6 +54,9 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | OpenTelemetry | ✅ | ✅ | OTLP gRPC 导出 |
 | 日志脱敏 | ✅ | ✅ | API Key/PII 自动 mask |
 | Request ID | ✅ | ✅ | 请求关联追踪 |
+| Distroless 镜像 | ✅ | ✅ | 安全加固，< 20MB |
+| Helm Chart | ✅ | ✅ | HPA, Ingress, Security |
+| CI/CD | ✅ | ✅ | GitHub Actions |
 
 ### 🔲 未实现
 
@@ -79,16 +82,16 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 ### 📊 完成度
 
 ```
-核心网关功能:  ~80%
-LiteLLM 全功能: ~20-25%
-生产就绪度:    ~60%
+核心网关功能:  ~85%
+LiteLLM 全功能: ~25-30%
+生产就绪度:    ~75%
 ```
 
 ### 🔜 下一步优先级
 
-1. **Phase 6: 云原生** - Distroless 镜像, Helm Chart
-2. **认证系统** - API Key 验证（需要数据库）
-3. **Token 计数** - tiktoken-go 估算成本
+1. **认证系统** - API Key 验证（需要数据库）
+2. **Token 计数** - tiktoken-go 估算成本
+3. **缓存层** - Redis 缓存
 
 ---
 
@@ -189,27 +192,33 @@ LiteLLM 全功能: ~20-25%
 
 ---
 
-## 下一步：Phase 6 - 云原生
+## Phase 6: 云原生 ✅
 
-### 目标
-
-实现生产级部署能力。
-
-### 核心任务
+### 已完成功能
 
 1. **Distroless 镜像**
    - 多阶段构建
-   - 镜像 < 20MB
+   - gcr.io/distroless/static-debian12:nonroot
    - 无 shell，安全加固
+   - 非 root 用户运行
 
 2. **Helm Chart**
    - Deployment, Service, ConfigMap
    - HPA 自动扩缩容
    - Ingress 配置
+   - ServiceAccount
+   - 安全上下文（只读文件系统，无特权）
 
-3. **CI/CD**
+3. **K8s Manifests**
+   - 原生 YAML 示例
+   - Secret 管理
+   - 健康检查配置
+
+4. **CI/CD**
    - GitHub Actions
-   - 自动测试、构建、推送
+   - 自动 lint、test、build
+   - 多平台镜像构建 (amd64/arm64)
+   - 自动发布 Release
 
 ---
 
@@ -243,6 +252,10 @@ llmux/
 │   ├── types/                   # 请求/响应类型
 │   └── errors/                  # 统一错误类型
 ├── config/config.yaml           # 配置示例
+├── deploy/                      # 部署文件
+│   ├── helm/llmux/              # Helm Chart
+│   └── k8s/                     # K8s Manifests
+├── .github/workflows/           # CI/CD
 ├── Makefile
 └── Dockerfile
 ```
@@ -268,6 +281,8 @@ llmux/
 
 ## 快速开始
 
+### 本地运行
+
 ```bash
 # 构建
 make build
@@ -280,6 +295,23 @@ export OPENAI_API_KEY=sk-xxx
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
   -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello!"}]}'
+```
+
+### Docker
+
+```bash
+docker run -d -p 8080:8080 \
+  -e OPENAI_API_KEY=sk-xxx \
+  ghcr.io/blueberrycongee/llmux:latest
+```
+
+### Kubernetes (Helm)
+
+```bash
+helm install llmux ./deploy/helm/llmux \
+  --namespace llmux --create-namespace \
+  --set providers[0].name=openai \
+  --set providers[0].secretName=openai-credentials
 ```
 
 ---
