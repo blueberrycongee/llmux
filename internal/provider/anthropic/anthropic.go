@@ -265,7 +265,9 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]anthropicM
 				var blocks []contentBlock
 				for _, tc := range msg.ToolCalls {
 					var input any
-					json.Unmarshal([]byte(tc.Function.Arguments), &input)
+					if err := json.Unmarshal([]byte(tc.Function.Arguments), &input); err != nil {
+						input = tc.Function.Arguments // Use raw string if unmarshal fails
+					}
 					blocks = append(blocks, contentBlock{
 						Type:  "tool_use",
 						ID:    tc.ID,
@@ -284,7 +286,9 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]anthropicM
 		// Map tool role to user with tool_result
 		if role == "tool" {
 			var content string
-			json.Unmarshal(msg.Content, &content)
+			if err := json.Unmarshal(msg.Content, &content); err != nil {
+				content = string(msg.Content) // Use raw content if unmarshal fails
+			}
 			result = append(result, anthropicMessage{
 				Role: "user",
 				Content: []contentBlock{{
@@ -339,7 +343,9 @@ func (p *Provider) transformTools(tools []types.Tool) []anthropicTool {
 
 		var params map[string]any
 		if len(tool.Function.Parameters) > 0 {
-			json.Unmarshal(tool.Function.Parameters, &params)
+			if err := json.Unmarshal(tool.Function.Parameters, &params); err != nil {
+				params = make(map[string]any) // Use empty map if unmarshal fails
+			}
 		}
 
 		schema := inputSchema{

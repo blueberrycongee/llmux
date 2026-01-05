@@ -38,7 +38,7 @@ func TestConfigValidation(t *testing.T) {
 			cfg: &Config{
 				Server: ServerConfig{Port: 8080},
 				Providers: []ProviderConfig{
-					{Name: "openai", Type: "openai"},
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 				},
 			},
 			wantErr: false,
@@ -48,7 +48,7 @@ func TestConfigValidation(t *testing.T) {
 			cfg: &Config{
 				Server: ServerConfig{Port: 0},
 				Providers: []ProviderConfig{
-					{Name: "openai", Type: "openai"},
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 				},
 			},
 			wantErr: true,
@@ -58,7 +58,7 @@ func TestConfigValidation(t *testing.T) {
 			cfg: &Config{
 				Server: ServerConfig{Port: 70000},
 				Providers: []ProviderConfig{
-					{Name: "openai", Type: "openai"},
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 				},
 			},
 			wantErr: true,
@@ -76,7 +76,7 @@ func TestConfigValidation(t *testing.T) {
 			cfg: &Config{
 				Server: ServerConfig{Port: 8080},
 				Providers: []ProviderConfig{
-					{Name: "", Type: "openai"},
+					{Name: "", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 				},
 			},
 			wantErr: true,
@@ -86,8 +86,49 @@ func TestConfigValidation(t *testing.T) {
 			cfg: &Config{
 				Server: ServerConfig{Port: 8080},
 				Providers: []ProviderConfig{
-					{Name: "openai", Type: ""},
+					{Name: "openai", Type: "", APIKey: "sk-test", Models: []string{"gpt-4"}},
 				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "provider missing api_key",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "", Models: []string{"gpt-4"}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "provider missing models",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative timeout",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}, Timeout: -1},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative retry count",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Routing: RoutingConfig{RetryCount: -1},
 			},
 			wantErr: true,
 		},
@@ -152,6 +193,8 @@ providers:
   - name: openai
     type: openai
     api_key: ${TEST_API_KEY}
+    models:
+      - gpt-4
 `
 		path := createTempFile(t, content)
 		defer os.Remove(path)

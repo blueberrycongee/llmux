@@ -281,7 +281,9 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]geminiCont
 			var parts []geminiPart
 			for _, tc := range msg.ToolCalls {
 				var args map[string]any
-				json.Unmarshal([]byte(tc.Function.Arguments), &args)
+				if err := json.Unmarshal([]byte(tc.Function.Arguments), &args); err != nil {
+					args = make(map[string]any) // Use empty map if unmarshal fails
+				}
 				parts = append(parts, geminiPart{
 					FunctionCall: &functionCall{
 						Name: tc.Function.Name,
@@ -299,7 +301,9 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]geminiCont
 		// Handle tool response
 		if role == "tool" {
 			var content string
-			json.Unmarshal(msg.Content, &content)
+			if err := json.Unmarshal(msg.Content, &content); err != nil {
+				content = string(msg.Content) // Use raw content if unmarshal fails
+			}
 			// Find the function name from tool_call_id (simplified - in real impl would need to track)
 			contents = append(contents, geminiContent{
 				Role: "function",
@@ -352,7 +356,9 @@ func (p *Provider) transformTools(tools []types.Tool) []geminiTool {
 
 		var params map[string]any
 		if len(tool.Function.Parameters) > 0 {
-			json.Unmarshal(tool.Function.Parameters, &params)
+			if err := json.Unmarshal(tool.Function.Parameters, &params); err != nil {
+				params = make(map[string]any) // Use empty map if unmarshal fails
+			}
 		}
 
 		declarations = append(declarations, functionDeclaration{

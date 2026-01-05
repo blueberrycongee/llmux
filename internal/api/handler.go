@@ -3,6 +3,7 @@
 package api
 
 import (
+	"context"
 	"encoding/json"
 	"io"
 	"log/slog"
@@ -17,19 +18,49 @@ import (
 	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
-// Handler handles HTTP requests for the LLM gateway.
-type Handler struct {
-	registry *provider.Registry
-	router   router.Router
-	logger   *slog.Logger
+const (
+	// DefaultMaxBodySize is the default maximum request body size (10MB).
+	// This accommodates large context windows while preventing abuse.
+	DefaultMaxBodySize = 10 * 1024 * 1024
+)
+
+// HandlerConfig contains configuration for the API handler.
+type HandlerConfig struct {
+	MaxBodySize int64 // Maximum request body size in bytes
 }
 
-// NewHandler creates a new API handler.
-func NewHandler(registry *provider.Registry, router router.Router, logger *slog.Logger) *Handler {
+// Handler handles HTTP requests for the LLM gateway.
+type Handler struct {
+	registry    *provider.Registry
+	router      router.Router
+	logger      *slog.Logger
+	httpClient  *http.Client
+	maxBodySize int64
+}
+
+// NewHandler creates a new API handler with a shared HTTP client.
+func NewHandler(registry *provider.Registry, router router.Router, logger *slog.Logger, cfg *HandlerConfig) *Handler {
+	maxBodySize := int64(DefaultMaxBodySize)
+	if cfg != nil && cfg.MaxBodySize > 0 {
+		maxBodySize = cfg.MaxBodySize
+	}
+
+	// Create shared HTTP client with connection pooling
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
+	}
+
 	return &Handler{
-		registry: registry,
-		router:   router,
-		logger:   logger,
+		registry:    registry,
+		router:      router,
+		logger:      logger,
+		maxBodySize: maxBodySize,
+		httpClient: &http.Client{
+			Transport: transport,
+			// Timeout is set per-request based on deployment config
+		},
 	}
 }
 
@@ -37,13 +68,20 @@ func NewHandler(registry *provider.Registry, router router.Router, logger *slog.
 func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 
-	// Parse request body
-	body, err := io.ReadAll(r.Body)
+	// Limit request body size to prevent OOM
+	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
+	body, err := io.ReadAll(limitedReader)
 	if err != nil {
 		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "failed to read request body"))
 		return
 	}
 	defer r.Body.Close()
+
+	// Check if body exceeded limit
+	if int64(len(body)) > h.maxBodySize {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "request body too large"))
+		return
+	}
 
 	var req types.ChatRequest
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -76,16 +114,22 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Build upstream request
-	upstreamReq, err := prov.BuildRequest(r.Context(), &req)
+	// Build upstream request with timeout context
+	timeout := time.Duration(deployment.Timeout) * time.Second
+	if timeout == 0 {
+		timeout = 30 * time.Second // Default timeout
+	}
+	reqCtx, reqCancel := context.WithTimeout(r.Context(), timeout)
+	defer reqCancel()
+
+	upstreamReq, err := prov.BuildRequest(reqCtx, &req)
 	if err != nil {
 		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to build request: "+err.Error()))
 		return
 	}
 
-	// Execute request
-	client := &http.Client{Timeout: time.Duration(deployment.Timeout) * time.Second}
-	resp, err := client.Do(upstreamReq)
+	// Execute request using shared client
+	resp, err := h.httpClient.Do(upstreamReq)
 	if err != nil {
 		h.router.ReportFailure(deployment, err)
 		metrics.RecordError(prov.Name(), "connection_error")

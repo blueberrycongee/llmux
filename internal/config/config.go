@@ -139,6 +139,26 @@ func (c *Config) Validate() error {
 		if p.Type == "" {
 			return fmt.Errorf("provider[%d]: type is required", i)
 		}
+		if p.APIKey == "" {
+			return fmt.Errorf("provider[%d] %q: api_key is required", i, p.Name)
+		}
+		if len(p.Models) == 0 {
+			return fmt.Errorf("provider[%d] %q: at least one model must be configured", i, p.Name)
+		}
+		if p.Timeout < 0 {
+			return fmt.Errorf("provider[%d] %q: timeout cannot be negative", i, p.Name)
+		}
+		if p.MaxConcurrent < 0 {
+			return fmt.Errorf("provider[%d] %q: max_concurrent cannot be negative", i, p.Name)
+		}
+	}
+
+	// Validate routing config
+	if c.Routing.RetryCount < 0 {
+		return fmt.Errorf("routing.retry_count cannot be negative")
+	}
+	if c.Routing.CooldownPeriod < 0 {
+		return fmt.Errorf("routing.cooldown_period cannot be negative")
 	}
 
 	return nil

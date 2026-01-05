@@ -101,7 +101,7 @@ func main() {
 	}
 
 	// Initialize API handler
-	handler := api.NewHandler(registry, simpleRouter, logger)
+	handler := api.NewHandler(registry, simpleRouter, logger, nil)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
