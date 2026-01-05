@@ -58,18 +58,18 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | Helm Chart | ✅ | ✅ | HPA, Ingress, Security |
 | CI/CD | ✅ | ✅ | GitHub Actions |
 
-### 🔲 未实现
+### 🔲 未实现（下一阶段）
 
-| 功能 | 优先级 | 说明 |
-|------|--------|------|
-| 认证系统 | 高 | API Key 验证 |
-| 缓存层 | 高 | Redis 缓存 |
-| Token 计数 | 中 | tiktoken-go 估算 |
-| 数据库持久化 | 中 | PostgreSQL（与 LiteLLM 一致） |
-| 预算管理 | 中 | 按用户/团队限额 |
-| 更多 Provider | 中 | Bedrock, Cohere 等 |
-| Embeddings API | 中 | 向量嵌入 |
-| Admin UI | 低 | 管理界面 |
+| Phase | 功能 | 优先级 | 说明 |
+|-------|------|--------|------|
+| 7 | 认证系统 | 🔴 高 | API Key 验证 + PostgreSQL |
+| 7 | 多租户 | 🔴 高 | 按 Key/Team 隔离 |
+| 8 | 缓存层 | 🔴 高 | Redis 语义缓存 |
+| 9 | Token 计数 | 🟡 中 | tiktoken-go 估算 |
+| 9 | 成本计算 | 🟡 中 | 按 model 计费 |
+| 10 | 更多 Provider | 🟡 中 | Bedrock, Cohere, Ollama |
+| 11 | Embeddings API | 🟡 中 | 向量嵌入 |
+| 12 | Admin UI | 🟢 低 | 管理界面 |
 
 ### 📊 数据库选型
 
