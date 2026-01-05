@@ -17,6 +17,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
+	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/provider"
 	"github.com/blueberrycongee/llmux/internal/provider/anthropic"
 	"github.com/blueberrycongee/llmux/internal/provider/azure"
@@ -45,6 +46,21 @@ func main() {
 	}
 
 	cfg := cfgManager.Get()
+
+	// Initialize OpenTelemetry tracing
+	tracingCfg := observability.TracingConfig{
+		Enabled:     cfg.Tracing.Enabled,
+		Endpoint:    cfg.Tracing.Endpoint,
+		ServiceName: cfg.Tracing.ServiceName,
+		SampleRate:  cfg.Tracing.SampleRate,
+		Insecure:    cfg.Tracing.Insecure,
+	}
+	tracerProvider, err := observability.InitTracing(context.Background(), tracingCfg)
+	if err != nil {
+		logger.Error("failed to initialize tracing", "error", err)
+	} else if cfg.Tracing.Enabled {
+		logger.Info("tracing enabled", "endpoint", cfg.Tracing.Endpoint)
+	}
 
 	// Start config watcher
 	ctx, cancel := context.WithCancel(context.Background())
@@ -122,6 +138,7 @@ func main() {
 	// Apply middleware
 	var httpHandler http.Handler = mux
 	httpHandler = metrics.Middleware(httpHandler)
+	httpHandler = observability.RequestIDMiddleware(httpHandler)
 
 	// Create server
 	server := &http.Server{
@@ -154,6 +171,13 @@ func main() {
 
 	if err := server.Shutdown(shutdownCtx); err != nil {
 		logger.Error("server shutdown error", "error", err)
+	}
+
+	// Shutdown tracing
+	if tracerProvider != nil {
+		if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
+			logger.Error("tracer shutdown error", "error", err)
+		}
 	}
 
 	cfgManager.Close()
