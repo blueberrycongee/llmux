@@ -28,9 +28,64 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | Phase 1: 骨架搭建 | ✅ 完成 | 2026-01-05 | HTTP Server, Config, Metrics, Router |
 | Phase 2: 多 Provider | ✅ 完成 | 2026-01-05 | OpenAI, Anthropic, Azure, Gemini |
 | Phase 3: SSE 流式 | ✅ 完成 | 2026-01-05 | 流式转发、buffer 复用、client 断开检测 |
-| Phase 4: 高可用 | 🔲 待开始 | - | 熔断器、限流、优雅关闭 |
+| Phase 4: 高可用 | ✅ 完成 | 2026-01-05 | 熔断器、限流、并发控制 |
 | Phase 5: 可观测性 | 🔲 待开始 | - | OpenTelemetry, 日志脱敏, Token 计数 |
 | Phase 6: 云原生 | 🔲 待开始 | - | Distroless 镜像, Helm Chart |
+
+---
+
+## 与 LiteLLM 功能对比
+
+### ✅ 已实现
+
+| 功能 | LiteLLM | LLMux | 说明 |
+|------|---------|-------|------|
+| OpenAI 适配 | ✅ | ✅ | Chat Completions |
+| Anthropic 适配 | ✅ | ✅ | Messages API |
+| Azure OpenAI 适配 | ✅ | ✅ | Deployment routing |
+| Gemini 适配 | ✅ | ✅ | generateContent |
+| Tool Calling | ✅ | ✅ | 跨 Provider 转换 |
+| SSE 流式 | ✅ | ✅ | Buffer 复用 |
+| 配置热重载 | ✅ | ✅ | fsnotify |
+| Prometheus 指标 | ✅ | ✅ | 请求/延迟/Token |
+| 熔断器 | ✅ | ✅ | 自研实现 |
+| 限流 | ✅ | ✅ | Token Bucket |
+| 并发控制 | ✅ | ✅ | Semaphore |
+
+### 🔲 未实现
+
+| 功能 | 优先级 | 说明 |
+|------|--------|------|
+| 认证系统 | 高 | API Key 验证 |
+| 缓存层 | 高 | Redis 缓存 |
+| OpenTelemetry | 高 | 分布式追踪 |
+| 数据库持久化 | 中 | PostgreSQL（与 LiteLLM 一致） |
+| 预算管理 | 中 | 按用户/团队限额 |
+| 更多 Provider | 中 | Bedrock, Cohere 等 |
+| Embeddings API | 中 | 向量嵌入 |
+| Admin UI | 低 | 管理界面 |
+
+### 📊 数据库选型
+
+选择 PostgreSQL 作为持久化数据库，原因：
+- 与 LiteLLM 使用相同数据库，便于迁移和对比
+- 成熟稳定，生态丰富
+- 支持 JSON 字段，适合存储灵活配置
+- 支持事务，保证数据一致性
+
+### 📊 完成度
+
+```
+核心网关功能:  ~70%
+LiteLLM 全功能: ~15-20%
+生产就绪度:    ~50%
+```
+
+### 🔜 下一步优先级
+
+1. **将 resilience 组件集成到 Handler** - 让熔断/限流真正生效
+2. **Phase 5: 可观测性** - OpenTelemetry 追踪
+3. **认证系统** - API Key 验证（需要数据库）
 
 ---
 
@@ -38,186 +93,86 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 
 ### 已完成功能
 
-1. **HTTP Server**
-   - 基于 `net/http` 的高性能服务器
-   - 优雅关闭 (SIGTERM → drain → shutdown)
-   - 健康检查端点 (`/health/live`, `/health/ready`)
-
-2. **配置管理**
-   - YAML 配置文件支持
-   - 环境变量展开 (`${VAR_NAME}`)
-   - fsnotify 热重载 (atomic.Pointer 原子替换)
-
-3. **Prometheus Metrics**
-   - `llmux_requests_total` - 请求计数
-   - `llmux_request_latency_seconds` - 延迟分布
-   - `llmux_token_usage_total` - Token 用量
-   - `llmux_upstream_errors_total` - 错误统计
-
-4. **路由器**
-   - SimpleRouter 随机选择策略
-   - 冷却机制 (429/401/408/5xx 触发)
-   - 部署健康状态追踪
-
-5. **OpenAI Provider**
-   - 完整的请求/响应转换
-   - 流式 chunk 解析
-   - 错误映射
-
-### 测试覆盖率
-
-| 模块 | 覆盖率 |
-|------|--------|
-| `internal/router` | 94.0% |
-| `pkg/errors` | 93.8% |
-| `internal/provider/openai` | 86.3% |
-| `internal/streaming` | 81.6% |
-| `internal/provider/azure` | 47.3% |
-| `internal/provider/gemini` | 45.6% |
-| `internal/provider/anthropic` | 38.9% |
-| `internal/config` | 29.9% |
+1. **HTTP Server** - 基于 `net/http`，优雅关闭
+2. **配置管理** - YAML + 环境变量 + 热重载
+3. **Prometheus Metrics** - 请求/延迟/Token/错误
+4. **路由器** - 随机选择 + 冷却机制
+5. **OpenAI Provider** - 请求/响应转换
 
 ---
 
 ## Phase 2: 多 Provider 支持 ✅
 
-### 已实现的 Provider
-
-| Provider | 文件 | 功能 |
-|----------|------|------|
-| **OpenAI** | `internal/provider/openai/` | Chat Completions, Streaming, Tool Calling |
-| **Anthropic** | `internal/provider/anthropic/` | Messages API, System Prompt, Tool Use |
-| **Azure OpenAI** | `internal/provider/azure/` | Deployment-based routing, api-key auth |
-| **Google Gemini** | `internal/provider/gemini/` | generateContent API, Function Calling |
-
-### 参数映射
-
-所有 Provider 都实现了 OpenAI 格式到原生格式的转换：
-
-```
-OpenAI Format (统一输入)
-    ↓
-Provider Adapter (转换)
-    ↓
-Native API Format (各厂商)
-    ↓
-Provider Adapter (转换)
-    ↓
-OpenAI Format (统一输出)
-```
-
-### 关键转换逻辑
-
-| OpenAI 参数 | Anthropic | Gemini | Azure |
-|-------------|-----------|--------|-------|
-| `messages[role=system]` | `system` 字段 | `systemInstruction` | 直接透传 |
-| `messages[role=tool]` | `tool_result` block | `functionResponse` | 直接透传 |
-| `tool_choice=required` | `type: any` | `mode: ANY` | 直接透传 |
-| `stop` | `stop_sequences` | `stopSequences` | 直接透传 |
-| `finish_reason=stop` | `end_turn` | `STOP` | 直接透传 |
+| Provider | 功能 |
+|----------|------|
+| OpenAI | Chat, Streaming, Tools |
+| Anthropic | Messages API, System, Tools |
+| Azure | Deployment routing |
+| Gemini | generateContent, Functions |
 
 ---
 
 ## Phase 3: SSE 流式支持 ✅
 
+- SSE Forwarder + `sync.Pool` buffer 复用
+- Client 断开检测 (context cancellation)
+- 多 Provider 格式适配 (OpenAI/Anthropic/Gemini)
+
+---
+
+## Phase 4: 高可用 ✅
+
 ### 已完成功能
 
-1. **SSE Forwarder**
-   - 高效的流式转发器 (`internal/streaming/forwarder.go`)
-   - `sync.Pool` buffer 复用，减少 GC 压力
-   - Client 断开检测 (context cancellation)
-   - 自动设置 SSE headers (Content-Type, Cache-Control, X-Accel-Buffering)
+1. **熔断器 (Circuit Breaker)**
+   - 三态: Closed → Open → Half-Open
+   - 可配置阈值和超时
+   - 状态变更回调
 
-2. **Provider-Specific Parsers**
-   - `OpenAIParser` - 标准 SSE 格式 (`data: {...}\n\n`)
-   - `AnthropicParser` - 事件类型格式 (`event: xxx\ndata: {...}\n\n`)
-   - `GeminiParser` - JSON 对象流格式
-   - `AzureParser` - 复用 OpenAI 格式
+2. **限流器 (Rate Limiter)**
+   - Token Bucket 算法
+   - 支持突发流量
+   - 动态调整速率
 
-3. **统一输出格式**
-   - 所有 Provider 的流式输出都转换为 OpenAI 格式
-   - 统一的 `StreamChunk` 结构
-   - finish_reason 映射 (end_turn → stop, STOP → stop, etc.)
+3. **并发控制 (Semaphore)**
+   - Context-aware 阻塞
+   - 超时取消支持
+   - 公平唤醒
+
+4. **统一管理器 (Manager)**
+   - 按 Provider/Deployment 隔离
+   - 懒加载组件
+   - 统计信息查询
 
 ### 测试覆盖率
 
 | 模块 | 覆盖率 |
 |------|--------|
-| `internal/streaming` | 81.6% |
-
-### 验收标准
-
-- [x] SSE 正常工作
-- [x] Client 断开能立即 cancel 上游
-- [x] Buffer 复用 (sync.Pool)
-- [x] 多 Provider 格式适配
+| `internal/resilience` | 97.6% |
 
 ---
 
-## 下一步：Phase 4 - 高可用
-
-## 下一步：Phase 4 - 高可用
+## 下一步：Phase 5 - 可观测性
 
 ### 目标
 
-实现生产级高可用特性。
+实现生产级可观测性。
 
 ### 核心任务
 
-1. **熔断器 (Circuit Breaker)**
-   ```go
-   // 使用 sony/gobreaker
-   cb := gobreaker.NewCircuitBreaker(gobreaker.Settings{
-       Name:        "openai",
-       MaxRequests: 5,
-       Interval:    10 * time.Second,
-       Timeout:     30 * time.Second,
-   })
-   ```
+1. **OpenTelemetry Tracing**
+   - 请求链路追踪
+   - Span 上下文传递
+   - Jaeger/Zipkin 导出
 
-2. **并发控制**
-   - Per-provider semaphore
-   - 防止单个 provider 过载
+2. **日志增强**
+   - 结构化日志 (slog)
+   - API Key 脱敏
+   - 请求 ID 关联
 
-3. **限流 (Rate Limiting)**
-   - Token Bucket 算法
-   - Per-user / Per-API-key 限流
-
-4. **优雅关闭增强**
-   - Drain mode (停止接受新请求)
-   - 等待现有请求完成
-   - 超时强制关闭
-
-### 验收标准
-
-- [ ] 熔断器正常工作
-- [ ] 并发控制生效
-- [ ] 限流准确
-- [ ] 优雅关闭无请求丢失
-
----
-
-## Phase 4-6 预览
-
-### Phase 4: 高可用
-
-- 集成 `sony/gobreaker` 熔断器
-- Per-provider semaphore 并发控制
-- Token Bucket 限流
-- 优雅关闭 (drain mode)
-
-### Phase 5: 可观测性
-
-- OpenTelemetry tracing
-- 日志脱敏 (API Key, PII)
-- tiktoken-go Token 估算
-- 成本计算
-
-### Phase 6: 云原生
-
-- Distroless Docker 镜像 (< 20MB)
-- Helm Chart
-- GitHub Actions CI/CD
+3. **Token 计数**
+   - tiktoken-go 估算
+   - 成本计算
 
 ---
 
@@ -230,53 +185,58 @@ llmux/
 │   ├── api/handler.go           # HTTP 处理器
 │   ├── config/                  # 配置管理 + 热重载
 │   ├── metrics/middleware.go    # Prometheus 指标
-│   ├── provider/
-│   │   ├── interface.go         # Provider 接口
-│   │   ├── registry.go          # Provider 注册表
-│   │   ├── openai/              # OpenAI 适配器
-│   │   ├── anthropic/           # Anthropic 适配器
-│   │   ├── azure/               # Azure OpenAI 适配器
-│   │   └── gemini/              # Gemini 适配器
-│   ├── router/
-│   │   ├── interface.go         # Router 接口
-│   │   └── simple.go            # 简单随机路由
-│   └── streaming/
-│       ├── forwarder.go         # SSE 流式转发器
-│       └── parsers.go           # Provider 流式解析器
+│   ├── provider/                # Provider 适配器
+│   │   ├── openai/
+│   │   ├── anthropic/
+│   │   ├── azure/
+│   │   └── gemini/
+│   ├── resilience/              # 高可用组件
+│   │   ├── circuitbreaker.go
+│   │   ├── ratelimiter.go
+│   │   ├── semaphore.go
+│   │   └── manager.go
+│   ├── router/                  # 路由器
+│   └── streaming/               # SSE 流式
 ├── pkg/
 │   ├── types/                   # 请求/响应类型
 │   └── errors/                  # 统一错误类型
 ├── config/config.yaml           # 配置示例
-├── Makefile                     # 构建命令
-└── Dockerfile                   # 多阶段构建
+├── Makefile
+└── Dockerfile
 ```
+
+---
+
+## 测试覆盖率汇总
+
+| 模块 | 覆盖率 |
+|------|--------|
+| `internal/resilience` | 97.6% |
+| `internal/router` | 94.0% |
+| `pkg/errors` | 93.8% |
+| `internal/provider/openai` | 86.3% |
+| `internal/streaming` | 81.6% |
+| `internal/provider/azure` | 47.3% |
+| `internal/provider/gemini` | 44.8% |
+| `internal/config` | 38.0% |
+| `internal/provider/anthropic` | 38.3% |
 
 ---
 
 ## 快速开始
 
-### 构建
-
 ```bash
+# 构建
 make build
-```
 
-### 运行
-
-```bash
+# 运行
 export OPENAI_API_KEY=sk-xxx
 ./bin/llmux --config config/config.yaml
-```
 
-### 测试
-
-```bash
+# 测试
 curl http://localhost:8080/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "Hello!"}]
-  }'
+  -d '{"model": "gpt-4o", "messages": [{"role": "user", "content": "Hello!"}]}'
 ```
 
 ---
@@ -288,15 +248,5 @@ curl http://localhost:8080/v1/chat/completions \
 | P99 延迟 | < 100ms |
 | 吞吐量 | 1000 QPS |
 | 内存占用 | < 100MB |
-| 并发连接 | 10k |
 | 冷启动 | < 1s |
 | 镜像大小 | < 20MB |
-
----
-
-## 参考资料
-
-- [LiteLLM 源码](https://github.com/BerriAI/litellm)
-- [开发路线图](./开发文档路线图.md)
-- [深度分析](./DEEP_ANALYSIS.md)
-- [代码分析](./LITELLM_CODE_ANALYSIS.md)
