@@ -18,6 +18,7 @@ type Config struct {
 	RateLimit RateLimitConfig  `yaml:"rate_limit"`
 	Logging   LoggingConfig    `yaml:"logging"`
 	Metrics   MetricsConfig    `yaml:"metrics"`
+	Tracing   TracingConfig    `yaml:"tracing"`
 }
 
 // ServerConfig contains HTTP server settings.
@@ -68,6 +69,15 @@ type MetricsConfig struct {
 	Path    string `yaml:"path"`
 }
 
+// TracingConfig contains OpenTelemetry tracing settings.
+type TracingConfig struct {
+	Enabled     bool    `yaml:"enabled"`
+	Endpoint    string  `yaml:"endpoint"`     // OTLP endpoint (e.g., "localhost:4317")
+	ServiceName string  `yaml:"service_name"` // Service name for traces
+	SampleRate  float64 `yaml:"sample_rate"`  // Sampling rate (0.0 to 1.0)
+	Insecure    bool    `yaml:"insecure"`     // Use insecure connection (no TLS)
+}
+
 // DefaultConfig returns a configuration with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
@@ -95,6 +105,13 @@ func DefaultConfig() *Config {
 		Metrics: MetricsConfig{
 			Enabled: true,
 			Path:    "/metrics",
+		},
+		Tracing: TracingConfig{
+			Enabled:     false,
+			Endpoint:    "localhost:4317",
+			ServiceName: "llmux",
+			SampleRate:  1.0,
+			Insecure:    true,
 		},
 	}
 }
