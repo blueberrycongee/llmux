@@ -21,6 +21,41 @@ type Config struct {
 	Tracing   TracingConfig    `yaml:"tracing"`
 	Auth      AuthConfig       `yaml:"auth"`
 	Database  DatabaseConfig   `yaml:"database"`
+	Cache     CacheConfig      `yaml:"cache"`
+}
+
+// CacheConfig contains caching settings.
+type CacheConfig struct {
+	Enabled   bool              `yaml:"enabled"`
+	Type      string            `yaml:"type"`      // local, redis, dual
+	Namespace string            `yaml:"namespace"` // Key namespace prefix
+	TTL       time.Duration     `yaml:"ttl"`       // Default TTL
+	Memory    MemoryCacheConfig `yaml:"memory"`    // In-memory cache config
+	Redis     RedisCacheConfig  `yaml:"redis"`     // Redis cache config
+}
+
+// MemoryCacheConfig contains in-memory cache settings.
+type MemoryCacheConfig struct {
+	MaxSize         int           `yaml:"max_size"`          // Maximum number of items
+	DefaultTTL      time.Duration `yaml:"default_ttl"`       // Default TTL
+	MaxItemSize     int           `yaml:"max_item_size"`     // Maximum size per item in bytes
+	CleanupInterval time.Duration `yaml:"cleanup_interval"`  // Cleanup interval
+}
+
+// RedisCacheConfig contains Redis cache settings.
+type RedisCacheConfig struct {
+	Addr           string        `yaml:"addr"`             // Redis address
+	Password       string        `yaml:"password"`         // Redis password
+	DB             int           `yaml:"db"`               // Redis database number
+	ClusterAddrs   []string      `yaml:"cluster_addrs"`    // Redis cluster addresses
+	SentinelAddrs  []string      `yaml:"sentinel_addrs"`   // Sentinel addresses
+	SentinelMaster string        `yaml:"sentinel_master"`  // Sentinel master name
+	DialTimeout    time.Duration `yaml:"dial_timeout"`     // Connection timeout
+	ReadTimeout    time.Duration `yaml:"read_timeout"`     // Read timeout
+	WriteTimeout   time.Duration `yaml:"write_timeout"`    // Write timeout
+	PoolSize       int           `yaml:"pool_size"`        // Connection pool size
+	MinIdleConns   int           `yaml:"min_idle_conns"`   // Minimum idle connections
+	MaxRetries     int           `yaml:"max_retries"`      // Maximum retries
 }
 
 // AuthConfig contains authentication settings.
@@ -148,6 +183,28 @@ func DefaultConfig() *Config {
 			MaxOpenConns: 25,
 			MaxIdleConns: 5,
 			ConnLifetime: 5 * time.Minute,
+		},
+		Cache: CacheConfig{
+			Enabled:   false,
+			Type:      "local",
+			Namespace: "llmux",
+			TTL:       time.Hour,
+			Memory: MemoryCacheConfig{
+				MaxSize:         1000,
+				DefaultTTL:      10 * time.Minute,
+				MaxItemSize:     1024 * 1024,
+				CleanupInterval: time.Minute,
+			},
+			Redis: RedisCacheConfig{
+				Addr:         "localhost:6379",
+				DB:           0,
+				DialTimeout:  5 * time.Second,
+				ReadTimeout:  3 * time.Second,
+				WriteTimeout: 3 * time.Second,
+				PoolSize:     10,
+				MinIdleConns: 2,
+				MaxRetries:   3,
+			},
 		},
 	}
 }
