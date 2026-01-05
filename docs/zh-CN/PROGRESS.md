@@ -31,6 +31,7 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | Phase 4: 高可用 | ✅ 完成 | 2026-01-05 | 熔断器、限流、并发控制 |
 | Phase 5: 可观测性 | ✅ 完成 | 2026-01-05 | OpenTelemetry, 日志脱敏, Request ID |
 | Phase 6: 云原生 | ✅ 完成 | 2026-01-05 | Distroless 镜像, Helm Chart, CI/CD |
+| Phase 7: 认证与多租户 | ✅ 完成 | 2026-01-06 | API Key 认证, PostgreSQL, 多租户限流 |
 
 ---
 
@@ -57,13 +58,15 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | Distroless 镜像 | ✅ | ✅ | 安全加固，< 20MB |
 | Helm Chart | ✅ | ✅ | HPA, Ingress, Security |
 | CI/CD | ✅ | ✅ | GitHub Actions |
+| API Key 认证 | ✅ | ✅ | SHA-256 哈希存储 |
+| 多租户隔离 | ✅ | ✅ | 按 Key/Team 限流 |
+| PostgreSQL 集成 | ✅ | ✅ | 用户/团队/用量存储 |
+| 预算控制 | ✅ | ✅ | Key/Team 级别预算 |
 
 ### 🔲 未实现（下一阶段）
 
 | Phase | 功能 | 优先级 | 说明 |
 |-------|------|--------|------|
-| 7 | 认证系统 | 🔴 高 | API Key 验证 + PostgreSQL |
-| 7 | 多租户 | 🔴 高 | 按 Key/Team 隔离 |
 | 8 | 缓存层 | 🔴 高 | Redis 语义缓存 |
 | 9 | Token 计数 | 🟡 中 | tiktoken-go 估算 |
 | 9 | 成本计算 | 🟡 中 | 按 model 计费 |
@@ -325,3 +328,96 @@ helm install llmux ./deploy/helm/llmux \
 | 内存占用 | < 100MB |
 | 冷启动 | < 1s |
 | 镜像大小 | < 20MB |
+
+
+---
+
+## Phase 7: 认证与多租户 ✅
+
+### 已完成功能
+
+1. **API Key 认证**
+   - SHA-256 哈希存储（不存明文）
+   - Bearer Token 格式支持
+   - Key 前缀显示（用于识别）
+   - 过期时间检查
+   - 预算限制检查
+
+2. **多租户隔离**
+   - Team/User 层级结构
+   - 按 API Key 隔离限流
+   - 按 Team 隔离预算
+   - 用量统计持久化
+
+3. **PostgreSQL 集成**
+   - 完整的数据库 Schema
+   - 连接池管理
+   - 分区表（usage_logs 按月分区）
+   - 自动更新 updated_at 触发器
+
+4. **内存存储**
+   - 用于测试和单实例部署
+   - 完整实现 Store 接口
+   - 线程安全
+
+5. **多租户限流器**
+   - 按租户隔离的 Token Bucket
+   - 支持自定义速率
+   - 自动清理不活跃租户
+   - HTTP 中间件集成
+
+### 数据库 Schema
+
+```sql
+-- 核心表
+teams          -- 团队/组织
+users          -- 用户
+api_keys       -- API 密钥
+usage_logs     -- 用量日志（按月分区）
+
+-- 视图
+api_key_usage_summary  -- API Key 用量汇总
+team_usage_summary     -- Team 用量汇总
+```
+
+### 测试覆盖率
+
+| 模块 | 覆盖率 |
+|------|--------|
+| `internal/auth` | 60.9% |
+
+### 配置示例
+
+```yaml
+# 启用认证
+auth:
+  enabled: true
+  skip_paths:
+    - /health/live
+    - /health/ready
+    - /metrics
+
+# 启用数据库
+database:
+  enabled: true
+  host: localhost
+  port: 5432
+  user: llmux
+  password: ${DB_PASSWORD}
+  database: llmux
+```
+
+### 文件结构
+
+```
+internal/auth/
+├── types.go           # APIKey, Team, User, UsageLog 类型定义
+├── hasher.go          # API Key 生成和哈希
+├── store.go           # Store 接口定义
+├── postgres.go        # PostgreSQL 实现
+├── memory.go          # 内存存储实现
+├── middleware.go      # HTTP 认证中间件
+├── ratelimiter.go     # 多租户限流器
+└── migrations/
+    └── 001_init.sql   # 数据库迁移脚本
+```
