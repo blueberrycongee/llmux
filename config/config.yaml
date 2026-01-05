@@ -104,3 +104,39 @@ database:
   max_open_conns: 25
   max_idle_conns: 5
   conn_lifetime: 5m
+
+# Response Caching
+cache:
+  enabled: false            # Set to true to enable response caching
+  type: local               # local (in-memory), redis, dual (local + redis)
+  namespace: llmux          # Key namespace prefix for isolation
+  ttl: 1h                   # Default cache TTL
+
+  # In-memory cache settings (used for 'local' and 'dual' types)
+  memory:
+    max_size: 1000          # Maximum number of cached items
+    default_ttl: 10m        # Default TTL for in-memory cache
+    max_item_size: 1048576  # Maximum size per item (1MB)
+    cleanup_interval: 1m    # Expired entry cleanup interval
+
+  # Redis cache settings (used for 'redis' and 'dual' types)
+  redis:
+    addr: ${REDIS_ADDR:localhost:6379}
+    password: ${REDIS_PASSWORD:}
+    db: 0
+    # For Redis Cluster, use cluster_addrs instead of addr:
+    # cluster_addrs:
+    #   - redis-node-1:6379
+    #   - redis-node-2:6379
+    #   - redis-node-3:6379
+    # For Redis Sentinel:
+    # sentinel_addrs:
+    #   - sentinel-1:26379
+    #   - sentinel-2:26379
+    # sentinel_master: mymaster
+    dial_timeout: 5s
+    read_timeout: 3s
+    write_timeout: 3s
+    pool_size: 10
+    min_idle_conns: 2
+    max_retries: 3
