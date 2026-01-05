@@ -1,0 +1,33 @@
+# Git
+.git
+.gitignore
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Build artifacts
+bin/
+dist/
+
+# Documentation
+*.md
+!README.md
+docs/
+
+# Test files
+*_test.go
+coverage.out
+
+# CI/CD
+.github/
+.circleci/
+
+# Helm charts (not needed in image)
+deploy/
+
+# Development files
+Makefile
+.golangci.yml
