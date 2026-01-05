@@ -1,0 +1,376 @@
+package cache
+
+import (
+	"context"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"sync/atomic"
+	"time"
+
+	"github.com/redis/go-redis/v9"
+)
+
+// RedisCache implements Cache interface using Redis as backend.
+type RedisCache struct {
+	client     redis.UniversalClient
+	namespace  string
+	defaultTTL time.Duration
+
+	// Statistics
+	hits   atomic.Int64
+	misses atomic.Int64
+	sets   atomic.Int64
+	errors atomic.Int64
+}
+
+// RedisCacheConfig holds configuration for RedisCache.
+type RedisCacheConfig struct {
+	// Single node configuration
+	Addr     string `yaml:"addr"`     // Redis address (e.g., "localhost:6379")
+	Password string `yaml:"password"` // Redis password
+	DB       int    `yaml:"db"`       // Redis database number
+
+	// Cluster configuration
+	ClusterAddrs []string `yaml:"cluster_addrs"` // Redis cluster addresses
+
+	// Sentinel configuration
+	SentinelAddrs  []string `yaml:"sentinel_addrs"`  // Sentinel addresses
+	SentinelMaster string   `yaml:"sentinel_master"` // Sentinel master name
+
+	// Common configuration
+	Namespace     string        `yaml:"namespace"`       // Key namespace prefix
+	DefaultTTL    time.Duration `yaml:"default_ttl"`     // Default TTL (default: 1 hour)
+	DialTimeout   time.Duration `yaml:"dial_timeout"`    // Connection timeout
+	ReadTimeout   time.Duration `yaml:"read_timeout"`    // Read timeout
+	WriteTimeout  time.Duration `yaml:"write_timeout"`   // Write timeout
+	PoolSize      int           `yaml:"pool_size"`       // Connection pool size
+	MinIdleConns  int           `yaml:"min_idle_conns"`  // Minimum idle connections
+	MaxRetries    int           `yaml:"max_retries"`     // Maximum retries
+	TLSEnabled    bool          `yaml:"tls_enabled"`     // Enable TLS
+	TLSSkipVerify bool          `yaml:"tls_skip_verify"` // Skip TLS verification
+}
+
+// DefaultRedisCacheConfig returns sensible defaults.
+func DefaultRedisCacheConfig() RedisCacheConfig {
+	return RedisCacheConfig{
+		Addr:         "localhost:6379",
+		DB:           0,
+		Namespace:    "llmux",
+		DefaultTTL:   time.Hour,
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
+		PoolSize:     10,
+		MinIdleConns: 2,
+		MaxRetries:   3,
+	}
+}
+
+// NewRedisCache creates a new Redis cache client.
+func NewRedisCache(cfg RedisCacheConfig) (*RedisCache, error) {
+	if cfg.DefaultTTL <= 0 {
+		cfg.DefaultTTL = time.Hour
+	}
+
+	var client redis.UniversalClient
+
+	// Determine which type of client to create
+	if len(cfg.ClusterAddrs) > 0 {
+		// Redis Cluster
+		client = redis.NewClusterClient(&redis.ClusterOptions{
+			Addrs:        cfg.ClusterAddrs,
+			Password:     cfg.Password,
+			DialTimeout:  cfg.DialTimeout,
+			ReadTimeout:  cfg.ReadTimeout,
+			WriteTimeout: cfg.WriteTimeout,
+			PoolSize:     cfg.PoolSize,
+			MinIdleConns: cfg.MinIdleConns,
+			MaxRetries:   cfg.MaxRetries,
+		})
+	} else if len(cfg.SentinelAddrs) > 0 {
+		// Redis Sentinel
+		client = redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:    cfg.SentinelMaster,
+			SentinelAddrs: cfg.SentinelAddrs,
+			Password:      cfg.Password,
+			DB:            cfg.DB,
+			DialTimeout:   cfg.DialTimeout,
+			ReadTimeout:   cfg.ReadTimeout,
+			WriteTimeout:  cfg.WriteTimeout,
+			PoolSize:      cfg.PoolSize,
+			MinIdleConns:  cfg.MinIdleConns,
+			MaxRetries:    cfg.MaxRetries,
+		})
+	} else {
+		// Single node
+		client = redis.NewClient(&redis.Options{
+			Addr:         cfg.Addr,
+			Password:     cfg.Password,
+			DB:           cfg.DB,
+			DialTimeout:  cfg.DialTimeout,
+			ReadTimeout:  cfg.ReadTimeout,
+			WriteTimeout: cfg.WriteTimeout,
+			PoolSize:     cfg.PoolSize,
+			MinIdleConns: cfg.MinIdleConns,
+			MaxRetries:   cfg.MaxRetries,
+		})
+	}
+
+	// Test connection
+	ctx, cancel := context.WithTimeout(context.Background(), cfg.DialTimeout)
+	defer cancel()
+
+	if err := client.Ping(ctx).Err(); err != nil {
+		return nil, fmt.Errorf("redis ping failed: %w", err)
+	}
+
+	return &RedisCache{
+		client:     client,
+		namespace:  cfg.Namespace,
+		defaultTTL: cfg.DefaultTTL,
+	}, nil
+}
+
+// prefixKey adds namespace prefix to the key.
+func (c *RedisCache) prefixKey(key string) string {
+	if c.namespace == "" {
+		return key
+	}
+	return c.namespace + ":" + key
+}
+
+// Get retrieves a value from Redis.
+func (c *RedisCache) Get(ctx context.Context, key string) ([]byte, error) {
+	prefixedKey := c.prefixKey(key)
+
+	val, err := c.client.Get(ctx, prefixedKey).Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			c.misses.Add(1)
+			return nil, nil
+		}
+		c.errors.Add(1)
+		return nil, fmt.Errorf("redis get: %w", err)
+	}
+
+	c.hits.Add(1)
+	return val, nil
+}
+
+// Set stores a value in Redis with TTL.
+func (c *RedisCache) Set(ctx context.Context, key string, value []byte, ttl time.Duration) error {
+	if ttl <= 0 {
+		ttl = c.defaultTTL
+	}
+
+	prefixedKey := c.prefixKey(key)
+
+	if err := c.client.Set(ctx, prefixedKey, value, ttl).Err(); err != nil {
+		c.errors.Add(1)
+		return fmt.Errorf("redis set: %w", err)
+	}
+
+	c.sets.Add(1)
+	return nil
+}
+
+// Delete removes a key from Redis.
+func (c *RedisCache) Delete(ctx context.Context, key string) error {
+	prefixedKey := c.prefixKey(key)
+
+	if err := c.client.Del(ctx, prefixedKey).Err(); err != nil {
+		c.errors.Add(1)
+		return fmt.Errorf("redis del: %w", err)
+	}
+
+	return nil
+}
+
+// SetPipeline performs batch set operations using Redis pipeline.
+func (c *RedisCache) SetPipeline(ctx context.Context, entries []CacheEntry) error {
+	if len(entries) == 0 {
+		return nil
+	}
+
+	pipe := c.client.Pipeline()
+
+	for _, entry := range entries {
+		ttl := entry.TTL
+		if ttl <= 0 {
+			ttl = c.defaultTTL
+		}
+		prefixedKey := c.prefixKey(entry.Key)
+		pipe.Set(ctx, prefixedKey, entry.Value, ttl)
+	}
+
+	_, err := pipe.Exec(ctx)
+	if err != nil {
+		c.errors.Add(1)
+		return fmt.Errorf("redis pipeline exec: %w", err)
+	}
+
+	c.sets.Add(int64(len(entries)))
+	return nil
+}
+
+// GetMulti retrieves multiple keys using Redis MGET.
+func (c *RedisCache) GetMulti(ctx context.Context, keys []string) (map[string][]byte, error) {
+	if len(keys) == 0 {
+		return make(map[string][]byte), nil
+	}
+
+	// Prefix all keys
+	prefixedKeys := make([]string, len(keys))
+	for i, key := range keys {
+		prefixedKeys[i] = c.prefixKey(key)
+	}
+
+	vals, err := c.client.MGet(ctx, prefixedKeys...).Result()
+	if err != nil {
+		c.errors.Add(1)
+		return nil, fmt.Errorf("redis mget: %w", err)
+	}
+
+	result := make(map[string][]byte, len(keys))
+	for i, val := range vals {
+		if val != nil {
+			switch v := val.(type) {
+			case string:
+				result[keys[i]] = []byte(v)
+				c.hits.Add(1)
+			case []byte:
+				result[keys[i]] = v
+				c.hits.Add(1)
+			default:
+				c.misses.Add(1)
+			}
+		} else {
+			c.misses.Add(1)
+		}
+	}
+
+	return result, nil
+}
+
+// Ping checks Redis connectivity.
+func (c *RedisCache) Ping(ctx context.Context) error {
+	return c.client.Ping(ctx).Err()
+}
+
+// Close closes the Redis connection.
+func (c *RedisCache) Close() error {
+	return c.client.Close()
+}
+
+// Stats returns cache statistics.
+func (c *RedisCache) Stats() CacheStats {
+	hits := c.hits.Load()
+	misses := c.misses.Load()
+	total := hits + misses
+
+	var hitRate float64
+	if total > 0 {
+		hitRate = float64(hits) / float64(total)
+	}
+
+	return CacheStats{
+		Hits:    hits,
+		Misses:  misses,
+		Sets:    c.sets.Load(),
+		Errors:  c.errors.Load(),
+		HitRate: hitRate,
+	}
+}
+
+// Increment atomically increments a counter in Redis.
+func (c *RedisCache) Increment(ctx context.Context, key string, delta int64, ttl time.Duration) (int64, error) {
+	prefixedKey := c.prefixKey(key)
+
+	val, err := c.client.IncrBy(ctx, prefixedKey, delta).Result()
+	if err != nil {
+		c.errors.Add(1)
+		return 0, fmt.Errorf("redis incrby: %w", err)
+	}
+
+	// Set TTL if key is new (TTL returns -1 for keys without expiration)
+	if ttl > 0 {
+		currentTTL, err := c.client.TTL(ctx, prefixedKey).Result()
+		if err == nil && currentTTL < 0 {
+			_ = c.client.Expire(ctx, prefixedKey, ttl)
+		}
+	}
+
+	return val, nil
+}
+
+// SetNX sets a value only if the key doesn't exist (for distributed locks).
+func (c *RedisCache) SetNX(ctx context.Context, key string, value []byte, ttl time.Duration) (bool, error) {
+	if ttl <= 0 {
+		ttl = c.defaultTTL
+	}
+
+	prefixedKey := c.prefixKey(key)
+
+	ok, err := c.client.SetNX(ctx, prefixedKey, value, ttl).Result()
+	if err != nil {
+		c.errors.Add(1)
+		return false, fmt.Errorf("redis setnx: %w", err)
+	}
+
+	if ok {
+		c.sets.Add(1)
+	}
+
+	return ok, nil
+}
+
+// GetWithTTL retrieves a value along with its remaining TTL.
+func (c *RedisCache) GetWithTTL(ctx context.Context, key string) ([]byte, time.Duration, error) {
+	prefixedKey := c.prefixKey(key)
+
+	pipe := c.client.Pipeline()
+	getCmd := pipe.Get(ctx, prefixedKey)
+	ttlCmd := pipe.TTL(ctx, prefixedKey)
+
+	_, err := pipe.Exec(ctx)
+	if err != nil && !errors.Is(err, redis.Nil) {
+		c.errors.Add(1)
+		return nil, 0, fmt.Errorf("redis pipeline: %w", err)
+	}
+
+	val, err := getCmd.Bytes()
+	if err != nil {
+		if errors.Is(err, redis.Nil) {
+			c.misses.Add(1)
+			return nil, 0, nil
+		}
+		return nil, 0, err
+	}
+
+	ttl := ttlCmd.Val()
+	c.hits.Add(1)
+
+	return val, ttl, nil
+}
+
+// SetJSON stores a JSON-serializable value.
+func (c *RedisCache) SetJSON(ctx context.Context, key string, value any, ttl time.Duration) error {
+	data, err := json.Marshal(value)
+	if err != nil {
+		return fmt.Errorf("json marshal: %w", err)
+	}
+	return c.Set(ctx, key, data, ttl)
+}
+
+// GetJSON retrieves and unmarshals a JSON value.
+func (c *RedisCache) GetJSON(ctx context.Context, key string, dest any) error {
+	data, err := c.Get(ctx, key)
+	if err != nil {
+		return err
+	}
+	if data == nil {
+		return nil
+	}
+	return json.Unmarshal(data, dest)
+}
