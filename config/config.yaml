@@ -83,3 +83,24 @@ tracing:
   service_name: llmux
   sample_rate: 1.0          # 1.0 = 100% sampling, 0.1 = 10% sampling
   insecure: true            # Set to false for TLS connections
+
+# Authentication (API Key validation)
+auth:
+  enabled: false            # Set to true to require API key authentication
+  skip_paths:               # Paths that don't require authentication
+    - /health/live
+    - /health/ready
+    - /metrics
+
+# PostgreSQL Database (for API keys, teams, usage logging)
+database:
+  enabled: false            # Set to true to enable database features
+  host: ${DB_HOST:localhost}
+  port: 5432
+  user: ${DB_USER:llmux}
+  password: ${DB_PASSWORD}
+  database: ${DB_NAME:llmux}
+  ssl_mode: disable         # disable, require, verify-ca, verify-full
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_lifetime: 5m

@@ -19,6 +19,28 @@ type Config struct {
 	Logging   LoggingConfig    `yaml:"logging"`
 	Metrics   MetricsConfig    `yaml:"metrics"`
 	Tracing   TracingConfig    `yaml:"tracing"`
+	Auth      AuthConfig       `yaml:"auth"`
+	Database  DatabaseConfig   `yaml:"database"`
+}
+
+// AuthConfig contains authentication settings.
+type AuthConfig struct {
+	Enabled   bool     `yaml:"enabled"`
+	SkipPaths []string `yaml:"skip_paths"` // Paths to skip authentication
+}
+
+// DatabaseConfig contains PostgreSQL connection settings.
+type DatabaseConfig struct {
+	Enabled      bool          `yaml:"enabled"`
+	Host         string        `yaml:"host"`
+	Port         int           `yaml:"port"`
+	User         string        `yaml:"user"`
+	Password     string        `yaml:"password"`
+	Database     string        `yaml:"database"`
+	SSLMode      string        `yaml:"ssl_mode"`
+	MaxOpenConns int           `yaml:"max_open_conns"`
+	MaxIdleConns int           `yaml:"max_idle_conns"`
+	ConnLifetime time.Duration `yaml:"conn_lifetime"`
 }
 
 // ServerConfig contains HTTP server settings.
@@ -112,6 +134,20 @@ func DefaultConfig() *Config {
 			ServiceName: "llmux",
 			SampleRate:  1.0,
 			Insecure:    true,
+		},
+		Auth: AuthConfig{
+			Enabled:   false,
+			SkipPaths: []string{"/health/live", "/health/ready", "/metrics"},
+		},
+		Database: DatabaseConfig{
+			Enabled:      false,
+			Host:         "localhost",
+			Port:         5432,
+			Database:     "llmux",
+			SSLMode:      "disable",
+			MaxOpenConns: 25,
+			MaxIdleConns: 5,
+			ConnLifetime: 5 * time.Minute,
 		},
 	}
 }
