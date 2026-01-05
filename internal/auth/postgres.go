@@ -80,22 +80,28 @@ func (s *PostgresStore) Close() error {
 // GetAPIKeyByHash retrieves an API key by its hash.
 func (s *PostgresStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIKey, error) {
 	query := `
-		SELECT id, key_hash, key_prefix, name, team_id, user_id, 
-		       allowed_models, rate_limit, max_budget, spent_budget,
-		       metadata, created_at, expires_at, last_used_at, is_active
+		SELECT id, key_hash, key_prefix, name, key_alias, team_id, user_id, organization_id,
+		       allowed_models, tpm_limit, rpm_limit, max_budget, soft_budget, spent_budget,
+		       model_max_budget, model_spend, budget_duration, budget_reset_at,
+		       metadata, created_at, updated_at, expires_at, last_used_at, is_active, blocked
 		FROM api_keys
 		WHERE key_hash = $1`
 
 	var key APIKey
-	var allowedModels, metadataJSON sql.NullString
-	var teamID, userID sql.NullString
-	var expiresAt, lastUsedAt sql.NullTime
+	var allowedModels, modelMaxBudget, modelSpend, metadataJSON sql.NullString
+	var keyAlias, teamID, userID, orgID sql.NullString
+	var tpmLimit, rpmLimit sql.NullInt64
+	var softBudget sql.NullFloat64
+	var budgetDuration sql.NullString
+	var budgetResetAt, expiresAt, lastUsedAt sql.NullTime
 
 	err := s.db.QueryRowContext(ctx, query, hash).Scan(
-		&key.ID, &key.KeyHash, &key.KeyPrefix, &key.Name,
-		&teamID, &userID, &allowedModels, &key.RateLimit,
-		&key.MaxBudget, &key.SpentBudget, &metadataJSON,
-		&key.CreatedAt, &expiresAt, &lastUsedAt, &key.IsActive,
+		&key.ID, &key.KeyHash, &key.KeyPrefix, &key.Name, &keyAlias,
+		&teamID, &userID, &orgID, &allowedModels, &tpmLimit, &rpmLimit,
+		&key.MaxBudget, &softBudget, &key.SpentBudget,
+		&modelMaxBudget, &modelSpend, &budgetDuration, &budgetResetAt,
+		&metadataJSON, &key.CreatedAt, &key.UpdatedAt, &expiresAt, &lastUsedAt,
+		&key.IsActive, &key.Blocked,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -105,11 +111,32 @@ func (s *PostgresStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIK
 	}
 
 	// Handle nullable fields
+	if keyAlias.Valid {
+		key.KeyAlias = &keyAlias.String
+	}
 	if teamID.Valid {
 		key.TeamID = &teamID.String
 	}
 	if userID.Valid {
 		key.UserID = &userID.String
+	}
+	if orgID.Valid {
+		key.OrganizationID = &orgID.String
+	}
+	if tpmLimit.Valid {
+		key.TPMLimit = &tpmLimit.Int64
+	}
+	if rpmLimit.Valid {
+		key.RPMLimit = &rpmLimit.Int64
+	}
+	if softBudget.Valid {
+		key.SoftBudget = &softBudget.Float64
+	}
+	if budgetDuration.Valid {
+		key.BudgetDuration = BudgetDuration(budgetDuration.String)
+	}
+	if budgetResetAt.Valid {
+		key.BudgetResetAt = &budgetResetAt.Time
 	}
 	if expiresAt.Valid {
 		key.ExpiresAt = &expiresAt.Time
@@ -118,16 +145,18 @@ func (s *PostgresStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIK
 		key.LastUsedAt = &lastUsedAt.Time
 	}
 
-	// Parse JSON arrays
+	// Parse JSON fields
 	if allowedModels.Valid && allowedModels.String != "" {
-		if err := json.Unmarshal([]byte(allowedModels.String), &key.AllowedModels); err != nil {
-			return nil, fmt.Errorf("parse allowed_models: %w", err)
-		}
+		_ = json.Unmarshal([]byte(allowedModels.String), &key.AllowedModels)
+	}
+	if modelMaxBudget.Valid && modelMaxBudget.String != "" {
+		_ = json.Unmarshal([]byte(modelMaxBudget.String), &key.ModelMaxBudget)
+	}
+	if modelSpend.Valid && modelSpend.String != "" {
+		_ = json.Unmarshal([]byte(modelSpend.String), &key.ModelSpend)
 	}
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		if err := json.Unmarshal([]byte(metadataJSON.String), &key.Metadata); err != nil {
-			return nil, fmt.Errorf("parse metadata: %w", err)
-		}
+		_ = json.Unmarshal([]byte(metadataJSON.String), &key.Metadata)
 	}
 
 	return &key, nil
@@ -136,18 +165,26 @@ func (s *PostgresStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIK
 // CreateAPIKey inserts a new API key.
 func (s *PostgresStore) CreateAPIKey(ctx context.Context, key *APIKey) error {
 	allowedModelsJSON, _ := json.Marshal(key.AllowedModels)
+	modelMaxBudgetJSON, _ := json.Marshal(key.ModelMaxBudget)
+	modelSpendJSON, _ := json.Marshal(key.ModelSpend)
 	metadataJSON, _ := json.Marshal(key.Metadata)
 
 	query := `
-		INSERT INTO api_keys (id, key_hash, key_prefix, name, team_id, user_id,
-		                      allowed_models, rate_limit, max_budget, spent_budget,
-		                      metadata, created_at, expires_at, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)`
+		INSERT INTO api_keys (id, key_hash, key_prefix, name, key_alias, team_id, user_id, organization_id,
+		                      allowed_models, tpm_limit, rpm_limit, max_budget, soft_budget, spent_budget,
+		                      model_max_budget, model_spend, budget_duration, budget_reset_at,
+		                      metadata, created_at, updated_at, expires_at, is_active, blocked)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`
 
 	_, err := s.db.ExecContext(ctx, query,
-		key.ID, key.KeyHash, key.KeyPrefix, key.Name, key.TeamID, key.UserID,
-		string(allowedModelsJSON), key.RateLimit, key.MaxBudget, key.SpentBudget,
-		string(metadataJSON), key.CreatedAt, key.ExpiresAt, key.IsActive,
+		key.ID, key.KeyHash, key.KeyPrefix, key.Name, key.KeyAlias,
+		key.TeamID, key.UserID, key.OrganizationID,
+		string(allowedModelsJSON), key.TPMLimit, key.RPMLimit,
+		key.MaxBudget, key.SoftBudget, key.SpentBudget,
+		string(modelMaxBudgetJSON), string(modelSpendJSON),
+		string(key.BudgetDuration), key.BudgetResetAt,
+		string(metadataJSON), key.CreatedAt, key.UpdatedAt, key.ExpiresAt,
+		key.IsActive, key.Blocked,
 	)
 	if err != nil {
 		return fmt.Errorf("insert api key: %w", err)
@@ -179,8 +216,8 @@ func (s *PostgresStore) DeleteAPIKey(ctx context.Context, keyID string) error {
 // ListAPIKeys returns API keys with pagination.
 func (s *PostgresStore) ListAPIKeys(ctx context.Context, teamID *string, limit, offset int) ([]*APIKey, error) {
 	query := `
-		SELECT id, key_prefix, name, team_id, rate_limit, max_budget, 
-		       spent_budget, created_at, expires_at, last_used_at, is_active
+		SELECT id, key_prefix, name, team_id, tpm_limit, rpm_limit, max_budget, 
+		       spent_budget, created_at, expires_at, last_used_at, is_active, blocked
 		FROM api_keys
 		WHERE is_active = true AND ($1::text IS NULL OR team_id = $1)
 		ORDER BY created_at DESC
@@ -196,18 +233,25 @@ func (s *PostgresStore) ListAPIKeys(ctx context.Context, teamID *string, limit, 
 	for rows.Next() {
 		var key APIKey
 		var teamIDVal sql.NullString
+		var tpmLimit, rpmLimit sql.NullInt64
 		var expiresAt, lastUsedAt sql.NullTime
 
 		if err := rows.Scan(
 			&key.ID, &key.KeyPrefix, &key.Name, &teamIDVal,
-			&key.RateLimit, &key.MaxBudget, &key.SpentBudget,
-			&key.CreatedAt, &expiresAt, &lastUsedAt, &key.IsActive,
+			&tpmLimit, &rpmLimit, &key.MaxBudget, &key.SpentBudget,
+			&key.CreatedAt, &expiresAt, &lastUsedAt, &key.IsActive, &key.Blocked,
 		); err != nil {
 			return nil, fmt.Errorf("scan api key: %w", err)
 		}
 
 		if teamIDVal.Valid {
 			key.TeamID = &teamIDVal.String
+		}
+		if tpmLimit.Valid {
+			key.TPMLimit = &tpmLimit.Int64
+		}
+		if rpmLimit.Valid {
+			key.RPMLimit = &rpmLimit.Int64
 		}
 		if expiresAt.Valid {
 			key.ExpiresAt = &expiresAt.Time
@@ -223,17 +267,20 @@ func (s *PostgresStore) ListAPIKeys(ctx context.Context, teamID *string, limit, 
 // GetTeam retrieves a team by ID.
 func (s *PostgresStore) GetTeam(ctx context.Context, teamID string) (*Team, error) {
 	query := `
-		SELECT id, name, max_budget, spent_budget, rate_limit, 
-		       metadata, created_at, is_active
+		SELECT id, team_alias, organization_id, max_budget, spend, 
+		       tpm_limit, rpm_limit, models, metadata, created_at, updated_at, is_active, blocked
 		FROM teams
 		WHERE id = $1`
 
 	var team Team
-	var metadataJSON sql.NullString
+	var alias, orgID sql.NullString
+	var tpmLimit, rpmLimit sql.NullInt64
+	var models, metadataJSON sql.NullString
 
 	err := s.db.QueryRowContext(ctx, query, teamID).Scan(
-		&team.ID, &team.Name, &team.MaxBudget, &team.SpentBudget,
-		&team.RateLimit, &metadataJSON, &team.CreatedAt, &team.IsActive,
+		&team.ID, &alias, &orgID, &team.MaxBudget, &team.SpentBudget,
+		&tpmLimit, &rpmLimit, &models, &metadataJSON,
+		&team.CreatedAt, &team.UpdatedAt, &team.IsActive, &team.Blocked,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -242,10 +289,23 @@ func (s *PostgresStore) GetTeam(ctx context.Context, teamID string) (*Team, erro
 		return nil, fmt.Errorf("query team: %w", err)
 	}
 
+	if alias.Valid {
+		team.Alias = &alias.String
+	}
+	if orgID.Valid {
+		team.OrganizationID = &orgID.String
+	}
+	if tpmLimit.Valid {
+		team.TPMLimit = &tpmLimit.Int64
+	}
+	if rpmLimit.Valid {
+		team.RPMLimit = &rpmLimit.Int64
+	}
+	if models.Valid && models.String != "" {
+		_ = json.Unmarshal([]byte(models.String), &team.Models)
+	}
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		if err := json.Unmarshal([]byte(metadataJSON.String), &team.Metadata); err != nil {
-			return nil, fmt.Errorf("parse metadata: %w", err)
-		}
+		_ = json.Unmarshal([]byte(metadataJSON.String), &team.Metadata)
 	}
 
 	return &team, nil
@@ -253,16 +313,18 @@ func (s *PostgresStore) GetTeam(ctx context.Context, teamID string) (*Team, erro
 
 // CreateTeam inserts a new team.
 func (s *PostgresStore) CreateTeam(ctx context.Context, team *Team) error {
+	modelsJSON, _ := json.Marshal(team.Models)
 	metadataJSON, _ := json.Marshal(team.Metadata)
 
 	query := `
-		INSERT INTO teams (id, name, max_budget, spent_budget, rate_limit, 
-		                   metadata, created_at, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`
+		INSERT INTO teams (id, team_alias, organization_id, max_budget, spend, 
+		                   tpm_limit, rpm_limit, models, metadata, created_at, updated_at, is_active, blocked)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err := s.db.ExecContext(ctx, query,
-		team.ID, team.Name, team.MaxBudget, team.SpentBudget,
-		team.RateLimit, string(metadataJSON), team.CreatedAt, team.IsActive,
+		team.ID, team.Alias, team.OrganizationID, team.MaxBudget, team.SpentBudget,
+		team.TPMLimit, team.RPMLimit, string(modelsJSON), string(metadataJSON),
+		team.CreatedAt, team.UpdatedAt, team.IsActive, team.Blocked,
 	)
 	return err
 }
@@ -284,7 +346,7 @@ func (s *PostgresStore) DeleteTeam(ctx context.Context, teamID string) error {
 // ListTeams returns teams with pagination.
 func (s *PostgresStore) ListTeams(ctx context.Context, limit, offset int) ([]*Team, error) {
 	query := `
-		SELECT id, name, max_budget, spent_budget, rate_limit, created_at, is_active
+		SELECT id, team_alias, max_budget, spend, tpm_limit, rpm_limit, created_at, is_active, blocked
 		FROM teams
 		WHERE is_active = true
 		ORDER BY created_at DESC
@@ -299,11 +361,22 @@ func (s *PostgresStore) ListTeams(ctx context.Context, limit, offset int) ([]*Te
 	var teams []*Team
 	for rows.Next() {
 		var team Team
+		var alias sql.NullString
+		var tpmLimit, rpmLimit sql.NullInt64
 		if err := rows.Scan(
-			&team.ID, &team.Name, &team.MaxBudget, &team.SpentBudget,
-			&team.RateLimit, &team.CreatedAt, &team.IsActive,
+			&team.ID, &alias, &team.MaxBudget, &team.SpentBudget,
+			&tpmLimit, &rpmLimit, &team.CreatedAt, &team.IsActive, &team.Blocked,
 		); err != nil {
 			return nil, fmt.Errorf("scan team: %w", err)
+		}
+		if alias.Valid {
+			team.Alias = &alias.String
+		}
+		if tpmLimit.Valid {
+			team.TPMLimit = &tpmLimit.Int64
+		}
+		if rpmLimit.Valid {
+			team.RPMLimit = &rpmLimit.Int64
 		}
 		teams = append(teams, &team)
 	}
@@ -313,16 +386,18 @@ func (s *PostgresStore) ListTeams(ctx context.Context, limit, offset int) ([]*Te
 // GetUser retrieves a user by ID.
 func (s *PostgresStore) GetUser(ctx context.Context, userID string) (*User, error) {
 	query := `
-		SELECT id, email, name, team_id, role, created_at, is_active
+		SELECT id, user_alias, user_email, team_id, organization_id, user_role,
+		       max_budget, spend, is_active, created_at, updated_at
 		FROM users
 		WHERE id = $1`
 
 	var user User
-	var teamID sql.NullString
+	var alias, email, teamID, orgID sql.NullString
+	var createdAt, updatedAt sql.NullTime
 
 	err := s.db.QueryRowContext(ctx, query, userID).Scan(
-		&user.ID, &user.Email, &user.Name, &teamID,
-		&user.Role, &user.CreatedAt, &user.IsActive,
+		&user.ID, &alias, &email, &teamID, &orgID, &user.Role,
+		&user.MaxBudget, &user.Spend, &user.IsActive, &createdAt, &updatedAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -331,8 +406,23 @@ func (s *PostgresStore) GetUser(ctx context.Context, userID string) (*User, erro
 		return nil, fmt.Errorf("query user: %w", err)
 	}
 
+	if alias.Valid {
+		user.Alias = &alias.String
+	}
+	if email.Valid {
+		user.Email = &email.String
+	}
 	if teamID.Valid {
 		user.TeamID = &teamID.String
+	}
+	if orgID.Valid {
+		user.OrganizationID = &orgID.String
+	}
+	if createdAt.Valid {
+		user.CreatedAt = &createdAt.Time
+	}
+	if updatedAt.Valid {
+		user.UpdatedAt = &updatedAt.Time
 	}
 	return &user, nil
 }
@@ -340,16 +430,18 @@ func (s *PostgresStore) GetUser(ctx context.Context, userID string) (*User, erro
 // GetUserByEmail retrieves a user by email.
 func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
 	query := `
-		SELECT id, email, name, team_id, role, created_at, is_active
+		SELECT id, user_alias, user_email, team_id, organization_id, user_role,
+		       max_budget, spend, is_active, created_at
 		FROM users
-		WHERE email = $1 AND is_active = true`
+		WHERE user_email = $1 AND is_active = true`
 
 	var user User
-	var teamID sql.NullString
+	var alias, teamID, orgID sql.NullString
+	var createdAt sql.NullTime
 
 	err := s.db.QueryRowContext(ctx, query, email).Scan(
-		&user.ID, &user.Email, &user.Name, &teamID,
-		&user.Role, &user.CreatedAt, &user.IsActive,
+		&user.ID, &alias, &user.Email, &teamID, &orgID, &user.Role,
+		&user.MaxBudget, &user.Spend, &user.IsActive, &createdAt,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
@@ -358,21 +450,35 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*User
 		return nil, fmt.Errorf("query user: %w", err)
 	}
 
+	if alias.Valid {
+		user.Alias = &alias.String
+	}
 	if teamID.Valid {
 		user.TeamID = &teamID.String
+	}
+	if orgID.Valid {
+		user.OrganizationID = &orgID.String
+	}
+	if createdAt.Valid {
+		user.CreatedAt = &createdAt.Time
 	}
 	return &user, nil
 }
 
 // CreateUser inserts a new user.
 func (s *PostgresStore) CreateUser(ctx context.Context, user *User) error {
+	modelsJSON, _ := json.Marshal(user.Models)
+	metadataJSON, _ := json.Marshal(user.Metadata)
+
 	query := `
-		INSERT INTO users (id, email, name, team_id, role, created_at, is_active)
-		VALUES ($1, $2, $3, $4, $5, $6, $7)`
+		INSERT INTO users (id, user_alias, user_email, team_id, organization_id, user_role,
+		                   max_budget, spend, models, metadata, is_active, created_at, updated_at)
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
 	_, err := s.db.ExecContext(ctx, query,
-		user.ID, user.Email, user.Name, user.TeamID,
-		user.Role, user.CreatedAt, user.IsActive,
+		user.ID, user.Alias, user.Email, user.TeamID, user.OrganizationID, user.Role,
+		user.MaxBudget, user.Spend, string(modelsJSON), string(metadataJSON),
+		user.IsActive, user.CreatedAt, user.UpdatedAt,
 	)
 	return err
 }
@@ -386,16 +492,23 @@ func (s *PostgresStore) DeleteUser(ctx context.Context, userID string) error {
 
 // LogUsage records API usage.
 func (s *PostgresStore) LogUsage(ctx context.Context, log *UsageLog) error {
+	tagsJSON, _ := json.Marshal(log.RequestTags)
+	metadataJSON, _ := json.Marshal(log.Metadata)
+
 	query := `
-		INSERT INTO usage_logs (api_key_id, team_id, model, provider, 
-		                        input_tokens, output_tokens, total_tokens,
-		                        cost, latency_ms, status_code, request_id, created_at)
-		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`
+		INSERT INTO usage_logs (request_id, api_key, team_id, organization_id, "user", end_user,
+		                        model, model_group, custom_llm_provider, call_type,
+		                        prompt_tokens, completion_tokens, total_tokens, spend,
+		                        latency_ms, status_code, status, cache_hit, request_tags,
+		                        metadata, "startTime", "endTime")
+		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`
 
 	_, err := s.db.ExecContext(ctx, query,
-		log.APIKeyID, log.TeamID, log.Model, log.Provider,
-		log.InputTokens, log.OutputTokens, log.TotalTokens,
-		log.Cost, log.LatencyMs, log.StatusCode, log.RequestID, log.CreatedAt,
+		log.RequestID, log.APIKeyID, log.TeamID, log.OrganizationID, log.UserID, log.EndUserID,
+		log.Model, log.ModelGroup, log.Provider, log.CallType,
+		log.InputTokens, log.OutputTokens, log.TotalTokens, log.Cost,
+		log.LatencyMs, log.StatusCode, log.Status, log.CacheHit, string(tagsJSON),
+		string(metadataJSON), log.StartTime, log.EndTime,
 	)
 	return err
 }
@@ -406,19 +519,19 @@ func (s *PostgresStore) GetUsageStats(ctx context.Context, filter UsageFilter) (
 		SELECT 
 			COUNT(*) as total_requests,
 			COALESCE(SUM(total_tokens), 0) as total_tokens,
-			COALESCE(SUM(input_tokens), 0) as input_tokens,
-			COALESCE(SUM(output_tokens), 0) as output_tokens,
-			COALESCE(SUM(cost), 0) as total_cost,
+			COALESCE(SUM(prompt_tokens), 0) as input_tokens,
+			COALESCE(SUM(completion_tokens), 0) as output_tokens,
+			COALESCE(SUM(spend), 0) as total_cost,
 			COALESCE(AVG(latency_ms), 0) as avg_latency_ms,
-			COALESCE(AVG(CASE WHEN status_code < 400 THEN 1.0 ELSE 0.0 END), 0) as success_rate,
+			COALESCE(AVG(CASE WHEN status_code IS NULL OR status_code < 400 THEN 1.0 ELSE 0.0 END), 0) as success_rate,
 			COUNT(DISTINCT model) as unique_models,
-			COUNT(DISTINCT provider) as unique_providers
+			COUNT(DISTINCT custom_llm_provider) as unique_providers
 		FROM usage_logs
-		WHERE created_at >= $1 AND created_at <= $2
-			AND ($3::text IS NULL OR api_key_id = $3)
+		WHERE "startTime" >= $1 AND "startTime" <= $2
+			AND ($3::text IS NULL OR api_key = $3)
 			AND ($4::text IS NULL OR team_id = $4)
 			AND ($5::text IS NULL OR model = $5)
-			AND ($6::text IS NULL OR provider = $6)`
+			AND ($6::text IS NULL OR custom_llm_provider = $6)`
 
 	var stats UsageStats
 	err := s.db.QueryRowContext(ctx, query,

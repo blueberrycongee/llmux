@@ -192,7 +192,7 @@ func (s *MemoryStore) GetUserByEmail(ctx context.Context, email string) (*User, 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, user := range s.users {
-		if user.Email == email && user.IsActive {
+		if user.Email != nil && *user.Email == email && user.IsActive {
 			userCopy := *user
 			return &userCopy, nil
 		}
@@ -236,7 +236,7 @@ func (s *MemoryStore) GetUsageStats(ctx context.Context, filter UsageFilter) (*U
 	var successCount int64
 
 	for _, log := range s.usageLogs {
-		if log.CreatedAt.Before(filter.StartTime) || log.CreatedAt.After(filter.EndTime) {
+		if log.StartTime.Before(filter.StartTime) || log.StartTime.After(filter.EndTime) {
 			continue
 		}
 		if filter.APIKeyID != nil && log.APIKeyID != *filter.APIKeyID {
@@ -260,7 +260,7 @@ func (s *MemoryStore) GetUsageStats(ctx context.Context, filter UsageFilter) (*U
 		stats.AvgLatencyMs += float64(log.LatencyMs)
 		models[log.Model] = true
 		providers[log.Provider] = true
-		if log.StatusCode < 400 {
+		if log.StatusCode == nil || *log.StatusCode < 400 {
 			successCount++
 		}
 	}

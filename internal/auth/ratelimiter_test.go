@@ -234,10 +234,11 @@ func TestTenantRateLimiter_MiddlewareWithAuth(t *testing.T) {
 	})
 
 	// Create auth context with custom rate limit
+	rpm := int64(60) // 1 per second, burst = 10
 	authCtx := &AuthContext{
 		APIKey: &APIKey{
-			ID:        "key-1",
-			RateLimit: 60, // 1 per second, burst = 10
+			ID:       "key-1",
+			RPMLimit: &rpm,
 		},
 	}
 

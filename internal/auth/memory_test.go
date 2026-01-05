@@ -91,9 +91,10 @@ func TestMemoryStore_Team(t *testing.T) {
 	store := NewMemoryStore()
 	ctx := context.Background()
 
+	alias := "Test Team"
 	team := &Team{
 		ID:        "team-1",
-		Name:      "Test Team",
+		Alias:     &alias,
 		MaxBudget: 1000,
 		IsActive:  true,
 		CreatedAt: time.Now(),
@@ -111,8 +112,8 @@ func TestMemoryStore_Team(t *testing.T) {
 	if retrieved == nil {
 		t.Fatal("GetTeam() returned nil")
 	}
-	if retrieved.Name != team.Name {
-		t.Errorf("Name = %q, want %q", retrieved.Name, team.Name)
+	if retrieved.Alias == nil || *retrieved.Alias != *team.Alias {
+		t.Errorf("Alias mismatch")
 	}
 
 	// Update spent
@@ -151,13 +152,14 @@ func TestMemoryStore_User(t *testing.T) {
 	store := NewMemoryStore()
 	ctx := context.Background()
 
+	email := "test@example.com"
+	now := time.Now()
 	user := &User{
 		ID:        "user-1",
-		Email:     "test@example.com",
-		Name:      "Test User",
+		Email:     &email,
 		Role:      "member",
 		IsActive:  true,
-		CreatedAt: time.Now(),
+		CreatedAt: &now,
 	}
 
 	err := store.CreateUser(ctx, user)
@@ -175,7 +177,7 @@ func TestMemoryStore_User(t *testing.T) {
 	}
 
 	// Get by email
-	retrieved, err = store.GetUserByEmail(ctx, user.Email)
+	retrieved, err = store.GetUserByEmail(ctx, *user.Email)
 	if err != nil {
 		t.Fatalf("GetUserByEmail() error = %v", err)
 	}
@@ -190,7 +192,7 @@ func TestMemoryStore_User(t *testing.T) {
 	}
 
 	// Should not find by email after delete
-	retrieved, _ = store.GetUserByEmail(ctx, user.Email)
+	retrieved, _ = store.GetUserByEmail(ctx, *user.Email)
 	if retrieved != nil {
 		t.Error("expected nil after delete")
 	}
@@ -200,17 +202,21 @@ func TestMemoryStore_UsageLog(t *testing.T) {
 	store := NewMemoryStore()
 	ctx := context.Background()
 
+	statusCode := 200
 	log := &UsageLog{
+		RequestID:    "req-1",
 		APIKeyID:     "key-1",
 		Model:        "gpt-4",
 		Provider:     "openai",
+		CallType:     "completion",
 		InputTokens:  100,
 		OutputTokens: 50,
 		TotalTokens:  150,
 		Cost:         0.01,
 		LatencyMs:    200,
-		StatusCode:   200,
-		CreatedAt:    time.Now(),
+		StatusCode:   &statusCode,
+		StartTime:    time.Now(),
+		EndTime:      time.Now(),
 	}
 
 	err := store.LogUsage(ctx, log)

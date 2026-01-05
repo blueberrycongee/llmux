@@ -248,9 +248,10 @@ func TestMiddleware_TeamBudgetExceeded(t *testing.T) {
 
 	// Create a team that exceeded budget
 	teamID := "team-over-budget"
+	alias := "Over Budget Team"
 	team := &Team{
 		ID:          teamID,
-		Name:        "Over Budget Team",
+		Alias:       &alias,
 		MaxBudget:   1000.0,
 		SpentBudget: 1500.0, // Over budget
 		IsActive:    true,

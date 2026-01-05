@@ -195,16 +195,20 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 
 		// Use API key ID as tenant ID
 		tenantID := authCtx.APIKey.ID
-		rpm := authCtx.APIKey.RateLimit
+		var rpm int
+		if authCtx.APIKey.RPMLimit != nil {
+			rpm = int(*authCtx.APIKey.RPMLimit)
+		}
 		burst := rpm / 6 // Default burst = 10% of RPM
 		if burst < 1 {
 			burst = 1
 		}
 
 		// Check team rate limit if applicable
-		if authCtx.Team != nil && authCtx.Team.RateLimit > 0 {
+		if authCtx.Team != nil && authCtx.Team.RPMLimit != nil && *authCtx.Team.RPMLimit > 0 {
 			teamID := "team:" + authCtx.Team.ID
-			if !trl.AllowWithCustomRate(teamID, authCtx.Team.RateLimit, authCtx.Team.RateLimit/6) {
+			teamRPM := int(*authCtx.Team.RPMLimit)
+			if !trl.AllowWithCustomRate(teamID, teamRPM, teamRPM/6) {
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
 				w.WriteHeader(http.StatusTooManyRequests)
