@@ -12,6 +12,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/provider"
 	"github.com/blueberrycongee/llmux/internal/router"
+	"github.com/blueberrycongee/llmux/internal/streaming"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/types"
 )
@@ -107,7 +108,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 
 	// Handle streaming response
 	if req.Stream {
-		h.handleStreamResponse(w, resp, prov, deployment, req.Model, start)
+		h.handleStreamResponse(w, r, resp, prov, deployment, req.Model, start)
 		return
 	}
 
@@ -131,25 +132,32 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(chatResp)
 }
 
-func (h *Handler) handleStreamResponse(w http.ResponseWriter, resp *http.Response, prov provider.Provider, deployment *provider.Deployment, model string, start time.Time) {
-	// Set SSE headers
-	w.Header().Set("Content-Type", "text/event-stream")
-	w.Header().Set("Cache-Control", "no-cache")
-	w.Header().Set("Connection", "keep-alive")
+func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, resp *http.Response, prov provider.Provider, deployment *provider.Deployment, model string, start time.Time) {
+	// Get provider-specific parser for chunk transformation
+	parser := streaming.GetParser(prov.Name())
 
-	flusher, ok := w.(http.Flusher)
-	if !ok {
+	// Create SSE forwarder with client context for disconnect detection
+	forwarder, err := streaming.NewForwarder(streaming.ForwarderConfig{
+		Upstream:   resp.Body,
+		Downstream: w,
+		Parser:     parser,
+		ClientCtx:  r.Context(),
+	})
+	if err != nil {
 		h.writeError(w, llmerrors.NewInternalError(prov.Name(), model, "streaming not supported"))
 		return
 	}
+	defer forwarder.Close()
 
-	// Forward SSE stream
-	// TODO: Implement proper SSE forwarding with buffer pooling
-	_, err := io.Copy(w, resp.Body)
-	if err != nil {
-		h.logger.Error("stream copy error", "error", err)
+	// Forward the stream - blocks until complete or client disconnects
+	if err := forwarder.Forward(); err != nil {
+		// Client disconnect is not an error worth logging at error level
+		if r.Context().Err() != nil {
+			h.logger.Debug("client disconnected during stream", "model", model)
+		} else {
+			h.logger.Error("stream forward error", "error", err, "model", model)
+		}
 	}
-	flusher.Flush()
 
 	// Record metrics
 	latency := time.Since(start)
