@@ -18,6 +18,9 @@ import (
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/provider"
+	"github.com/blueberrycongee/llmux/internal/provider/anthropic"
+	"github.com/blueberrycongee/llmux/internal/provider/azure"
+	"github.com/blueberrycongee/llmux/internal/provider/gemini"
 	"github.com/blueberrycongee/llmux/internal/provider/openai"
 	"github.com/blueberrycongee/llmux/internal/router"
 )
@@ -54,6 +57,9 @@ func main() {
 	// Initialize provider registry
 	registry := provider.NewRegistry()
 	registry.RegisterFactory("openai", openai.New)
+	registry.RegisterFactory("anthropic", anthropic.New)
+	registry.RegisterFactory("azure", azure.New)
+	registry.RegisterFactory("gemini", gemini.New)
 
 	// Create providers from config
 	for _, provCfg := range cfg.Providers {
