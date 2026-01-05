@@ -1,0 +1,62 @@
+# LLMux Gateway Configuration
+# Environment variables can be used with ${VAR_NAME} syntax
+
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 120s
+  idle_timeout: 60s
+
+providers:
+  - name: openai
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+      - gpt-4-turbo
+      - gpt-3.5-turbo
+    max_concurrent: 100
+    timeout: 60s
+
+  # Example: Azure OpenAI
+  # - name: azure-openai
+  #   type: azure
+  #   api_key: ${AZURE_OPENAI_API_KEY}
+  #   base_url: https://your-resource.openai.azure.com
+  #   models:
+  #     - gpt-4
+  #   max_concurrent: 50
+  #   timeout: 60s
+
+  # Example: Anthropic
+  # - name: anthropic
+  #   type: anthropic
+  #   api_key: ${ANTHROPIC_API_KEY}
+  #   base_url: https://api.anthropic.com
+  #   models:
+  #     - claude-3-opus-20240229
+  #     - claude-3-sonnet-20240229
+  #   max_concurrent: 50
+  #   timeout: 120s
+
+routing:
+  default_provider: openai
+  strategy: simple-shuffle  # simple-shuffle, lowest-latency, least-busy
+  fallback_enabled: true
+  retry_count: 3
+  cooldown_period: 60s
+
+rate_limit:
+  enabled: false
+  requests_per_minute: 60
+  burst_size: 10
+
+logging:
+  level: info   # debug, info, warn, error
+  format: json  # json, text
+
+metrics:
+  enabled: true
+  path: /metrics
