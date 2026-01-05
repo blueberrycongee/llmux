@@ -29,7 +29,7 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | Phase 2: 多 Provider | ✅ 完成 | 2026-01-05 | OpenAI, Anthropic, Azure, Gemini |
 | Phase 3: SSE 流式 | ✅ 完成 | 2026-01-05 | 流式转发、buffer 复用、client 断开检测 |
 | Phase 4: 高可用 | ✅ 完成 | 2026-01-05 | 熔断器、限流、并发控制 |
-| Phase 5: 可观测性 | 🔲 待开始 | - | OpenTelemetry, 日志脱敏, Token 计数 |
+| Phase 5: 可观测性 | ✅ 完成 | 2026-01-05 | OpenTelemetry, 日志脱敏, Request ID |
 | Phase 6: 云原生 | 🔲 待开始 | - | Distroless 镜像, Helm Chart |
 
 ---
@@ -51,6 +51,9 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 | 熔断器 | ✅ | ✅ | 自研实现 |
 | 限流 | ✅ | ✅ | Token Bucket |
 | 并发控制 | ✅ | ✅ | Semaphore |
+| OpenTelemetry | ✅ | ✅ | OTLP gRPC 导出 |
+| 日志脱敏 | ✅ | ✅ | API Key/PII 自动 mask |
+| Request ID | ✅ | ✅ | 请求关联追踪 |
 
 ### 🔲 未实现
 
@@ -58,7 +61,7 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 |------|--------|------|
 | 认证系统 | 高 | API Key 验证 |
 | 缓存层 | 高 | Redis 缓存 |
-| OpenTelemetry | 高 | 分布式追踪 |
+| Token 计数 | 中 | tiktoken-go 估算 |
 | 数据库持久化 | 中 | PostgreSQL（与 LiteLLM 一致） |
 | 预算管理 | 中 | 按用户/团队限额 |
 | 更多 Provider | 中 | Bedrock, Cohere 等 |
@@ -76,16 +79,16 @@ LiteLLM (Python) 在高并发生产环境中存在以下问题：
 ### 📊 完成度
 
 ```
-核心网关功能:  ~70%
-LiteLLM 全功能: ~15-20%
-生产就绪度:    ~50%
+核心网关功能:  ~80%
+LiteLLM 全功能: ~20-25%
+生产就绪度:    ~60%
 ```
 
 ### 🔜 下一步优先级
 
-1. **将 resilience 组件集成到 Handler** - 让熔断/限流真正生效
-2. **Phase 5: 可观测性** - OpenTelemetry 追踪
-3. **认证系统** - API Key 验证（需要数据库）
+1. **Phase 6: 云原生** - Distroless 镜像, Helm Chart
+2. **认证系统** - API Key 验证（需要数据库）
+3. **Token 计数** - tiktoken-go 估算成本
 
 ---
 
@@ -152,27 +155,61 @@ LiteLLM 全功能: ~15-20%
 
 ---
 
-## 下一步：Phase 5 - 可观测性
+## Phase 5: 可观测性 ✅
+
+### 已完成功能
+
+1. **OpenTelemetry Tracing**
+   - OTLP gRPC 导出器
+   - LLM 专用 Span 属性 (gen_ai.*)
+   - 可配置采样率
+   - Jaeger/Tempo/Zipkin 兼容
+
+2. **日志脱敏 (Redactor)**
+   - API Key 自动 mask (OpenAI/Anthropic/Google)
+   - Bearer Token 脱敏
+   - 邮箱、电话、信用卡、SSN 等 PII 保护
+   - HTTP Header 敏感字段过滤
+
+3. **Request ID**
+   - 自动生成唯一请求 ID
+   - 支持传入 X-Request-ID 头
+   - Context 传递，日志关联
+
+4. **结构化日志**
+   - slog 封装，支持 JSON/Text 格式
+   - 自动脱敏输出
+   - Request ID 自动注入
+
+### 测试覆盖率
+
+| 模块 | 覆盖率 |
+|------|--------|
+| `internal/observability` | 82.0% |
+
+---
+
+## 下一步：Phase 6 - 云原生
 
 ### 目标
 
-实现生产级可观测性。
+实现生产级部署能力。
 
 ### 核心任务
 
-1. **OpenTelemetry Tracing**
-   - 请求链路追踪
-   - Span 上下文传递
-   - Jaeger/Zipkin 导出
+1. **Distroless 镜像**
+   - 多阶段构建
+   - 镜像 < 20MB
+   - 无 shell，安全加固
 
-2. **日志增强**
-   - 结构化日志 (slog)
-   - API Key 脱敏
-   - 请求 ID 关联
+2. **Helm Chart**
+   - Deployment, Service, ConfigMap
+   - HPA 自动扩缩容
+   - Ingress 配置
 
-3. **Token 计数**
-   - tiktoken-go 估算
-   - 成本计算
+3. **CI/CD**
+   - GitHub Actions
+   - 自动测试、构建、推送
 
 ---
 
@@ -195,6 +232,11 @@ llmux/
 │   │   ├── ratelimiter.go
 │   │   ├── semaphore.go
 │   │   └── manager.go
+│   ├── observability/           # 可观测性
+│   │   ├── tracing.go
+│   │   ├── redact.go
+│   │   ├── requestid.go
+│   │   └── logger.go
 │   ├── router/                  # 路由器
 │   └── streaming/               # SSE 流式
 ├── pkg/
@@ -215,6 +257,7 @@ llmux/
 | `internal/router` | 94.0% |
 | `pkg/errors` | 93.8% |
 | `internal/provider/openai` | 86.3% |
+| `internal/observability` | 82.0% |
 | `internal/streaming` | 81.6% |
 | `internal/provider/azure` | 47.3% |
 | `internal/provider/gemini` | 44.8% |
