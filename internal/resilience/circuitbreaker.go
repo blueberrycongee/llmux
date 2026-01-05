@@ -58,7 +58,6 @@ func DefaultCircuitBreakerConfig() CircuitBreakerConfig {
 	}
 }
 
-
 // CircuitBreaker implements the circuit breaker pattern.
 // It prevents cascading failures by stopping requests to unhealthy services.
 type CircuitBreaker struct {

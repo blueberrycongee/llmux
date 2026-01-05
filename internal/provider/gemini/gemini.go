@@ -76,12 +76,12 @@ func (p *Provider) SupportsModel(model string) bool {
 
 // geminiRequest represents the Gemini generateContent API request format.
 type geminiRequest struct {
-	Contents          []geminiContent    `json:"contents"`
-	SystemInstruction *geminiContent     `json:"systemInstruction,omitempty"`
-	GenerationConfig  *generationConfig  `json:"generationConfig,omitempty"`
-	Tools             []geminiTool       `json:"tools,omitempty"`
-	ToolConfig        *toolConfig        `json:"toolConfig,omitempty"`
-	SafetySettings    []safetySetting    `json:"safetySettings,omitempty"`
+	Contents          []geminiContent   `json:"contents"`
+	SystemInstruction *geminiContent    `json:"systemInstruction,omitempty"`
+	GenerationConfig  *generationConfig `json:"generationConfig,omitempty"`
+	Tools             []geminiTool      `json:"tools,omitempty"`
+	ToolConfig        *toolConfig       `json:"toolConfig,omitempty"`
+	SafetySettings    []safetySetting   `json:"safetySettings,omitempty"`
 }
 
 type geminiContent struct {
@@ -153,9 +153,9 @@ type geminiResponse struct {
 }
 
 type candidate struct {
-	Content       geminiContent `json:"content"`
-	FinishReason  string        `json:"finishReason"`
-	Index         int           `json:"index"`
+	Content       geminiContent  `json:"content"`
+	FinishReason  string         `json:"finishReason"`
+	Index         int            `json:"index"`
 	SafetyRatings []safetyRating `json:"safetyRatings,omitempty"`
 }
 
@@ -348,7 +348,7 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]geminiCont
 }
 
 func (p *Provider) transformTools(tools []types.Tool) []geminiTool {
-	var declarations []functionDeclaration
+	declarations := make([]functionDeclaration, 0, len(tools))
 	for _, tool := range tools {
 		if tool.Type != "function" {
 			continue
@@ -426,7 +426,7 @@ func (p *Provider) ParseResponse(resp *http.Response) (*types.ChatResponse, erro
 }
 
 func (p *Provider) transformResponse(resp *geminiResponse) *types.ChatResponse {
-	var choices []types.Choice
+	choices := make([]types.Choice, 0, len(resp.Candidates))
 
 	for i, candidate := range resp.Candidates {
 		var textContent string

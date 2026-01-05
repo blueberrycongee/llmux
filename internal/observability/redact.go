@@ -114,12 +114,12 @@ func (r *Redactor) redactValue(key string, value any) any {
 // RedactHeaders redacts sensitive HTTP headers.
 func (r *Redactor) RedactHeaders(headers map[string][]string) map[string][]string {
 	sensitiveHeaders := map[string]bool{
-		"authorization":   true,
-		"x-api-key":       true,
-		"api-key":         true,
-		"x-auth-token":    true,
-		"cookie":          true,
-		"set-cookie":      true,
+		"authorization":    true,
+		"x-api-key":        true,
+		"api-key":          true,
+		"x-auth-token":     true,
+		"cookie":           true,
+		"set-cookie":       true,
 		"x-openai-api-key": true,
 	}
 

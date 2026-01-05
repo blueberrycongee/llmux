@@ -169,7 +169,6 @@ func mapAnthropicStopReason(reason string) string {
 	}
 }
 
-
 // GeminiParser parses Gemini streaming responses.
 // Gemini uses JSON array streaming, not standard SSE format.
 type GeminiParser struct{}

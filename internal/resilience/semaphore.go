@@ -42,7 +42,7 @@ func (s *Semaphore) TryAcquire() bool {
 	return false
 }
 
-// Acquire acquires a permit, blocking until one is available or context is cancelled.
+// Acquire acquires a permit, blocking until one is available or context is canceled.
 func (s *Semaphore) Acquire(ctx context.Context) error {
 	// Try non-blocking first
 	if s.TryAcquire() {

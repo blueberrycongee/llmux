@@ -81,7 +81,7 @@ type RateLimitConfig struct {
 
 // LoggingConfig contains logging settings.
 type LoggingConfig struct {
-	Level  string `yaml:"level"` // debug, info, warn, error
+	Level  string `yaml:"level"`  // debug, info, warn, error
 	Format string `yaml:"format"` // json, text
 }
 

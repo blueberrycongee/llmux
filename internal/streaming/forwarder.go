@@ -70,7 +70,6 @@ type ForwarderConfig struct {
 	ClientCtx  context.Context
 }
 
-
 // NewForwarder creates a new SSE forwarder.
 func NewForwarder(cfg ForwarderConfig) (*Forwarder, error) {
 	flusher, ok := cfg.Downstream.(http.Flusher)

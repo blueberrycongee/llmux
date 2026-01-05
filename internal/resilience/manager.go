@@ -28,8 +28,8 @@ type ManagerConfig struct {
 func DefaultManagerConfig() ManagerConfig {
 	return ManagerConfig{
 		CircuitBreaker: DefaultCircuitBreakerConfig(),
-		DefaultRate:    100,  // 100 req/sec per provider
-		DefaultBurst:   50,   // Allow bursts of 50
+		DefaultRate:    100, // 100 req/sec per provider
+		DefaultBurst:   50,  // Allow bursts of 50
 	}
 }
 
@@ -201,11 +201,11 @@ func (m *Manager) Stats(key string) ResilienceStats {
 
 // ResilienceStats contains current resilience statistics.
 type ResilienceStats struct {
-	Key                 string
-	CircuitState        string
-	RateLimitTokens     float64
-	ConcurrentCurrent   int
-	ConcurrentCapacity  int
+	Key                string
+	CircuitState       string
+	RateLimitTokens    float64
+	ConcurrentCurrent  int
+	ConcurrentCapacity int
 }
 
 // ErrRateLimited is returned when rate limit is exceeded.

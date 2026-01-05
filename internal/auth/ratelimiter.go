@@ -64,7 +64,7 @@ func (trl *TenantRateLimiter) AllowN(tenantID string, n int) bool {
 	return limiter.AllowN(time.Now(), n)
 }
 
-// Wait blocks until a request is allowed or context is cancelled.
+// Wait blocks until a request is allowed or context is canceled.
 func (trl *TenantRateLimiter) Wait(ctx context.Context, tenantID string) error {
 	limiter := trl.getLimiter(tenantID, 0, 0)
 	return limiter.Wait(ctx)

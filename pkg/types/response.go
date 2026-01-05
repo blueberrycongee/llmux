@@ -14,10 +14,10 @@ type ChatResponse struct {
 
 // Choice represents a single completion choice.
 type Choice struct {
-	Index        int          `json:"index"`
-	Message      ChatMessage  `json:"message"`
-	FinishReason string       `json:"finish_reason"`
-	Logprobs     *Logprobs    `json:"logprobs,omitempty"`
+	Index        int         `json:"index"`
+	Message      ChatMessage `json:"message"`
+	FinishReason string      `json:"finish_reason"`
+	Logprobs     *Logprobs   `json:"logprobs,omitempty"`
 }
 
 // Usage contains token usage statistics for the request.

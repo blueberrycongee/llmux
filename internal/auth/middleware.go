@@ -17,10 +17,10 @@ const (
 
 // Middleware provides HTTP middleware for API key authentication.
 type Middleware struct {
-	store       Store
-	logger      *slog.Logger
-	skipPaths   map[string]bool
-	enabled     bool
+	store     Store
+	logger    *slog.Logger
+	skipPaths map[string]bool
+	enabled   bool
 }
 
 // MiddlewareConfig contains configuration for the auth middleware.

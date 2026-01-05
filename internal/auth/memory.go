@@ -9,10 +9,10 @@ import (
 // MemoryStore implements Store using in-memory maps.
 // Useful for testing and single-instance deployments without a database.
 type MemoryStore struct {
-	mu       sync.RWMutex
-	apiKeys  map[string]*APIKey // keyed by hash
-	teams    map[string]*Team
-	users    map[string]*User
+	mu        sync.RWMutex
+	apiKeys   map[string]*APIKey // keyed by hash
+	teams     map[string]*Team
+	users     map[string]*User
 	usageLogs []*UsageLog
 }
 
@@ -95,7 +95,7 @@ func (s *MemoryStore) ListAPIKeys(ctx context.Context, teamID *string, limit, of
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []*APIKey
+	result := make([]*APIKey, 0, len(s.apiKeys))
 	for _, key := range s.apiKeys {
 		if !key.IsActive {
 			continue

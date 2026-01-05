@@ -155,7 +155,7 @@ func TestSemaphore_AcquireContextCancelCleanup(t *testing.T) {
 	// Release and verify semaphore is still usable
 	s.Release()
 	if !s.TryAcquire() {
-		t.Error("Semaphore should be usable after cancelled acquire")
+		t.Error("Semaphore should be usable after canceled acquire")
 	}
 }
 

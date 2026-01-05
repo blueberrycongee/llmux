@@ -7,21 +7,21 @@ import (
 
 // APIKey represents an API key with its associated permissions and limits.
 type APIKey struct {
-	ID            string    `json:"id"`
-	KeyHash       string    `json:"-"` // Never expose hash
-	KeyPrefix     string    `json:"key_prefix"` // First 8 chars for identification
-	Name          string    `json:"name"`
-	TeamID        *string   `json:"team_id,omitempty"`
-	UserID        *string   `json:"user_id,omitempty"`
-	AllowedModels []string  `json:"allowed_models,omitempty"` // Empty = all models
-	RateLimit     int       `json:"rate_limit,omitempty"`     // Requests per minute, 0 = use default
-	MaxBudget     float64   `json:"max_budget,omitempty"`     // Monthly budget in USD, 0 = unlimited
-	SpentBudget   float64   `json:"spent_budget"`
-	Metadata      Metadata  `json:"metadata,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
+	ID            string     `json:"id"`
+	KeyHash       string     `json:"-"`          // Never expose hash
+	KeyPrefix     string     `json:"key_prefix"` // First 8 chars for identification
+	Name          string     `json:"name"`
+	TeamID        *string    `json:"team_id,omitempty"`
+	UserID        *string    `json:"user_id,omitempty"`
+	AllowedModels []string   `json:"allowed_models,omitempty"` // Empty = all models
+	RateLimit     int        `json:"rate_limit,omitempty"`     // Requests per minute, 0 = use default
+	MaxBudget     float64    `json:"max_budget,omitempty"`     // Monthly budget in USD, 0 = unlimited
+	SpentBudget   float64    `json:"spent_budget"`
+	Metadata      Metadata   `json:"metadata,omitempty"`
+	CreatedAt     time.Time  `json:"created_at"`
 	ExpiresAt     *time.Time `json:"expires_at,omitempty"`
 	LastUsedAt    *time.Time `json:"last_used_at,omitempty"`
-	IsActive      bool      `json:"is_active"`
+	IsActive      bool       `json:"is_active"`
 }
 
 // Team represents a team/organization for multi-tenant isolation.
@@ -49,19 +49,19 @@ type User struct {
 
 // UsageLog records API usage for billing and analytics.
 type UsageLog struct {
-	ID               int64     `json:"id"`
-	APIKeyID         string    `json:"api_key_id"`
-	TeamID           *string   `json:"team_id,omitempty"`
-	Model            string    `json:"model"`
-	Provider         string    `json:"provider"`
-	InputTokens      int       `json:"input_tokens"`
-	OutputTokens     int       `json:"output_tokens"`
-	TotalTokens      int       `json:"total_tokens"`
-	Cost             float64   `json:"cost"`
-	LatencyMs        int       `json:"latency_ms"`
-	StatusCode       int       `json:"status_code"`
-	RequestID        string    `json:"request_id,omitempty"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID           int64     `json:"id"`
+	APIKeyID     string    `json:"api_key_id"`
+	TeamID       *string   `json:"team_id,omitempty"`
+	Model        string    `json:"model"`
+	Provider     string    `json:"provider"`
+	InputTokens  int       `json:"input_tokens"`
+	OutputTokens int       `json:"output_tokens"`
+	TotalTokens  int       `json:"total_tokens"`
+	Cost         float64   `json:"cost"`
+	LatencyMs    int       `json:"latency_ms"`
+	StatusCode   int       `json:"status_code"`
+	RequestID    string    `json:"request_id,omitempty"`
+	CreatedAt    time.Time `json:"created_at"`
 }
 
 // Metadata is a flexible key-value store for custom attributes.

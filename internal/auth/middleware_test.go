@@ -307,7 +307,7 @@ func TestGetAuthContext(t *testing.T) {
 	ctx = context.WithValue(ctx, AuthContextKey, authCtx)
 	auth = GetAuthContext(ctx)
 	if auth == nil {
-		t.Error("expected non-nil auth context")
+		t.Fatal("expected non-nil auth context")
 	}
 	if auth.APIKey.ID != "test-id" {
 		t.Errorf("expected key ID 'test-id', got %q", auth.APIKey.ID)

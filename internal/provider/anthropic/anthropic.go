@@ -335,7 +335,7 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]anthropicM
 }
 
 func (p *Provider) transformTools(tools []types.Tool) []anthropicTool {
-	var result []anthropicTool
+	result := make([]anthropicTool, 0, len(tools))
 	for _, tool := range tools {
 		if tool.Type != "function" {
 			continue

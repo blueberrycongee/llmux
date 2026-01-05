@@ -136,7 +136,7 @@ func IsCooldownRequired(statusCode int) bool {
 	if statusCode >= 400 && statusCode < 500 {
 		switch statusCode {
 		case http.StatusTooManyRequests, // 429
-			http.StatusUnauthorized,  // 401
+			http.StatusUnauthorized,   // 401
 			http.StatusRequestTimeout, // 408
 			http.StatusNotFound:       // 404
 			return true

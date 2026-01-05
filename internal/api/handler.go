@@ -84,8 +84,8 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var req types.ChatRequest
-	if err := json.Unmarshal(body, &req); err != nil {
-		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "invalid JSON: "+err.Error()))
+	if unmarshalErr := json.Unmarshal(body, &req); unmarshalErr != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "invalid JSON: "+unmarshalErr.Error()))
 		return
 	}
 

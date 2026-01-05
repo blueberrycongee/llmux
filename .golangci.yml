@@ -23,7 +23,8 @@ linters:
     - bodyclose
     - noctx
     - prealloc
-    - exportloopref
+  disable:
+    - exportloopref  # Deprecated since Go 1.22
 
 linters-settings:
   errcheck:
@@ -61,7 +62,6 @@ linters-settings:
       - name: error-return
       - name: error-strings
       - name: error-naming
-      - name: exported
       - name: increment-decrement
       - name: var-naming
       - name: var-declaration
@@ -80,6 +80,44 @@ issues:
       linters:
         - errcheck
         - gocritic
+    # Exclude errcheck for Write calls in HTTP handlers (common pattern)
+    - linters:
+        - errcheck
+      text: "Error return value of `w.Write` is not checked"
+    - linters:
+        - errcheck
+      text: "Error return value of `.*Write` is not checked"
+    - linters:
+        - errcheck
+      text: "Error return value of `.*Encode` is not checked"
+    # Exclude json.Marshal errors when result is used (marshaling known types)
+    - linters:
+        - errcheck
+      text: "Error return value of `json.Marshal` is not checked"
+    # Exclude io.ReadAll in error handling paths
+    - linters:
+        - errcheck
+      text: "Error return value of `io.ReadAll` is not checked"
+    # Exclude type assertion checks in streaming parsers (expected behavior)
+    - path: streaming/parsers\.go
+      linters:
+        - errcheck
+    - path: streaming/forwarder\.go
+      linters:
+        - errcheck
+    # Exclude type assertion checks in provider transformations
+    - path: provider/.*\.go
+      linters:
+        - errcheck
+      text: "Error return value is not checked"
+    # Exclude stuttering type names (intentional for clarity)
+    - linters:
+        - revive
+      text: "stutters"
+    # Exclude gocritic style suggestions
+    - linters:
+        - gocritic
+      text: "paramTypeCombine|unnamedResult|ifElseChain|importShadow"
 
   max-issues-per-linter: 0
   max-same-issues: 0

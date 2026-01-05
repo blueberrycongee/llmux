@@ -4,7 +4,7 @@ import (
 	"context"
 	"testing"
 
-	"go.opentelemetry.io/otel/trace"
+	"go.opentelemetry.io/otel/trace/noop"
 )
 
 func TestInitTracing_Disabled(t *testing.T) {
@@ -105,7 +105,7 @@ func TestSpanFromContext(t *testing.T) {
 func TestTracerProvider_Shutdown(t *testing.T) {
 	// Test shutdown with nil provider (disabled tracing)
 	tp := &TracerProvider{
-		tracer: trace.NewNoopTracerProvider().Tracer("test"),
+		tracer: noop.NewTracerProvider().Tracer("test"),
 	}
 
 	err := tp.Shutdown(context.Background())

@@ -220,7 +220,6 @@ func (s *PostgresStore) ListAPIKeys(ctx context.Context, teamID *string, limit, 
 	return keys, rows.Err()
 }
 
-
 // GetTeam retrieves a team by ID.
 func (s *PostgresStore) GetTeam(ctx context.Context, teamID string) (*Team, error) {
 	query := `
