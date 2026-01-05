@@ -24,6 +24,8 @@ LiteLLM (Python) has known issues in high-concurrency production environments:
 - **SSE Streaming** - Efficient streaming with buffer pooling
 - **High Availability** - Circuit breaker, rate limiting, concurrency control
 - **Observability** - OpenTelemetry tracing, Prometheus metrics, log redaction
+- **Authentication** - API key validation with SHA-256 hashing
+- **Multi-Tenant** - Per-key/team rate limiting and budget control
 - **Cloud-Native** - Distroless image, Helm chart, HPA support
 
 ## Quick Start
@@ -143,6 +145,7 @@ llmux/
 ├── cmd/server/              # Entry point
 ├── internal/
 │   ├── api/                 # HTTP handlers
+│   ├── auth/                # Authentication & multi-tenant
 │   ├── config/              # Configuration management
 │   ├── metrics/             # Prometheus metrics
 │   ├── observability/       # Tracing, logging, redaction
@@ -206,10 +209,12 @@ make build
 - [x] OpenTelemetry tracing
 - [x] Log redaction (API keys, PII)
 - [x] Helm chart and CI/CD
-- [ ] Authentication system
+- [x] Authentication system (API key validation)
+- [x] Multi-tenant rate limiting
+- [x] PostgreSQL integration
 - [ ] Redis caching
 - [ ] Token counting (tiktoken)
-- [ ] Budget management
+- [ ] Cost calculation
 - [ ] Admin UI
 
 ## Contributing
