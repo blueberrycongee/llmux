@@ -4,8 +4,9 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
-	"github.com/goccy/go-json"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
 )

@@ -2,10 +2,11 @@ package anthropic
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/internal/provider"
 	"github.com/blueberrycongee/llmux/pkg/types"
