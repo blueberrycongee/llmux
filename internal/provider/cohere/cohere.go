@@ -7,10 +7,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 	"strings"
+
+	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/internal/provider"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
