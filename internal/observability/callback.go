@@ -4,6 +4,7 @@ package observability
 
 import (
 	"context"
+	"log/slog"
 	"time"
 )
 
@@ -135,12 +136,19 @@ type AsyncCallback interface {
 // CallbackManager manages multiple callbacks.
 type CallbackManager struct {
 	callbacks []Callback
+	logger    *Logger
 }
 
 // NewCallbackManager creates a new callback manager.
 func NewCallbackManager() *CallbackManager {
+	cfg := LoggerConfig{
+		Level:      slog.LevelInfo,
+		Output:     nil, // Will use default
+		JSONFormat: true,
+	}
 	return &CallbackManager{
 		callbacks: make([]Callback, 0),
+		logger:    NewLogger(cfg, nil),
 	}
 }
 
@@ -162,42 +170,54 @@ func (m *CallbackManager) Unregister(name string) {
 // LogPreAPICall calls all registered callbacks.
 func (m *CallbackManager) LogPreAPICall(ctx context.Context, payload *StandardLoggingPayload) {
 	for _, cb := range m.callbacks {
-		_ = cb.LogPreAPICall(ctx, payload)
+		if err := cb.LogPreAPICall(ctx, payload); err != nil {
+			m.logger.Error("callback LogPreAPICall failed", "error", err)
+		}
 	}
 }
 
 // LogPostAPICall calls all registered callbacks.
 func (m *CallbackManager) LogPostAPICall(ctx context.Context, payload *StandardLoggingPayload) {
 	for _, cb := range m.callbacks {
-		_ = cb.LogPostAPICall(ctx, payload)
+		if err := cb.LogPostAPICall(ctx, payload); err != nil {
+			m.logger.Error("callback LogPostAPICall failed", "error", err)
+		}
 	}
 }
 
 // LogStreamEvent calls all registered callbacks.
 func (m *CallbackManager) LogStreamEvent(ctx context.Context, payload *StandardLoggingPayload, chunk any) {
 	for _, cb := range m.callbacks {
-		_ = cb.LogStreamEvent(ctx, payload, chunk)
+		if err := cb.LogStreamEvent(ctx, payload, chunk); err != nil {
+			m.logger.Error("callback LogStreamEvent failed", "error", err)
+		}
 	}
 }
 
 // LogSuccessEvent calls all registered callbacks.
 func (m *CallbackManager) LogSuccessEvent(ctx context.Context, payload *StandardLoggingPayload) {
 	for _, cb := range m.callbacks {
-		_ = cb.LogSuccessEvent(ctx, payload)
+		if err := cb.LogSuccessEvent(ctx, payload); err != nil {
+			m.logger.Error("callback LogSuccessEvent failed", "error", err)
+		}
 	}
 }
 
 // LogFailureEvent calls all registered callbacks.
 func (m *CallbackManager) LogFailureEvent(ctx context.Context, payload *StandardLoggingPayload, err error) {
 	for _, cb := range m.callbacks {
-		_ = cb.LogFailureEvent(ctx, payload, err)
+		if logErr := cb.LogFailureEvent(ctx, payload, err); logErr != nil {
+			m.logger.Error("callback LogFailureEvent failed", "error", logErr)
+		}
 	}
 }
 
 // LogFallbackEvent calls all registered callbacks.
 func (m *CallbackManager) LogFallbackEvent(ctx context.Context, originalModel, fallbackModel string, err error, success bool) {
 	for _, cb := range m.callbacks {
-		_ = cb.LogFallbackEvent(ctx, originalModel, fallbackModel, err, success)
+		if logErr := cb.LogFallbackEvent(ctx, originalModel, fallbackModel, err, success); logErr != nil {
+			m.logger.Error("callback LogFallbackEvent failed", "error", logErr)
+		}
 	}
 }
 

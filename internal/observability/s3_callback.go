@@ -286,8 +286,8 @@ func (s *S3Callback) flush(ctx context.Context) error {
 	// Build JSONL content
 	var buf bytes.Buffer
 	encoder := json.NewEncoder(&buf)
-	for _, entry := range entries {
-		if err := encoder.Encode(entry); err != nil {
+	for i := range entries {
+		if err := encoder.Encode(&entries[i]); err != nil {
 			continue
 		}
 	}

@@ -432,8 +432,10 @@ func (d *DDLLMObsCallback) buildTags(payload *StandardLoggingPayload) []string {
 	tags = append(tags, d.config.Tags...)
 
 	if payload != nil {
-		tags = append(tags, fmt.Sprintf("model:%s", payload.Model))
-		tags = append(tags, fmt.Sprintf("provider:%s", payload.APIProvider))
+		tags = append(tags,
+			fmt.Sprintf("model:%s", payload.Model),
+			fmt.Sprintf("provider:%s", payload.APIProvider),
+		)
 
 		if payload.Team != nil {
 			tags = append(tags, fmt.Sprintf("team:%s", *payload.Team))

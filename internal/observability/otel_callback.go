@@ -211,7 +211,7 @@ func (o *OTelCallback) LogFallbackEvent(ctx context.Context, originalModel, fall
 		return nil
 	}
 
-	eventName := "fallback_attempted"
+	var eventName string
 	if success {
 		eventName = "fallback_successful"
 	} else {

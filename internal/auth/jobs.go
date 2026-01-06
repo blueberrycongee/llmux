@@ -321,9 +321,9 @@ func copyMetadata(m Metadata) Metadata {
 	if m == nil {
 		return make(Metadata)
 	}
-	copy := make(Metadata)
+	result := make(Metadata)
 	for k, v := range m {
-		copy[k] = v
+		result[k] = v
 	}
-	return copy
+	return result
 }

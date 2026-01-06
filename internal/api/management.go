@@ -524,18 +524,22 @@ func (h *ManagementHandler) RegenerateKey(w http.ResponseWriter, r *http.Request
 func (h *ManagementHandler) writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(data)
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		h.logger.Error("failed to encode JSON response", "error", err)
+	}
 }
 
 func (h *ManagementHandler) writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	json.NewEncoder(w).Encode(map[string]any{
+	if err := json.NewEncoder(w).Encode(map[string]any{
 		"error": map[string]string{
 			"message": message,
 			"type":    "api_error",
 		},
-	})
+	}); err != nil {
+		h.logger.Error("failed to encode error response", "error", err)
+	}
 }
 
 func ensureMetadata(m auth.Metadata) auth.Metadata {
@@ -545,11 +549,11 @@ func ensureMetadata(m auth.Metadata) auth.Metadata {
 	return m
 }
 
-func mergeMetadata(existing, new auth.Metadata) auth.Metadata {
+func mergeMetadata(existing, updated auth.Metadata) auth.Metadata {
 	if existing == nil {
-		return new
+		return updated
 	}
-	for k, v := range new {
+	for k, v := range updated {
 		existing[k] = v
 	}
 	return existing

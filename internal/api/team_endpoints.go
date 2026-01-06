@@ -252,11 +252,13 @@ func (h *ManagementHandler) GetTeamInfo(w http.ResponseWriter, r *http.Request) 
 // ListTeams handles GET /team/list
 func (h *ManagementHandler) ListTeams(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("organization_id")
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-
-	if limit <= 0 {
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || limit <= 0 {
 		limit = 50
+	}
+	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil || offset < 0 {
+		offset = 0
 	}
 
 	filter := auth.TeamFilter{

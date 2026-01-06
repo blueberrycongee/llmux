@@ -288,12 +288,20 @@ func (h *ManagementHandler) GetGlobalSpendByModel(w http.ResponseWriter, r *http
 	var startDate, endDate time.Time
 	var err error
 	if startDateStr != "" {
-		startDate, _ = time.Parse("2006-01-02", startDateStr)
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "invalid start_date format")
+			return
+		}
 	} else {
 		startDate = time.Now().AddDate(0, 0, -30)
 	}
 	if endDateStr != "" {
-		endDate, _ = time.Parse("2006-01-02", endDateStr)
+		endDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "invalid end_date format")
+			return
+		}
 	} else {
 		endDate = time.Now()
 	}
@@ -343,13 +351,22 @@ func (h *ManagementHandler) GetGlobalSpendByProvider(w http.ResponseWriter, r *h
 	endDateStr := r.URL.Query().Get("end_date")
 
 	var startDate, endDate time.Time
+	var err error
 	if startDateStr != "" {
-		startDate, _ = time.Parse("2006-01-02", startDateStr)
+		startDate, err = time.Parse("2006-01-02", startDateStr)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "invalid start_date format")
+			return
+		}
 	} else {
 		startDate = time.Now().AddDate(0, 0, -30)
 	}
 	if endDateStr != "" {
-		endDate, _ = time.Parse("2006-01-02", endDateStr)
+		endDate, err = time.Parse("2006-01-02", endDateStr)
+		if err != nil {
+			h.writeError(w, http.StatusBadRequest, "invalid end_date format")
+			return
+		}
 	} else {
 		endDate = time.Now()
 	}

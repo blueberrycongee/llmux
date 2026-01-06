@@ -67,7 +67,10 @@ type DatadogConfig struct {
 
 // DefaultDatadogConfig returns configuration from environment variables.
 func DefaultDatadogConfig() DatadogConfig {
-	hostname, _ := os.Hostname()
+	hostname, err := os.Hostname()
+	if err != nil {
+		hostname = "unknown"
+	}
 
 	cfg := DatadogConfig{
 		APIKey:        os.Getenv("DD_API_KEY"),
@@ -327,9 +330,11 @@ func (d *DatadogCallback) buildTags(payload *StandardLoggingPayload) string {
 	tags = append(tags, d.config.Tags...)
 
 	if payload != nil {
-		tags = append(tags, fmt.Sprintf("model:%s", payload.Model))
-		tags = append(tags, fmt.Sprintf("provider:%s", payload.APIProvider))
-		tags = append(tags, fmt.Sprintf("status:%s", payload.Status))
+		tags = append(tags,
+			fmt.Sprintf("model:%s", payload.Model),
+			fmt.Sprintf("provider:%s", payload.APIProvider),
+			fmt.Sprintf("status:%s", payload.Status),
+		)
 
 		if payload.Team != nil {
 			tags = append(tags, fmt.Sprintf("team:%s", *payload.Team))
@@ -399,11 +404,11 @@ func (d *DatadogCallback) sendBatch(logs []DatadogPayload) error {
 	// Compress with gzip (recommended by Datadog)
 	var buf bytes.Buffer
 	gz := gzip.NewWriter(&buf)
-	if _, err := gz.Write(data); err != nil {
-		return fmt.Errorf("failed to compress logs: %w", err)
+	if _, writeErr := gz.Write(data); writeErr != nil {
+		return fmt.Errorf("failed to compress logs: %w", writeErr)
 	}
-	if err := gz.Close(); err != nil {
-		return fmt.Errorf("failed to close gzip writer: %w", err)
+	if closeErr := gz.Close(); closeErr != nil {
+		return fmt.Errorf("failed to close gzip writer: %w", closeErr)
 	}
 
 	// Create request with context

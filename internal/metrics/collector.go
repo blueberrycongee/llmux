@@ -199,29 +199,29 @@ func (c *Collector) RecordActiveRequest(deploymentID, model, provider string, de
 }
 
 // UpdateBudgetMetrics updates budget-related gauge metrics.
-func (c *Collector) UpdateBudgetMetrics(budgetType string, labels []string, remaining, max, remainingHours float64) {
+func (c *Collector) UpdateBudgetMetrics(budgetType string, labels []string, remaining, maxBudget, remainingHours float64) {
 	switch budgetType {
 	case "team":
 		if len(labels) >= 2 {
 			TeamRemainingBudget.WithLabelValues(labels[0], labels[1]).Set(remaining)
-			TeamMaxBudget.WithLabelValues(labels[0], labels[1]).Set(max)
+			TeamMaxBudget.WithLabelValues(labels[0], labels[1]).Set(maxBudget)
 			TeamBudgetRemainingHours.WithLabelValues(labels[0], labels[1]).Set(remainingHours)
 		}
 	case "api_key":
 		if len(labels) >= 2 {
 			APIKeyRemainingBudget.WithLabelValues(labels[0], labels[1]).Set(remaining)
-			APIKeyMaxBudget.WithLabelValues(labels[0], labels[1]).Set(max)
+			APIKeyMaxBudget.WithLabelValues(labels[0], labels[1]).Set(maxBudget)
 			APIKeyBudgetRemainingHours.WithLabelValues(labels[0], labels[1]).Set(remainingHours)
 		}
 	case "user":
 		if len(labels) >= 2 {
 			UserRemainingBudget.WithLabelValues(labels[0], labels[1]).Set(remaining)
-			UserMaxBudget.WithLabelValues(labels[0], labels[1]).Set(max)
+			UserMaxBudget.WithLabelValues(labels[0], labels[1]).Set(maxBudget)
 		}
 	case "org":
 		if len(labels) >= 2 {
 			OrgRemainingBudget.WithLabelValues(labels[0], labels[1]).Set(remaining)
-			OrgMaxBudget.WithLabelValues(labels[0], labels[1]).Set(max)
+			OrgMaxBudget.WithLabelValues(labels[0], labels[1]).Set(maxBudget)
 		}
 	case "provider":
 		if len(labels) >= 1 {

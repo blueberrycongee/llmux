@@ -218,10 +218,12 @@ func (o *OTelMetricsProvider) RecordRequest(ctx context.Context, payload *Standa
 	o.operationDuration.Record(ctx, duration, metric.WithAttributes(attrs...))
 
 	// Record token usage
-	inputAttrs := append(attrs, attribute.String("gen_ai.token.type", "input"))
+	inputAttrs := append([]attribute.KeyValue{}, attrs...)
+	inputAttrs = append(inputAttrs, attribute.String("gen_ai.token.type", "input"))
 	o.tokenUsage.Add(ctx, int64(payload.PromptTokens), metric.WithAttributes(inputAttrs...))
 
-	outputAttrs := append(attrs, attribute.String("gen_ai.token.type", "output"))
+	outputAttrs := append([]attribute.KeyValue{}, attrs...)
+	outputAttrs = append(outputAttrs, attribute.String("gen_ai.token.type", "output"))
 	o.tokenUsage.Add(ctx, int64(payload.CompletionTokens), metric.WithAttributes(outputAttrs...))
 
 	// Record cost

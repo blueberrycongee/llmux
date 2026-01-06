@@ -253,11 +253,13 @@ func (h *ManagementHandler) GetOrganizationInfo(w http.ResponseWriter, r *http.R
 
 // ListOrganizations handles GET /organization/list
 func (h *ManagementHandler) ListOrganizations(w http.ResponseWriter, r *http.Request) {
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-
-	if limit <= 0 {
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || limit <= 0 {
 		limit = 50
+	}
+	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil || offset < 0 {
+		offset = 0
 	}
 
 	orgs, total, err := h.store.ListOrganizations(r.Context(), limit, offset)

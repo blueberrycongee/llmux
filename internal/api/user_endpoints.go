@@ -230,11 +230,13 @@ func (h *ManagementHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	teamID := r.URL.Query().Get("team_id")
 	orgID := r.URL.Query().Get("organization_id")
 	role := r.URL.Query().Get("role")
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
-
-	if limit <= 0 {
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil || limit <= 0 {
 		limit = 50
+	}
+	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil || offset < 0 {
+		offset = 0
 	}
 
 	filter := auth.UserFilter{

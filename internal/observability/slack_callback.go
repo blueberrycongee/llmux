@@ -170,12 +170,12 @@ func (s *SlackCallback) Shutdown(ctx context.Context) error {
 }
 
 // SendBudgetAlert sends a budget warning alert.
-func (s *SlackCallback) SendBudgetAlert(ctx context.Context, entityType, entityID string, remaining, max float64, percentUsed float64) error {
+func (s *SlackCallback) SendBudgetAlert(ctx context.Context, entityType, entityID string, remaining, maxBudget float64, percentUsed float64) error {
 	if !s.config.AlertOnBudget {
 		return nil
 	}
 
-	msg := s.buildBudgetMessage(entityType, entityID, remaining, max, percentUsed)
+	msg := s.buildBudgetMessage(entityType, entityID, remaining, maxBudget, percentUsed)
 	return s.send(ctx, msg)
 }
 
@@ -269,7 +269,7 @@ func (s *SlackCallback) buildFallbackMessage(originalModel, fallbackModel string
 }
 
 // buildBudgetMessage builds a Slack message for a budget warning.
-func (s *SlackCallback) buildBudgetMessage(entityType, entityID string, remaining, max, percentUsed float64) slackMessage {
+func (s *SlackCallback) buildBudgetMessage(entityType, entityID string, remaining, maxBudget, percentUsed float64) slackMessage {
 	var color string
 	if percentUsed >= 100 {
 		color = "danger"
@@ -285,7 +285,7 @@ func (s *SlackCallback) buildBudgetMessage(entityType, entityID string, remainin
 
 	fields := []slackField{
 		{Title: "Remaining", Value: fmt.Sprintf("$%.2f", remaining), Short: true},
-		{Title: "Max Budget", Value: fmt.Sprintf("$%.2f", max), Short: true},
+		{Title: "Max Budget", Value: fmt.Sprintf("$%.2f", maxBudget), Short: true},
 		{Title: "Usage", Value: fmt.Sprintf("%.1f%%", percentUsed), Short: true},
 	}
 
