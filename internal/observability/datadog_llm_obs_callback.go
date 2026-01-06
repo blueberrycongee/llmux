@@ -81,9 +81,9 @@ type DDLLMObsSpan struct {
 
 // DDLLMObsSpanAttributes represents the span attributes wrapper.
 type DDLLMObsSpanAttributes struct {
-	MLApp string           `json:"ml_app"`
-	Tags  []string         `json:"tags,omitempty"`
-	Spans []DDLLMObsSpan   `json:"spans"`
+	MLApp string         `json:"ml_app"`
+	Tags  []string       `json:"tags,omitempty"`
+	Spans []DDLLMObsSpan `json:"spans"`
 }
 
 // DDLLMObsIntakePayload represents the intake payload.

@@ -50,13 +50,13 @@ type OTelMetricsProvider struct {
 	meter    metric.Meter
 
 	// Gen AI metrics
-	operationDuration      metric.Float64Histogram
-	tokenUsage             metric.Int64Counter
-	tokenCost              metric.Float64Counter
-	timeToFirstToken       metric.Float64Histogram
-	timePerOutputToken     metric.Float64Histogram
-	requestCount           metric.Int64Counter
-	errorCount             metric.Int64Counter
+	operationDuration  metric.Float64Histogram
+	tokenUsage         metric.Int64Counter
+	tokenCost          metric.Float64Counter
+	timeToFirstToken   metric.Float64Histogram
+	timePerOutputToken metric.Float64Histogram
+	requestCount       metric.Int64Counter
+	errorCount         metric.Int64Counter
 }
 
 // InitOTelMetrics initializes OpenTelemetry Metrics.

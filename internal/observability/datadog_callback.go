@@ -28,15 +28,15 @@ const (
 
 // DatadogPayload represents a single log entry for Datadog.
 type DatadogPayload struct {
-	DDSource  string            `json:"ddsource"`
-	DDTags    string            `json:"ddtags"`
-	Hostname  string            `json:"hostname"`
-	Message   string            `json:"message"`
-	Service   string            `json:"service"`
-	Status    DatadogStatus     `json:"status"`
-	Timestamp int64             `json:"timestamp,omitempty"`
-	TraceID   string            `json:"dd.trace_id,omitempty"`
-	SpanID    string            `json:"dd.span_id,omitempty"`
+	DDSource  string        `json:"ddsource"`
+	DDTags    string        `json:"ddtags"`
+	Hostname  string        `json:"hostname"`
+	Message   string        `json:"message"`
+	Service   string        `json:"service"`
+	Status    DatadogStatus `json:"status"`
+	Timestamp int64         `json:"timestamp,omitempty"`
+	TraceID   string        `json:"dd.trace_id,omitempty"`
+	SpanID    string        `json:"dd.span_id,omitempty"`
 }
 
 // DatadogConfig contains configuration for Datadog integration.
@@ -68,7 +68,7 @@ type DatadogConfig struct {
 // DefaultDatadogConfig returns configuration from environment variables.
 func DefaultDatadogConfig() DatadogConfig {
 	hostname, _ := os.Hostname()
-	
+
 	cfg := DatadogConfig{
 		APIKey:        os.Getenv("DD_API_KEY"),
 		Site:          os.Getenv("DD_SITE"),
@@ -98,13 +98,13 @@ func DefaultDatadogConfig() DatadogConfig {
 
 // DatadogCallback implements Callback for Datadog logging.
 type DatadogCallback struct {
-	config     DatadogConfig
-	intakeURL  string
-	client     *http.Client
-	logQueue   []DatadogPayload
-	mu         sync.Mutex
-	stopCh     chan struct{}
-	wg         sync.WaitGroup
+	config    DatadogConfig
+	intakeURL string
+	client    *http.Client
+	logQueue  []DatadogPayload
+	mu        sync.Mutex
+	stopCh    chan struct{}
+	wg        sync.WaitGroup
 }
 
 // NewDatadogCallback creates a new Datadog callback.
@@ -210,7 +210,7 @@ func (d *DatadogCallback) LogFallbackEvent(ctx context.Context, originalModel, f
 // Shutdown gracefully shuts down the callback.
 func (d *DatadogCallback) Shutdown(ctx context.Context) error {
 	close(d.stopCh)
-	
+
 	// Wait for flush goroutine with timeout
 	done := make(chan struct{})
 	go func() {
