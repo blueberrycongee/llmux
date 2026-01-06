@@ -296,3 +296,57 @@ func (u *User) IsOverBudget() bool {
 	}
 	return u.Spend >= u.MaxBudget
 }
+
+// Organization represents a top-level organization.
+type Organization struct {
+	ID         string             `json:"organization_id"`
+	Alias      string             `json:"organization_alias"`
+	BudgetID   *string            `json:"budget_id,omitempty"`
+	Models     []string           `json:"models,omitempty"`
+	MaxBudget  float64            `json:"max_budget,omitempty"`
+	Spend      float64            `json:"spend"`
+	ModelSpend map[string]float64 `json:"model_spend,omitempty"`
+	Metadata   Metadata           `json:"metadata,omitempty"`
+	CreatedAt  time.Time          `json:"created_at"`
+	UpdatedAt  time.Time          `json:"updated_at"`
+}
+
+// IsOverBudget checks if the organization has exceeded its budget.
+func (o *Organization) IsOverBudget() bool {
+	if o.MaxBudget <= 0 {
+		return false
+	}
+	return o.Spend >= o.MaxBudget
+}
+
+// TeamMembership tracks a user's membership and spend within a team.
+type TeamMembership struct {
+	UserID   string  `json:"user_id"`
+	TeamID   string  `json:"team_id"`
+	Spend    float64 `json:"spend"`
+	BudgetID *string `json:"budget_id,omitempty"`
+	Budget   *Budget `json:"budget,omitempty"`
+}
+
+// EndUser represents an end-user passed via the 'user' parameter.
+type EndUser struct {
+	UserID   string  `json:"user_id"`
+	Alias    *string `json:"alias,omitempty"`
+	Spend    float64 `json:"spend"`
+	BudgetID *string `json:"budget_id,omitempty"`
+	Budget   *Budget `json:"budget,omitempty"`
+	Blocked  bool    `json:"blocked"`
+}
+
+// IsOverBudget checks if the end user has exceeded their budget.
+func (e *EndUser) IsOverBudget() bool {
+	if e.Budget == nil || e.Budget.MaxBudget == nil || *e.Budget.MaxBudget <= 0 {
+		return false
+	}
+	return e.Spend >= *e.Budget.MaxBudget
+}
+
+// IsBlocked checks if the end user is blocked.
+func (e *EndUser) IsBlocked() bool {
+	return e.Blocked
+}
