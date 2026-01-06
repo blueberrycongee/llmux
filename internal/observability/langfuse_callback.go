@@ -210,7 +210,7 @@ func (l *LangfuseCallback) Shutdown(ctx context.Context) error {
 }
 
 // logGeneration logs a generation event to Langfuse.
-func (l *LangfuseCallback) logGeneration(ctx context.Context, payload *StandardLoggingPayload, level, statusMsg string) error {
+func (l *LangfuseCallback) logGeneration(_ context.Context, payload *StandardLoggingPayload, level, statusMsg string) error {
 	traceID := l.getOrCreateTraceID(payload)
 	generationID := uuid.New().String()
 
@@ -423,7 +423,11 @@ func (l *LangfuseCallback) flush() error {
 
 	// Send to Langfuse
 	url := fmt.Sprintf("%s/api/public/ingestion", l.config.Host)
-	httpReq, err := http.NewRequest("POST", url, bytes.NewReader(body))
+
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
 	if err != nil {
 		return fmt.Errorf("langfuse: failed to create request: %w", err)
 	}

@@ -3,7 +3,6 @@ package observability
 
 import (
 	"context"
-	"strconv"
 
 	"github.com/blueberrycongee/llmux/internal/metrics"
 )
@@ -158,17 +157,4 @@ func (p *PrometheusCallback) payloadToMetrics(payload *StandardLoggingPayload) *
 	}
 
 	return m
-}
-
-// getStringOrEmpty returns the string value or empty string if nil.
-func getStringOrEmpty(s *string) string {
-	if s == nil {
-		return ""
-	}
-	return *s
-}
-
-// intToString converts int to string.
-func intToString(i int) string {
-	return strconv.Itoa(i)
 }
