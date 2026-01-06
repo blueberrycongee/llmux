@@ -1,10 +1,10 @@
 // Package router provides request routing and load balancing for LLM deployments.
-// It supports multiple strategies including simple shuffle, lowest latency, and least busy.
+// It supports multiple strategies including simple shuffle, lowest latency, least busy,
+// lowest TPM/RPM, lowest cost, and tag-based routing.
 package router
 
 import (
 	"context"
-	"time"
 
 	"github.com/blueberrycongee/llmux/internal/provider"
 )
@@ -16,11 +16,21 @@ type Router interface {
 	// Returns ErrNoAvailableDeployment if all deployments are unavailable.
 	Pick(ctx context.Context, model string) (*provider.Deployment, error)
 
+	// PickWithContext selects the best deployment using request context.
+	// This enables advanced routing strategies like tag-based and streaming-aware routing.
+	PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error)
+
 	// ReportSuccess records a successful request to update routing metrics.
-	ReportSuccess(deployment *provider.Deployment, latency time.Duration)
+	ReportSuccess(deployment *provider.Deployment, metrics *ResponseMetrics)
 
 	// ReportFailure records a failed request and potentially triggers cooldown.
 	ReportFailure(deployment *provider.Deployment, err error)
+
+	// ReportRequestStart records when a request starts (for least-busy tracking).
+	ReportRequestStart(deployment *provider.Deployment)
+
+	// ReportRequestEnd records when a request ends (for least-busy tracking).
+	ReportRequestEnd(deployment *provider.Deployment)
 
 	// IsCircuitOpen checks if the circuit breaker is open for a deployment.
 	IsCircuitOpen(deployment *provider.Deployment) bool
@@ -28,50 +38,18 @@ type Router interface {
 	// AddDeployment registers a new deployment with the router.
 	AddDeployment(deployment *provider.Deployment)
 
+	// AddDeploymentWithConfig registers a deployment with routing configuration.
+	AddDeploymentWithConfig(deployment *provider.Deployment, config DeploymentConfig)
+
 	// RemoveDeployment removes a deployment from the router.
 	RemoveDeployment(deploymentID string)
 
 	// GetDeployments returns all deployments for a model.
 	GetDeployments(model string) []*provider.Deployment
-}
 
-// Strategy defines the routing strategy type.
-type Strategy string
+	// GetStats returns the current stats for a deployment.
+	GetStats(deploymentID string) *DeploymentStats
 
-const (
-	// StrategySimpleShuffle randomly selects from available deployments.
-	StrategySimpleShuffle Strategy = "simple-shuffle"
-
-	// StrategyLowestLatency selects the deployment with lowest average latency.
-	StrategyLowestLatency Strategy = "lowest-latency"
-
-	// StrategyLeastBusy selects the deployment with fewest active requests.
-	StrategyLeastBusy Strategy = "least-busy"
-)
-
-// DeploymentStats tracks performance metrics for a deployment.
-type DeploymentStats struct {
-	TotalRequests   int64
-	SuccessCount    int64
-	FailureCount    int64
-	ActiveRequests  int64
-	AvgLatencyMs    float64
-	LastRequestTime time.Time
-	CooldownUntil   time.Time
-}
-
-// RouterConfig contains router configuration options.
-type RouterConfig struct {
-	Strategy       Strategy
-	CooldownPeriod time.Duration
-	LatencyBuffer  float64 // For lowest-latency: select randomly within this % of lowest
-}
-
-// DefaultRouterConfig returns sensible default router configuration.
-func DefaultRouterConfig() RouterConfig {
-	return RouterConfig{
-		Strategy:       StrategySimpleShuffle,
-		CooldownPeriod: 60 * time.Second,
-		LatencyBuffer:  0.1, // 10% buffer
-	}
+	// GetStrategy returns the current routing strategy.
+	GetStrategy() Strategy
 }
