@@ -201,7 +201,16 @@ func TestProvider_ParseResponse(t *testing.T) {
 	}))
 	defer server.Close()
 
-	resp, _ := http.Get(server.URL)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, server.URL, nil)
+	if err != nil {
+		t.Fatalf("http.NewRequest() error = %v", err)
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("http.Do() error = %v", err)
+	}
+	defer resp.Body.Close()
+
 	chatResp, err := p.ParseResponse(resp)
 	if err != nil {
 		t.Fatalf("ParseResponse() error = %v", err)

@@ -25,7 +25,7 @@ func New(cfg provider.ProviderConfig) (provider.Provider, error) {
 		Name:              ProviderName,
 		DefaultBaseURL:    DefaultBaseURL,
 		SupportsStreaming: true,
-		APIKeyHeader:      "", // LM Studio doesn't require authentication
+		APIKeyHeader:      "",         // LM Studio doesn't require authentication
 		ModelPrefixes:     []string{}, // Models depend on local setup
 	}
 	return openailike.New(cfg, info)

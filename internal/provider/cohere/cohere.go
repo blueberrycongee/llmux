@@ -81,28 +81,28 @@ func (p *Provider) SupportsModel(model string) bool {
 
 // cohereRequest represents the Cohere Chat API request format.
 type cohereRequest struct {
-	Model               string           `json:"model"`
-	Messages            []cohereMessage  `json:"messages"`
-	Stream              bool             `json:"stream,omitempty"`
-	MaxTokens           int              `json:"max_tokens,omitempty"`
-	Temperature         *float64         `json:"temperature,omitempty"`
-	P                   *float64         `json:"p,omitempty"` // top_p
-	K                   int              `json:"k,omitempty"` // top_k
-	StopSequences       []string         `json:"stop_sequences,omitempty"`
-	Tools               []cohereTool     `json:"tools,omitempty"`
-	ToolChoice          string           `json:"tool_choice,omitempty"`
-	ResponseFormat      *responseFormat  `json:"response_format,omitempty"`
+	Model          string          `json:"model"`
+	Messages       []cohereMessage `json:"messages"`
+	Stream         bool            `json:"stream,omitempty"`
+	MaxTokens      int             `json:"max_tokens,omitempty"`
+	Temperature    *float64        `json:"temperature,omitempty"`
+	P              *float64        `json:"p,omitempty"` // top_p
+	K              int             `json:"k,omitempty"` // top_k
+	StopSequences  []string        `json:"stop_sequences,omitempty"`
+	Tools          []cohereTool    `json:"tools,omitempty"`
+	ToolChoice     string          `json:"tool_choice,omitempty"`
+	ResponseFormat *responseFormat `json:"response_format,omitempty"`
 }
 
 type cohereMessage struct {
-	Role        string            `json:"role"` // user, assistant, system, tool
-	Content     string            `json:"content,omitempty"`
+	Role        string             `json:"role"` // user, assistant, system, tool
+	Content     string             `json:"content,omitempty"`
 	ToolResults []cohereToolResult `json:"tool_results,omitempty"`
 	ToolCalls   []cohereToolCall   `json:"tool_calls,omitempty"`
 }
 
 type cohereTool struct {
-	Type     string           `json:"type"` // function
+	Type     string            `json:"type"` // function
 	Function cohereFunctionDef `json:"function"`
 }
 
@@ -158,10 +158,7 @@ type cohereContent struct {
 
 // BuildRequest creates an HTTP request for the Cohere API.
 func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*http.Request, error) {
-	cohereReq, err := p.transformRequest(req)
-	if err != nil {
-		return nil, fmt.Errorf("transform request: %w", err)
-	}
+	cohereReq := p.transformRequest(req)
 
 	body, err := json.Marshal(cohereReq)
 	if err != nil {
@@ -180,7 +177,7 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 	return httpReq, nil
 }
 
-func (p *Provider) transformRequest(req *types.ChatRequest) (*cohereRequest, error) {
+func (p *Provider) transformRequest(req *types.ChatRequest) *cohereRequest {
 	cohereReq := &cohereRequest{
 		Model:  req.Model,
 		Stream: req.Stream,
@@ -208,11 +205,7 @@ func (p *Provider) transformRequest(req *types.ChatRequest) (*cohereRequest, err
 	}
 
 	// Transform messages
-	messages, err := p.transformMessages(req.Messages)
-	if err != nil {
-		return nil, err
-	}
-	cohereReq.Messages = messages
+	cohereReq.Messages = p.transformMessages(req.Messages)
 
 	// Transform tools
 	if len(req.Tools) > 0 {
@@ -234,11 +227,11 @@ func (p *Provider) transformRequest(req *types.ChatRequest) (*cohereRequest, err
 		}
 	}
 
-	return cohereReq, nil
+	return cohereReq
 }
 
-func (p *Provider) transformMessages(messages []types.ChatMessage) ([]cohereMessage, error) {
-	var result []cohereMessage
+func (p *Provider) transformMessages(messages []types.ChatMessage) []cohereMessage {
+	result := make([]cohereMessage, 0, len(messages))
 
 	for _, msg := range messages {
 		var content string
@@ -293,7 +286,7 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]cohereMess
 		result = append(result, cohereMsg)
 	}
 
-	return result, nil
+	return result
 }
 
 func mapRole(role string) string {
@@ -362,7 +355,7 @@ func (p *Provider) transformResponse(resp *cohereResponse) *types.ChatResponse {
 	}
 
 	// Transform tool calls
-	var toolCalls []types.ToolCall
+	toolCalls := make([]types.ToolCall, 0, len(resp.Message.ToolCalls))
 	for _, tc := range resp.Message.ToolCalls {
 		toolCalls = append(toolCalls, types.ToolCall{
 			ID:   tc.ID,

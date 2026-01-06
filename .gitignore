@@ -39,4 +39,7 @@ config/config.local.yaml
 
 # Build artifacts
 dist/
-.kiro/
+#.kiro/
+
+# Benchmark results
+bench/results/*.json

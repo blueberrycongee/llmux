@@ -40,12 +40,12 @@ var DefaultModels = []string{
 
 // Provider implements the AWS Bedrock API adapter.
 type Provider struct {
-	accessKey    string
-	secretKey    string
-	region       string
-	baseURL      string
-	models       []string
-	client       *http.Client
+	accessKey string
+	secretKey string
+	region    string
+	baseURL   string
+	models    []string
+	client    *http.Client
 }
 
 // New creates a new AWS Bedrock provider instance.
@@ -105,11 +105,11 @@ func (p *Provider) SupportsModel(model string) bool {
 
 // bedrockRequest represents the Bedrock Converse API request format.
 type bedrockRequest struct {
-	ModelID             string                 `json:"-"` // Used in URL, not body
-	Messages            []bedrockMessage       `json:"messages"`
-	System              []bedrockSystemContent `json:"system,omitempty"`
-	InferenceConfig     *inferenceConfig       `json:"inferenceConfig,omitempty"`
-	ToolConfig          *bedrockToolConfig     `json:"toolConfig,omitempty"`
+	ModelID         string                 `json:"-"` // Used in URL, not body
+	Messages        []bedrockMessage       `json:"messages"`
+	System          []bedrockSystemContent `json:"system,omitempty"`
+	InferenceConfig *inferenceConfig       `json:"inferenceConfig,omitempty"`
+	ToolConfig      *bedrockToolConfig     `json:"toolConfig,omitempty"`
 }
 
 type bedrockMessage struct {
@@ -134,7 +134,7 @@ type bedrockToolUse struct {
 }
 
 type bedrockToolResult struct {
-	ToolUseID string                   `json:"toolUseId"`
+	ToolUseID string                     `json:"toolUseId"`
 	Content   []bedrockToolResultContent `json:"content"`
 }
 
@@ -150,7 +150,7 @@ type inferenceConfig struct {
 }
 
 type bedrockToolConfig struct {
-	Tools      []bedrockTool   `json:"tools,omitempty"`
+	Tools      []bedrockTool      `json:"tools,omitempty"`
 	ToolChoice *bedrockToolChoice `json:"toolChoice,omitempty"`
 }
 
@@ -177,8 +177,8 @@ type bedrockResponse struct {
 	Output struct {
 		Message bedrockMessage `json:"message"`
 	} `json:"output"`
-	StopReason string         `json:"stopReason"`
-	Usage      bedrockUsage   `json:"usage"`
+	StopReason string       `json:"stopReason"`
+	Usage      bedrockUsage `json:"usage"`
 }
 
 type bedrockUsage struct {
@@ -189,10 +189,7 @@ type bedrockUsage struct {
 
 // BuildRequest creates an HTTP request for the Bedrock API.
 func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*http.Request, error) {
-	bedrockReq, err := p.transformRequest(req)
-	if err != nil {
-		return nil, fmt.Errorf("transform request: %w", err)
-	}
+	bedrockReq := p.transformRequest(req)
 
 	body, err := json.Marshal(bedrockReq)
 	if err != nil {
@@ -218,9 +215,9 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 	return httpReq, nil
 }
 
-func (p *Provider) transformRequest(req *types.ChatRequest) (*bedrockRequest, error) {
+func (p *Provider) transformRequest(req *types.ChatRequest) *bedrockRequest {
 	bedrockReq := &bedrockRequest{
-		ModelID: req.Model,
+		ModelID:         req.Model,
 		InferenceConfig: &inferenceConfig{},
 	}
 
@@ -238,10 +235,7 @@ func (p *Provider) transformRequest(req *types.ChatRequest) (*bedrockRequest, er
 	}
 
 	// Transform messages
-	messages, system, err := p.transformMessages(req.Messages)
-	if err != nil {
-		return nil, err
-	}
+	messages, system := p.transformMessages(req.Messages)
 	bedrockReq.Messages = messages
 	if len(system) > 0 {
 		bedrockReq.System = system
@@ -252,11 +246,11 @@ func (p *Provider) transformRequest(req *types.ChatRequest) (*bedrockRequest, er
 		bedrockReq.ToolConfig = p.transformTools(req.Tools, req.ToolChoice)
 	}
 
-	return bedrockReq, nil
+	return bedrockReq
 }
 
-func (p *Provider) transformMessages(messages []types.ChatMessage) ([]bedrockMessage, []bedrockSystemContent, error) {
-	var result []bedrockMessage
+func (p *Provider) transformMessages(messages []types.ChatMessage) ([]bedrockMessage, []bedrockSystemContent) {
+	result := make([]bedrockMessage, 0, len(messages))
 	var system []bedrockSystemContent
 
 	for _, msg := range messages {
@@ -326,7 +320,7 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]bedrockMes
 		result = append(result, bedrockMsg)
 	}
 
-	return result, system, nil
+	return result, system
 }
 
 func (p *Provider) transformTools(tools []types.Tool, toolChoice json.RawMessage) *bedrockToolConfig {
@@ -339,7 +333,9 @@ func (p *Provider) transformTools(tools []types.Tool, toolChoice json.RawMessage
 
 		var params map[string]any
 		if len(tool.Function.Parameters) > 0 {
-			json.Unmarshal(tool.Function.Parameters, &params)
+			if err := json.Unmarshal(tool.Function.Parameters, &params); err != nil {
+				params = make(map[string]any)
+			}
 		}
 
 		config.Tools = append(config.Tools, bedrockTool{

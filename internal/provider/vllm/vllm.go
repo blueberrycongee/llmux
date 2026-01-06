@@ -25,7 +25,7 @@ func New(cfg provider.ProviderConfig) (provider.Provider, error) {
 		Name:              ProviderName,
 		DefaultBaseURL:    DefaultBaseURL,
 		SupportsStreaming: true,
-		APIKeyHeader:      "", // vLLM may not require authentication
+		APIKeyHeader:      "",         // vLLM may not require authentication
 		ModelPrefixes:     []string{}, // Models depend on deployment
 	}
 	return openailike.New(cfg, info)

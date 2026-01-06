@@ -57,7 +57,7 @@ func TestRegisterAllProviders(t *testing.T) {
 		APIKey: "test-key",
 		Models: []string{"gpt-4"},
 	}
-	
+
 	p, err := registry.CreateProvider(cfg)
 	if err != nil {
 		t.Fatalf("CreateProvider() error = %v", err)
@@ -69,8 +69,8 @@ func TestRegisterAllProviders(t *testing.T) {
 
 func TestGetProviderInfo(t *testing.T) {
 	tests := []struct {
-		name       string
-		wantNil    bool
+		name        string
+		wantNil     bool
 		displayName string
 	}{
 		{"openai", false, "OpenAI"},
