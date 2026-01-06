@@ -66,3 +66,24 @@ type ToolCallFunction struct {
 type ResponseFormat struct {
 	Type string `json:"type"`
 }
+
+// Reset clears the ChatRequest for reuse.
+func (r *ChatRequest) Reset() {
+	r.Model = ""
+	r.Messages = r.Messages[:0] // Keep capacity
+	r.Stream = false
+	r.MaxTokens = 0
+	r.Temperature = nil
+	r.TopP = nil
+	r.N = 0
+	r.Stop = r.Stop[:0]
+	r.PresencePenalty = nil
+	r.FrequencyPenalty = nil
+	r.User = ""
+	r.Tools = r.Tools[:0]
+	r.ToolChoice = nil
+	r.ResponseFormat = nil
+	// Clear map but keep it if possible, or just nil it.
+	// For simplicity and safety, nil it.
+	r.Extra = nil
+}

@@ -3,9 +3,9 @@ package main
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"flag"
 	"fmt"
+	"github.com/goccy/go-json"
 	"log"
 	"os"
 	"path/filepath"

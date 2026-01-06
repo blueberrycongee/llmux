@@ -63,3 +63,14 @@ type StreamDelta struct {
 	Content   string     `json:"content,omitempty"`
 	ToolCalls []ToolCall `json:"tool_calls,omitempty"`
 }
+
+// Reset clears the ChatResponse for reuse.
+func (r *ChatResponse) Reset() {
+	r.ID = ""
+	r.Object = ""
+	r.Created = 0
+	r.Model = ""
+	r.Choices = r.Choices[:0]
+	r.Usage = nil
+	r.SystemFingerprint = ""
+}

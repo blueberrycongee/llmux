@@ -4,18 +4,19 @@ package api
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/goccy/go-json"
+
 	"github.com/blueberrycongee/llmux/internal/metrics"
+	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/provider"
 	"github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/internal/streaming"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
-	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 const (
@@ -83,8 +84,10 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var req types.ChatRequest
-	if unmarshalErr := json.Unmarshal(body, &req); unmarshalErr != nil {
+	req := pool.GetChatRequest()
+	defer pool.PutChatRequest(req)
+
+	if unmarshalErr := json.Unmarshal(body, req); unmarshalErr != nil {
 		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "invalid JSON: "+unmarshalErr.Error()))
 		return
 	}
@@ -122,7 +125,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	reqCtx, reqCancel := context.WithTimeout(r.Context(), timeout)
 	defer reqCancel()
 
-	upstreamReq, err := prov.BuildRequest(reqCtx, &req)
+	upstreamReq, err := prov.BuildRequest(reqCtx, req)
 	if err != nil {
 		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to build request: "+err.Error()))
 		return
@@ -163,6 +166,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to parse response"))
 		return
 	}
+	defer pool.PutChatResponse(chatResp)
 
 	// Record success metrics
 	h.router.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})

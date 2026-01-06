@@ -5,12 +5,14 @@ package openai
 import (
 	"bytes"
 	"context"
-	"github.com/goccy/go-json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
+	"github.com/goccy/go-json"
+
+	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/provider"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/types"
@@ -96,12 +98,13 @@ func (p *Provider) ParseResponse(resp *http.Response) (*types.ChatResponse, erro
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 
-	var chatResp types.ChatResponse
-	if err := json.Unmarshal(body, &chatResp); err != nil {
+	chatResp := pool.GetChatResponse()
+	if err := json.Unmarshal(body, chatResp); err != nil {
+		pool.PutChatResponse(chatResp)
 		return nil, fmt.Errorf("unmarshal response: %w", err)
 	}
 
-	return &chatResp, nil
+	return chatResp, nil
 }
 
 // ParseStreamChunk parses a single SSE chunk from OpenAI.

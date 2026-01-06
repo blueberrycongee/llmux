@@ -5,8 +5,8 @@ package azure
 import (
 	"bytes"
 	"context"
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 	"strings"

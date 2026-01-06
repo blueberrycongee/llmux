@@ -3,8 +3,8 @@ package auth
 import (
 	"context"
 	"database/sql"
-	"github.com/goccy/go-json"
 	"fmt"
+	"github.com/goccy/go-json"
 	"time"
 
 	_ "github.com/lib/pq" // PostgreSQL driver
