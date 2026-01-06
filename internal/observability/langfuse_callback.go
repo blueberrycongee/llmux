@@ -17,14 +17,14 @@ import (
 
 // LangfuseConfig contains configuration for Langfuse integration.
 type LangfuseConfig struct {
-	PublicKey    string        // LANGFUSE_PUBLIC_KEY
-	SecretKey    string        // LANGFUSE_SECRET_KEY
-	Host         string        // LANGFUSE_HOST (default: https://cloud.langfuse.com)
+	PublicKey     string        // LANGFUSE_PUBLIC_KEY
+	SecretKey     string        // LANGFUSE_SECRET_KEY
+	Host          string        // LANGFUSE_HOST (default: https://cloud.langfuse.com)
 	FlushInterval time.Duration // Flush interval for batching (default: 1s)
-	BatchSize    int           // Max batch size before flush (default: 100)
-	Debug        bool          // Enable debug logging
-	MaskInput    bool          // Mask input content
-	MaskOutput   bool          // Mask output content
+	BatchSize     int           // Max batch size before flush (default: 100)
+	Debug         bool          // Enable debug logging
+	MaskInput     bool          // Mask input content
+	MaskOutput    bool          // Mask output content
 }
 
 // DefaultLangfuseConfig returns default configuration from environment.
@@ -76,20 +76,20 @@ type langfuseTrace struct {
 
 // langfuseGeneration represents a Langfuse generation (LLM call).
 type langfuseGeneration struct {
-	ID                string                 `json:"id"`
-	TraceID           string                 `json:"traceId"`
-	Name              string                 `json:"name,omitempty"`
-	Model             string                 `json:"model,omitempty"`
-	ModelParameters   map[string]interface{} `json:"modelParameters,omitempty"`
-	Input             interface{}            `json:"input,omitempty"`
-	Output            interface{}            `json:"output,omitempty"`
-	Usage             *langfuseUsage         `json:"usage,omitempty"`
-	Metadata          map[string]interface{} `json:"metadata,omitempty"`
-	Level             string                 `json:"level,omitempty"` // DEFAULT, DEBUG, WARNING, ERROR
-	StatusMessage     string                 `json:"statusMessage,omitempty"`
-	StartTime         time.Time              `json:"startTime"`
-	EndTime           time.Time              `json:"endTime,omitempty"`
-	CompletionStartTime *time.Time           `json:"completionStartTime,omitempty"`
+	ID                  string                 `json:"id"`
+	TraceID             string                 `json:"traceId"`
+	Name                string                 `json:"name,omitempty"`
+	Model               string                 `json:"model,omitempty"`
+	ModelParameters     map[string]interface{} `json:"modelParameters,omitempty"`
+	Input               interface{}            `json:"input,omitempty"`
+	Output              interface{}            `json:"output,omitempty"`
+	Usage               *langfuseUsage         `json:"usage,omitempty"`
+	Metadata            map[string]interface{} `json:"metadata,omitempty"`
+	Level               string                 `json:"level,omitempty"` // DEFAULT, DEBUG, WARNING, ERROR
+	StatusMessage       string                 `json:"statusMessage,omitempty"`
+	StartTime           time.Time              `json:"startTime"`
+	EndTime             time.Time              `json:"endTime,omitempty"`
+	CompletionStartTime *time.Time             `json:"completionStartTime,omitempty"`
 }
 
 // langfuseUsage represents token usage.
@@ -139,7 +139,7 @@ func (l *LangfuseCallback) Name() string {
 // LogPreAPICall creates a trace for the request.
 func (l *LangfuseCallback) LogPreAPICall(ctx context.Context, payload *StandardLoggingPayload) error {
 	traceID := l.getOrCreateTraceID(payload)
-	
+
 	trace := langfuseTrace{
 		ID:        traceID,
 		Name:      fmt.Sprintf("llmux-%s", payload.CallType),
@@ -208,7 +208,6 @@ func (l *LangfuseCallback) Shutdown(ctx context.Context) error {
 	l.wg.Wait()
 	return l.flush()
 }
-
 
 // logGeneration logs a generation event to Langfuse.
 func (l *LangfuseCallback) logGeneration(ctx context.Context, payload *StandardLoggingPayload, level, statusMsg string) error {

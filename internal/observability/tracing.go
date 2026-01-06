@@ -32,11 +32,11 @@ const (
 // TracingConfig contains configuration for OpenTelemetry tracing.
 type TracingConfig struct {
 	Enabled      bool
-	Endpoint     string       // OTLP endpoint (e.g., "localhost:4317" for gRPC, "localhost:4318" for HTTP)
-	ExporterType ExporterType // "grpc" or "http"
-	ServiceName  string       // Service name for traces
-	SampleRate   float64      // Sampling rate (0.0 to 1.0)
-	Insecure     bool         // Use insecure connection (no TLS)
+	Endpoint     string            // OTLP endpoint (e.g., "localhost:4317" for gRPC, "localhost:4318" for HTTP)
+	ExporterType ExporterType      // "grpc" or "http"
+	ServiceName  string            // Service name for traces
+	SampleRate   float64           // Sampling rate (0.0 to 1.0)
+	Insecure     bool              // Use insecure connection (no TLS)
 	Headers      map[string]string // Custom headers for OTLP exporter
 }
 

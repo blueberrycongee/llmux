@@ -32,9 +32,9 @@ type ObservabilityConfig struct {
 
 	// Content filtering
 	ContentFilter struct {
-		FilterBase64      bool     `yaml:"filter_base64" json:"filter_base64"`
-		MaxContentLength  int      `yaml:"max_content_length" json:"max_content_length"`
-		RedactPatterns    []string `yaml:"redact_patterns" json:"redact_patterns"`
+		FilterBase64     bool     `yaml:"filter_base64" json:"filter_base64"`
+		MaxContentLength int      `yaml:"max_content_length" json:"max_content_length"`
+		RedactPatterns   []string `yaml:"redact_patterns" json:"redact_patterns"`
 	} `yaml:"content_filter" json:"content_filter"`
 
 	// Label filtering for metrics

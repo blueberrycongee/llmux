@@ -54,9 +54,9 @@ type StandardLoggingPayload struct {
 	TotalTokens      int `json:"total_tokens"`
 
 	// Cost
-	ResponseCost                  float64            `json:"response_cost"`
-	ResponseCostFailureDebugInfo  map[string]any     `json:"response_cost_failure_debug_info,omitempty"`
-	SavedCacheCost                float64            `json:"saved_cache_cost,omitempty"`
+	ResponseCost                 float64        `json:"response_cost"`
+	ResponseCostFailureDebugInfo map[string]any `json:"response_cost_failure_debug_info,omitempty"`
+	SavedCacheCost               float64        `json:"saved_cache_cost,omitempty"`
 
 	// Timing
 	StartTime           time.Time  `json:"startTime"`

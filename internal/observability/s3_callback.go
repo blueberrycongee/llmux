@@ -200,7 +200,6 @@ func (s *S3Callback) Shutdown(ctx context.Context) error {
 	return s.flush(ctx)
 }
 
-
 // payloadToEntry converts StandardLoggingPayload to S3LogEntry.
 func (s *S3Callback) payloadToEntry(payload *StandardLoggingPayload) S3LogEntry {
 	entry := S3LogEntry{
