@@ -165,7 +165,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Record success metrics
-	h.router.ReportSuccess(deployment, latency)
+	h.router.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), req.Model, http.StatusOK, latency)
 	if chatResp.Usage != nil {
 		metrics.RecordTokens(prov.Name(), req.Model, chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens)
@@ -205,7 +205,7 @@ func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, r
 
 	// Record metrics
 	latency := time.Since(start)
-	h.router.ReportSuccess(deployment, latency)
+	h.router.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), model, http.StatusOK, latency)
 }
 
