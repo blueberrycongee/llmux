@@ -10,7 +10,7 @@ import (
 
 // ObservabilityConfig contains configuration for all observability integrations.
 type ObservabilityConfig struct {
-	// Callbacks to enable (comma-separated: "prometheus,otel,langfuse,s3,slack")
+	// Callbacks to enable (comma-separated: "prometheus,otel,langfuse,s3,slack,datadog,datadog_llm_obs,otel_metrics,otel_logs")
 	EnabledCallbacks []string `yaml:"enabled_callbacks" json:"enabled_callbacks"`
 
 	// Prometheus configuration
@@ -18,8 +18,14 @@ type ObservabilityConfig struct {
 		Enabled bool `yaml:"enabled" json:"enabled"`
 	} `yaml:"prometheus" json:"prometheus"`
 
-	// OpenTelemetry configuration
+	// OpenTelemetry Tracing configuration
 	OpenTelemetry TracingConfig `yaml:"opentelemetry" json:"opentelemetry"`
+
+	// OpenTelemetry Metrics configuration
+	OTelMetrics OTelMetricsConfig `yaml:"otel_metrics" json:"otel_metrics"`
+
+	// OpenTelemetry Logs configuration
+	OTelLogs OTelLogsConfig `yaml:"otel_logs" json:"otel_logs"`
 
 	// Langfuse configuration
 	Langfuse LangfuseConfig `yaml:"langfuse" json:"langfuse"`
@@ -29,6 +35,12 @@ type ObservabilityConfig struct {
 
 	// Slack alerting configuration
 	Slack SlackConfig `yaml:"slack" json:"slack"`
+
+	// Datadog logging configuration
+	Datadog DatadogConfig `yaml:"datadog" json:"datadog"`
+
+	// Datadog LLM Observability configuration
+	DatadogLLMObs DDLLMObsConfig `yaml:"datadog_llm_obs" json:"datadog_llm_obs"`
 
 	// Content filtering
 	ContentFilter struct {
@@ -56,8 +68,14 @@ func DefaultObservabilityConfig() ObservabilityConfig {
 	// Prometheus is enabled by default
 	cfg.Prometheus.Enabled = os.Getenv("LLMUX_PROMETHEUS_ENABLED") != "false"
 
-	// OpenTelemetry
+	// OpenTelemetry Tracing
 	cfg.OpenTelemetry = DefaultTracingConfig()
+
+	// OpenTelemetry Metrics
+	cfg.OTelMetrics = DefaultOTelMetricsConfig()
+
+	// OpenTelemetry Logs
+	cfg.OTelLogs = DefaultOTelLogsConfig()
 
 	// Langfuse
 	cfg.Langfuse = DefaultLangfuseConfig()
@@ -67,6 +85,12 @@ func DefaultObservabilityConfig() ObservabilityConfig {
 
 	// Slack
 	cfg.Slack = DefaultSlackConfig()
+
+	// Datadog
+	cfg.Datadog = DefaultDatadogConfig()
+
+	// Datadog LLM Observability
+	cfg.DatadogLLMObs = DefaultDDLLMObsConfig()
 
 	// Content filter defaults
 	cfg.ContentFilter.FilterBase64 = os.Getenv("LLMUX_FILTER_BASE64") == "true"
@@ -136,6 +160,28 @@ func (m *ObservabilityManager) enableCallback(name string) error {
 			}))
 		}
 
+	case "otel_metrics":
+		if m.config.OTelMetrics.Enabled {
+			mp, err := InitOTelMetrics(context.Background(), m.config.OTelMetrics)
+			if err != nil {
+				return err
+			}
+			if mp != nil {
+				m.callbackManager.Register(NewOTelMetricsCallback(mp))
+			}
+		}
+
+	case "otel_logs":
+		if m.config.OTelLogs.Enabled {
+			lp, err := InitOTelLogs(context.Background(), m.config.OTelLogs)
+			if err != nil {
+				return err
+			}
+			if lp != nil {
+				m.callbackManager.Register(NewOTelLogsCallback(lp))
+			}
+		}
+
 	case "langfuse":
 		if m.config.Langfuse.PublicKey != "" {
 			cb, err := NewLangfuseCallback(m.config.Langfuse)
@@ -157,6 +203,24 @@ func (m *ObservabilityManager) enableCallback(name string) error {
 	case "slack":
 		if m.config.Slack.WebhookURL != "" {
 			cb, err := NewSlackCallback(m.config.Slack)
+			if err != nil {
+				return err
+			}
+			m.callbackManager.Register(cb)
+		}
+
+	case "datadog":
+		if m.config.Datadog.APIKey != "" || m.config.Datadog.AgentHost != "" {
+			cb, err := NewDatadogCallback(m.config.Datadog)
+			if err != nil {
+				return err
+			}
+			m.callbackManager.Register(cb)
+		}
+
+	case "datadog_llm_obs":
+		if m.config.DatadogLLMObs.APIKey != "" {
+			cb, err := NewDDLLMObsCallback(m.config.DatadogLLMObs)
 			if err != nil {
 				return err
 			}
