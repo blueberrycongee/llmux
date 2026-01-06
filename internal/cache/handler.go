@@ -2,7 +2,7 @@ package cache
 
 import (
 	"context"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"time"
 
 	"github.com/blueberrycongee/llmux/pkg/types"

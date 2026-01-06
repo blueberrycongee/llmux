@@ -3,7 +3,7 @@
 package mock
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"io"
 	"net/http"

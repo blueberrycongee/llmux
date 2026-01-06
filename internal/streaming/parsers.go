@@ -2,7 +2,7 @@ package streaming
 
 import (
 	"bytes"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 
 	"github.com/blueberrycongee/llmux/pkg/types"

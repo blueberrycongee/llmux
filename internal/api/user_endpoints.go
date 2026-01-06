@@ -3,7 +3,7 @@
 package api
 
 import (
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"net/http"
 	"strconv"
 	"time"

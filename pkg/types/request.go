@@ -2,7 +2,7 @@
 // All types are designed to be compatible with OpenAI's Chat Completion API format.
 package types
 
-import "encoding/json"
+import "github.com/goccy/go-json"
 
 // ChatRequest represents an OpenAI-compatible chat completion request.
 // It serves as the unified input format for all LLM providers.

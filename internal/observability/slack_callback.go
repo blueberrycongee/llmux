@@ -4,7 +4,7 @@ package observability
 import (
 	"bytes"
 	"context"
-	"encoding/json"
+	"github.com/goccy/go-json"
 	"fmt"
 	"net/http"
 	"os"
