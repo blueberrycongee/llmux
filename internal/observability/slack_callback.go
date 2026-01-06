@@ -8,9 +8,11 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strings"
 	"sync"
 	"time"
+
+	"golang.org/x/text/cases"
+	"golang.org/x/text/language"
 )
 
 // SlackConfig contains configuration for Slack alerting.
@@ -43,11 +45,11 @@ func DefaultSlackConfig() SlackConfig {
 
 // SlackCallback implements Callback for Slack alerting.
 type SlackCallback struct {
-	config       SlackConfig
-	client       *http.Client
-	lastAlert    time.Time
-	errorCount   int
-	mu           sync.Mutex
+	config     SlackConfig
+	client     *http.Client
+	lastAlert  time.Time
+	errorCount int
+	mu         sync.Mutex
 }
 
 // slackMessage represents a Slack message payload.
@@ -177,7 +179,6 @@ func (s *SlackCallback) SendBudgetAlert(ctx context.Context, entityType, entityI
 	return s.send(ctx, msg)
 }
 
-
 // buildErrorMessage builds a Slack message for an error.
 func (s *SlackCallback) buildErrorMessage(payload *StandardLoggingPayload, errorMsg string, errorCount int) slackMessage {
 	fields := []slackField{
@@ -278,8 +279,9 @@ func (s *SlackCallback) buildBudgetMessage(entityType, entityID string, remainin
 		color = "good"
 	}
 
-	title := fmt.Sprintf(":moneybag: Budget Alert: %s", strings.Title(entityType))
-	text := fmt.Sprintf("%s `%s` has used %.1f%% of budget", strings.Title(entityType), entityID, percentUsed)
+	caser := cases.Title(language.English)
+	title := fmt.Sprintf(":moneybag: Budget Alert: %s", caser.String(entityType))
+	text := fmt.Sprintf("%s `%s` has used %.1f%% of budget", caser.String(entityType), entityID, percentUsed)
 
 	fields := []slackField{
 		{Title: "Remaining", Value: fmt.Sprintf("$%.2f", remaining), Short: true},
