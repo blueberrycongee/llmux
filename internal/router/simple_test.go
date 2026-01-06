@@ -85,14 +85,12 @@ func TestSimpleRouter_ReportSuccess(t *testing.T) {
 	r.AddDeployment(dep)
 
 	// Report multiple successes
-	r.ReportSuccess(dep, 100*time.Millisecond)
-	r.ReportSuccess(dep, 200*time.Millisecond)
-	r.ReportSuccess(dep, 150*time.Millisecond)
+	r.ReportSuccess(dep, &ResponseMetrics{Latency: 100 * time.Millisecond})
+	r.ReportSuccess(dep, &ResponseMetrics{Latency: 200 * time.Millisecond})
+	r.ReportSuccess(dep, &ResponseMetrics{Latency: 150 * time.Millisecond})
 
 	// Verify stats updated
-	r.mu.RLock()
-	stats := r.stats[dep.ID]
-	r.mu.RUnlock()
+	stats := r.GetStats(dep.ID)
 
 	if stats.TotalRequests != 3 {
 		t.Errorf("TotalRequests = %d, want 3", stats.TotalRequests)

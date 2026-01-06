@@ -2,161 +2,91 @@ package router
 
 import (
 	"context"
-	"errors"
-	"math/rand"
-	"sync"
 	"time"
 
 	"github.com/blueberrycongee/llmux/internal/provider"
-	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 )
 
-// ErrNoAvailableDeployment is returned when no healthy deployment is available.
-var ErrNoAvailableDeployment = errors.New("no available deployment for model")
-
-// SimpleRouter implements a basic routing strategy with cooldown support.
-// It uses random selection among healthy deployments.
+// SimpleRouter is a backward-compatible wrapper around SimpleShuffleRouter.
+// Deprecated: Use NewSimpleShuffleRouter or New(config) instead.
 type SimpleRouter struct {
-	mu             sync.RWMutex
-	deployments    map[string][]*provider.Deployment // model -> deployments
-	stats          map[string]*DeploymentStats       // deploymentID -> stats
-	cooldownPeriod time.Duration
-	rng            *rand.Rand
+	*SimpleShuffleRouter
 }
 
 // NewSimpleRouter creates a new simple router with the given cooldown period.
+// Deprecated: Use NewSimpleShuffleRouter or New(config) instead.
 func NewSimpleRouter(cooldownPeriod time.Duration) *SimpleRouter {
+	config := RouterConfig{
+		Strategy:           StrategySimpleShuffle,
+		CooldownPeriod:     cooldownPeriod,
+		MaxLatencyListSize: 10,
+	}
 	return &SimpleRouter{
-		deployments:    make(map[string][]*provider.Deployment),
-		stats:          make(map[string]*DeploymentStats),
-		cooldownPeriod: cooldownPeriod,
-		rng:            rand.New(rand.NewSource(time.Now().UnixNano())),
+		SimpleShuffleRouter: NewSimpleShuffleRouter(config),
 	}
 }
 
 // Pick selects a random healthy deployment for the given model.
 func (r *SimpleRouter) Pick(ctx context.Context, model string) (*provider.Deployment, error) {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	deployments, ok := r.deployments[model]
-	if !ok || len(deployments) == 0 {
-		return nil, ErrNoAvailableDeployment
-	}
-
-	// Filter healthy deployments
-	now := time.Now()
-	healthy := make([]*provider.Deployment, 0, len(deployments))
-	for _, d := range deployments {
-		stats := r.stats[d.ID]
-		if stats == nil || now.After(stats.CooldownUntil) {
-			healthy = append(healthy, d)
-		}
-	}
-
-	if len(healthy) == 0 {
-		return nil, ErrNoAvailableDeployment
-	}
-
-	// Random selection
-	return healthy[r.rng.Intn(len(healthy))], nil
+	return r.SimpleShuffleRouter.Pick(ctx, model)
 }
 
-// ReportSuccess records a successful request.
-func (r *SimpleRouter) ReportSuccess(deployment *provider.Deployment, latency time.Duration) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	stats := r.getOrCreateStats(deployment.ID)
-	stats.TotalRequests++
-	stats.SuccessCount++
-	stats.LastRequestTime = time.Now()
-
-	// Update rolling average latency
-	latencyMs := float64(latency.Milliseconds())
-	if stats.AvgLatencyMs == 0 {
-		stats.AvgLatencyMs = latencyMs
-	} else {
-		// Exponential moving average with alpha = 0.1
-		stats.AvgLatencyMs = stats.AvgLatencyMs*0.9 + latencyMs*0.1
-	}
+// PickWithContext selects a deployment using request context.
+func (r *SimpleRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
+	return r.SimpleShuffleRouter.PickWithContext(ctx, reqCtx)
 }
 
-// ReportFailure records a failed request and triggers cooldown if needed.
+// ReportSuccess records a successful request with metrics.
+func (r *SimpleRouter) ReportSuccess(deployment *provider.Deployment, metrics *ResponseMetrics) {
+	r.SimpleShuffleRouter.ReportSuccess(deployment, metrics)
+}
+
+// ReportFailure records a failed request.
 func (r *SimpleRouter) ReportFailure(deployment *provider.Deployment, err error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.SimpleShuffleRouter.ReportFailure(deployment, err)
+}
 
-	stats := r.getOrCreateStats(deployment.ID)
-	stats.TotalRequests++
-	stats.FailureCount++
-	stats.LastRequestTime = time.Now()
+// ReportRequestStart records when a request starts.
+func (r *SimpleRouter) ReportRequestStart(deployment *provider.Deployment) {
+	r.SimpleShuffleRouter.ReportRequestStart(deployment)
+}
 
-	// Check if cooldown is required based on error type
-	var llmErr *llmerrors.LLMError
-	if errors.As(err, &llmErr) && llmerrors.IsCooldownRequired(llmErr.StatusCode) {
-		stats.CooldownUntil = time.Now().Add(r.cooldownPeriod)
-	}
+// ReportRequestEnd records when a request ends.
+func (r *SimpleRouter) ReportRequestEnd(deployment *provider.Deployment) {
+	r.SimpleShuffleRouter.ReportRequestEnd(deployment)
 }
 
 // IsCircuitOpen checks if the deployment is in cooldown.
 func (r *SimpleRouter) IsCircuitOpen(deployment *provider.Deployment) bool {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	stats, ok := r.stats[deployment.ID]
-	if !ok {
-		return false
-	}
-	return time.Now().Before(stats.CooldownUntil)
+	return r.SimpleShuffleRouter.IsCircuitOpen(deployment)
 }
 
 // AddDeployment registers a new deployment.
 func (r *SimpleRouter) AddDeployment(deployment *provider.Deployment) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
+	r.SimpleShuffleRouter.AddDeployment(deployment)
+}
 
-	model := deployment.ModelName
-	if deployment.ModelAlias != "" {
-		model = deployment.ModelAlias
-	}
-
-	r.deployments[model] = append(r.deployments[model], deployment)
-	r.stats[deployment.ID] = &DeploymentStats{}
+// AddDeploymentWithConfig registers a deployment with routing configuration.
+func (r *SimpleRouter) AddDeploymentWithConfig(deployment *provider.Deployment, config DeploymentConfig) {
+	r.SimpleShuffleRouter.AddDeploymentWithConfig(deployment, config)
 }
 
 // RemoveDeployment removes a deployment from the router.
 func (r *SimpleRouter) RemoveDeployment(deploymentID string) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-
-	for model, deps := range r.deployments {
-		for i, d := range deps {
-			if d.ID == deploymentID {
-				r.deployments[model] = append(deps[:i], deps[i+1:]...)
-				break
-			}
-		}
-	}
-	delete(r.stats, deploymentID)
+	r.SimpleShuffleRouter.RemoveDeployment(deploymentID)
 }
 
 // GetDeployments returns all deployments for a model.
 func (r *SimpleRouter) GetDeployments(model string) []*provider.Deployment {
-	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	deps := r.deployments[model]
-	result := make([]*provider.Deployment, len(deps))
-	copy(result, deps)
-	return result
+	return r.SimpleShuffleRouter.GetDeployments(model)
 }
 
-func (r *SimpleRouter) getOrCreateStats(deploymentID string) *DeploymentStats {
-	stats, ok := r.stats[deploymentID]
-	if !ok {
-		stats = &DeploymentStats{}
-		r.stats[deploymentID] = stats
-	}
-	return stats
+// GetStats returns the current stats for a deployment.
+func (r *SimpleRouter) GetStats(deploymentID string) *DeploymentStats {
+	return r.SimpleShuffleRouter.GetStats(deploymentID)
+}
+
+// GetStrategy returns the current routing strategy.
+func (r *SimpleRouter) GetStrategy() Strategy {
+	return r.SimpleShuffleRouter.GetStrategy()
 }
