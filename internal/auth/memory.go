@@ -152,7 +152,7 @@ func (s *MemoryStore) ListAPIKeys(_ context.Context, filter APIKeyFilter) ([]*AP
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []*APIKey
+	result := make([]*APIKey, 0, len(s.apiKeys))
 	for _, key := range s.apiKeys {
 		// By default, only return active keys (soft delete behavior)
 		if filter.IsActive == nil {
@@ -264,7 +264,7 @@ func (s *MemoryStore) ListTeams(_ context.Context, filter TeamFilter) ([]*Team, 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []*Team
+	result := make([]*Team, 0, len(s.teams))
 	for _, team := range s.teams {
 		// By default, only return active teams (soft delete behavior)
 		if filter.IsActive == nil {
@@ -377,7 +377,7 @@ func (s *MemoryStore) ListUsers(_ context.Context, filter UserFilter) ([]*User, 
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []*User
+	result := make([]*User, 0, len(s.users))
 	for _, user := range s.users {
 		if filter.IsActive != nil && user.IsActive != *filter.IsActive {
 			continue
@@ -547,7 +547,7 @@ func (s *MemoryStore) ListOrganizations(_ context.Context, limit, offset int) ([
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	var result []*Organization
+	result := make([]*Organization, 0, len(s.organizations))
 	for _, org := range s.organizations {
 		orgCopy := *org
 		result = append(result, &orgCopy)

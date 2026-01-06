@@ -10,13 +10,13 @@ import (
 )
 
 // Helper to create test deployments
-func createTestDeployments(count int, model string) []*provider.Deployment {
+func createTestDeployments(count int) []*provider.Deployment {
 	deployments := make([]*provider.Deployment, count)
 	for i := 0; i < count; i++ {
 		deployments[i] = &provider.Deployment{
 			ID:           string(rune('a' + i)),
 			ProviderName: "test",
-			ModelName:    model,
+			ModelName:    "gpt-4",
 		}
 	}
 	return deployments
@@ -27,7 +27,7 @@ func TestSimpleShuffleRouter_Pick(t *testing.T) {
 	config.Strategy = StrategySimpleShuffle
 	router := NewSimpleShuffleRouter(config)
 
-	deployments := createTestDeployments(3, "gpt-4")
+	deployments := createTestDeployments(3)
 	for _, d := range deployments {
 		router.AddDeployment(d)
 	}
@@ -81,7 +81,7 @@ func TestLowestLatencyRouter_Pick(t *testing.T) {
 	config.LatencyBuffer = 0.1
 	router := NewLowestLatencyRouter(config)
 
-	deployments := createTestDeployments(3, "gpt-4")
+	deployments := createTestDeployments(3)
 	for _, d := range deployments {
 		router.AddDeployment(d)
 	}
@@ -110,7 +110,7 @@ func TestLowestLatencyRouter_StreamingTTFT(t *testing.T) {
 	config := DefaultRouterConfig()
 	router := NewLowestLatencyRouter(config)
 
-	deployments := createTestDeployments(2, "gpt-4")
+	deployments := createTestDeployments(2)
 	for _, d := range deployments {
 		router.AddDeployment(d)
 	}
@@ -147,7 +147,7 @@ func TestLeastBusyRouter_Pick(t *testing.T) {
 	config := DefaultRouterConfig()
 	router := NewLeastBusyRouter(config)
 
-	deployments := createTestDeployments(3, "gpt-4")
+	deployments := createTestDeployments(3)
 	for _, d := range deployments {
 		router.AddDeployment(d)
 	}

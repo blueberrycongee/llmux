@@ -76,9 +76,7 @@ func (j *JobRunner) runJobs() {
 	j.logger.Debug("running background jobs")
 
 	// Run budget reset job
-	if err := j.resetBudgets(ctx); err != nil {
-		j.logger.Error("budget reset job failed", "error", err)
-	}
+	j.resetBudgets(ctx)
 
 	// Run key rotation job
 	if err := j.rotateKeys(ctx); err != nil {
@@ -90,7 +88,7 @@ func (j *JobRunner) runJobs() {
 // Budget Reset Job
 // ============================================================================
 
-func (j *JobRunner) resetBudgets(ctx context.Context) error {
+func (j *JobRunner) resetBudgets(ctx context.Context) {
 	j.logger.Debug("starting budget reset job")
 
 	// Reset API key budgets
@@ -107,8 +105,6 @@ func (j *JobRunner) resetBudgets(ctx context.Context) error {
 	if err := j.resetUserBudgets(ctx); err != nil {
 		j.logger.Error("failed to reset user budgets", "error", err)
 	}
-
-	return nil
 }
 
 func (j *JobRunner) resetKeyBudgets(ctx context.Context) error {

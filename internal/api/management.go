@@ -521,6 +521,8 @@ func (h *ManagementHandler) RegenerateKey(w http.ResponseWriter, r *http.Request
 }
 
 // Helper functions
+//
+//nolint:unparam // status parameter kept for future flexibility
 func (h *ManagementHandler) writeJSON(w http.ResponseWriter, status int, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
