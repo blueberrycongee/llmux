@@ -66,12 +66,15 @@ func TestMemoryStore_APIKey(t *testing.T) {
 	}
 
 	// List keys
-	keys, err := store.ListAPIKeys(ctx, nil, 10, 0)
+	keys, total, err := store.ListAPIKeys(ctx, APIKeyFilter{Limit: 10})
 	if err != nil {
 		t.Fatalf("ListAPIKeys() error = %v", err)
 	}
 	if len(keys) != 1 {
 		t.Errorf("ListAPIKeys() returned %d keys, want 1", len(keys))
+	}
+	if total != 1 {
+		t.Errorf("ListAPIKeys() total = %d, want 1", total)
 	}
 
 	// Delete (soft)
@@ -81,7 +84,7 @@ func TestMemoryStore_APIKey(t *testing.T) {
 	}
 
 	// Should not appear in list after delete
-	keys, _ = store.ListAPIKeys(ctx, nil, 10, 0)
+	keys, _, _ = store.ListAPIKeys(ctx, APIKeyFilter{Limit: 10})
 	if len(keys) != 0 {
 		t.Errorf("ListAPIKeys() after delete returned %d keys, want 0", len(keys))
 	}
@@ -128,12 +131,15 @@ func TestMemoryStore_Team(t *testing.T) {
 	}
 
 	// List teams
-	teams, err := store.ListTeams(ctx, 10, 0)
+	teams, total, err := store.ListTeams(ctx, TeamFilter{Limit: 10})
 	if err != nil {
 		t.Fatalf("ListTeams() error = %v", err)
 	}
 	if len(teams) != 1 {
 		t.Errorf("ListTeams() returned %d teams, want 1", len(teams))
+	}
+	if total != 1 {
+		t.Errorf("ListTeams() total = %d, want 1", total)
 	}
 
 	// Delete
@@ -142,7 +148,7 @@ func TestMemoryStore_Team(t *testing.T) {
 		t.Fatalf("DeleteTeam() error = %v", err)
 	}
 
-	teams, _ = store.ListTeams(ctx, 10, 0)
+	teams, _, _ = store.ListTeams(ctx, TeamFilter{Limit: 10})
 	if len(teams) != 0 {
 		t.Errorf("ListTeams() after delete returned %d teams, want 0", len(teams))
 	}
@@ -262,17 +268,20 @@ func TestMemoryStore_Pagination(t *testing.T) {
 	}
 
 	// Test pagination
-	keys, _ := store.ListAPIKeys(ctx, nil, 2, 0)
+	keys, total, _ := store.ListAPIKeys(ctx, APIKeyFilter{Limit: 2})
 	if len(keys) != 2 {
 		t.Errorf("ListAPIKeys(limit=2, offset=0) returned %d, want 2", len(keys))
 	}
+	if total != 5 {
+		t.Errorf("ListAPIKeys() total = %d, want 5", total)
+	}
 
-	keys, _ = store.ListAPIKeys(ctx, nil, 2, 3)
+	keys, _, _ = store.ListAPIKeys(ctx, APIKeyFilter{Limit: 2, Offset: 3})
 	if len(keys) != 2 {
 		t.Errorf("ListAPIKeys(limit=2, offset=3) returned %d, want 2", len(keys))
 	}
 
-	keys, _ = store.ListAPIKeys(ctx, nil, 10, 10)
+	keys, _, _ = store.ListAPIKeys(ctx, APIKeyFilter{Limit: 10, Offset: 10})
 	if len(keys) != 0 {
 		t.Errorf("ListAPIKeys(limit=10, offset=10) returned %d, want 0", len(keys))
 	}

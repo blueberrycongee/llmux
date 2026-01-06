@@ -7,22 +7,31 @@ import (
 )
 
 // MemoryStore implements Store using in-memory maps.
-// Useful for testing and single-instance deployments without a database.
 type MemoryStore struct {
-	mu        sync.RWMutex
-	apiKeys   map[string]*APIKey // keyed by hash
-	teams     map[string]*Team
-	users     map[string]*User
-	usageLogs []*UsageLog
+	mu              sync.RWMutex
+	apiKeys         map[string]*APIKey
+	apiKeysByID     map[string]*APIKey
+	budgets         map[string]*Budget
+	organizations   map[string]*Organization
+	teams           map[string]*Team
+	teamMemberships map[string]*TeamMembership
+	users           map[string]*User
+	endUsers        map[string]*EndUser
+	usageLogs       []*UsageLog
 }
 
 // NewMemoryStore creates a new in-memory store.
 func NewMemoryStore() *MemoryStore {
 	return &MemoryStore{
-		apiKeys:   make(map[string]*APIKey),
-		teams:     make(map[string]*Team),
-		users:     make(map[string]*User),
-		usageLogs: make([]*UsageLog, 0),
+		apiKeys:         make(map[string]*APIKey),
+		apiKeysByID:     make(map[string]*APIKey),
+		budgets:         make(map[string]*Budget),
+		organizations:   make(map[string]*Organization),
+		teams:           make(map[string]*Team),
+		teamMemberships: make(map[string]*TeamMembership),
+		users:           make(map[string]*User),
+		endUsers:        make(map[string]*EndUser),
+		usageLogs:       make([]*UsageLog, 0),
 	}
 }
 
@@ -46,79 +55,144 @@ func (s *MemoryStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIKey
 	return &keyCopy, nil
 }
 
-func (s *MemoryStore) CreateAPIKey(ctx context.Context, key *APIKey) error {
+func (s *MemoryStore) CreateAPIKey(_ context.Context, key *APIKey) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	keyCopy := *key
 	s.apiKeys[key.KeyHash] = &keyCopy
+	s.apiKeysByID[key.ID] = &keyCopy
 	return nil
 }
 
-func (s *MemoryStore) UpdateAPIKeyLastUsed(ctx context.Context, keyID string, lastUsed time.Time) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
+func (s *MemoryStore) GetAPIKeyByID(_ context.Context, keyID string) (*APIKey, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	key, ok := s.apiKeysByID[keyID]
+	if !ok {
+		return nil, nil
+	}
+	keyCopy := *key
+	return &keyCopy, nil
+}
+
+func (s *MemoryStore) GetAPIKeyByAlias(_ context.Context, alias string) (*APIKey, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	for _, key := range s.apiKeys {
-		if key.ID == keyID {
-			key.LastUsedAt = &lastUsed
-			return nil
+		if key.KeyAlias != nil && *key.KeyAlias == alias {
+			keyCopy := *key
+			return &keyCopy, nil
 		}
 	}
-	return nil
+	return nil, nil
 }
 
-func (s *MemoryStore) UpdateAPIKeySpent(ctx context.Context, keyID string, amount float64) error {
+func (s *MemoryStore) UpdateAPIKey(_ context.Context, key *APIKey) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for _, key := range s.apiKeys {
-		if key.ID == keyID {
-			key.SpentBudget += amount
-			return nil
-		}
+	if existing, ok := s.apiKeysByID[key.ID]; ok {
+		keyCopy := *key
+		s.apiKeys[existing.KeyHash] = &keyCopy
+		s.apiKeysByID[key.ID] = &keyCopy
 	}
 	return nil
 }
 
-func (s *MemoryStore) DeleteAPIKey(ctx context.Context, keyID string) error {
+func (s *MemoryStore) UpdateAPIKeyLastUsed(_ context.Context, keyID string, lastUsed time.Time) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	for hash, key := range s.apiKeys {
-		if key.ID == keyID {
-			key.IsActive = false
-			s.apiKeys[hash] = key
-			return nil
-		}
+	if key, ok := s.apiKeysByID[keyID]; ok {
+		key.LastUsedAt = &lastUsed
 	}
 	return nil
 }
 
-func (s *MemoryStore) ListAPIKeys(ctx context.Context, teamID *string, limit, offset int) ([]*APIKey, error) {
+func (s *MemoryStore) UpdateAPIKeySpent(_ context.Context, keyID string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if key, ok := s.apiKeysByID[keyID]; ok {
+		key.SpentBudget += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) UpdateAPIKeyModelSpent(_ context.Context, keyID, model string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if key, ok := s.apiKeysByID[keyID]; ok {
+		if key.ModelSpend == nil {
+			key.ModelSpend = make(map[string]float64)
+		}
+		key.ModelSpend[model] += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) ResetAPIKeyBudget(_ context.Context, keyID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if key, ok := s.apiKeysByID[keyID]; ok {
+		key.SpentBudget = 0
+		key.ModelSpend = make(map[string]float64)
+		key.BudgetResetAt = key.BudgetDuration.NextResetTime()
+	}
+	return nil
+}
+
+func (s *MemoryStore) DeleteAPIKey(_ context.Context, keyID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if key, ok := s.apiKeysByID[keyID]; ok {
+		key.IsActive = false
+	}
+	return nil
+}
+
+func (s *MemoryStore) ListAPIKeys(_ context.Context, filter APIKeyFilter) ([]*APIKey, int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
-	result := make([]*APIKey, 0, len(s.apiKeys))
+	var result []*APIKey
 	for _, key := range s.apiKeys {
-		if !key.IsActive {
+		// By default, only return active keys (soft delete behavior)
+		if filter.IsActive == nil {
+			if !key.IsActive {
+				continue
+			}
+		} else if key.IsActive != *filter.IsActive {
 			continue
 		}
-		if teamID != nil && (key.TeamID == nil || *key.TeamID != *teamID) {
+		if filter.Blocked != nil && key.Blocked != *filter.Blocked {
+			continue
+		}
+		if filter.TeamID != nil && (key.TeamID == nil || *key.TeamID != *filter.TeamID) {
 			continue
 		}
 		keyCopy := *key
 		result = append(result, &keyCopy)
 	}
 
-	// Apply pagination
-	if offset >= len(result) {
-		return []*APIKey{}, nil
+	total := int64(len(result))
+	if filter.Offset >= len(result) {
+		return []*APIKey{}, total, nil
 	}
-	end := offset + limit
-	if end > len(result) {
+	end := filter.Offset + filter.Limit
+	if end > len(result) || filter.Limit == 0 {
 		end = len(result)
 	}
-	return result[offset:end], nil
+	return result[filter.Offset:end], total, nil
 }
 
-func (s *MemoryStore) GetTeam(ctx context.Context, teamID string) (*Team, error) {
+func (s *MemoryStore) BlockAPIKey(_ context.Context, keyID string, blocked bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if key, ok := s.apiKeysByID[keyID]; ok {
+		key.Blocked = blocked
+	}
+	return nil
+}
+
+func (s *MemoryStore) GetTeam(_ context.Context, teamID string) (*Team, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	team, ok := s.teams[teamID]
@@ -129,7 +203,7 @@ func (s *MemoryStore) GetTeam(ctx context.Context, teamID string) (*Team, error)
 	return &teamCopy, nil
 }
 
-func (s *MemoryStore) CreateTeam(ctx context.Context, team *Team) error {
+func (s *MemoryStore) CreateTeam(_ context.Context, team *Team) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	teamCopy := *team
@@ -137,7 +211,15 @@ func (s *MemoryStore) CreateTeam(ctx context.Context, team *Team) error {
 	return nil
 }
 
-func (s *MemoryStore) UpdateTeamSpent(ctx context.Context, teamID string, amount float64) error {
+func (s *MemoryStore) UpdateTeam(_ context.Context, team *Team) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	teamCopy := *team
+	s.teams[team.ID] = &teamCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateTeamSpent(_ context.Context, teamID string, amount float64) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if team, ok := s.teams[teamID]; ok {
@@ -146,7 +228,30 @@ func (s *MemoryStore) UpdateTeamSpent(ctx context.Context, teamID string, amount
 	return nil
 }
 
-func (s *MemoryStore) DeleteTeam(ctx context.Context, teamID string) error {
+func (s *MemoryStore) UpdateTeamModelSpent(_ context.Context, teamID, model string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if team, ok := s.teams[teamID]; ok {
+		if team.ModelSpend == nil {
+			team.ModelSpend = make(map[string]float64)
+		}
+		team.ModelSpend[model] += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) ResetTeamBudget(_ context.Context, teamID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if team, ok := s.teams[teamID]; ok {
+		team.SpentBudget = 0
+		team.ModelSpend = make(map[string]float64)
+		team.BudgetResetAt = team.BudgetDuration.NextResetTime()
+	}
+	return nil
+}
+
+func (s *MemoryStore) DeleteTeam(_ context.Context, teamID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if team, ok := s.teams[teamID]; ok {
@@ -155,29 +260,48 @@ func (s *MemoryStore) DeleteTeam(ctx context.Context, teamID string) error {
 	return nil
 }
 
-func (s *MemoryStore) ListTeams(ctx context.Context, limit, offset int) ([]*Team, error) {
+func (s *MemoryStore) ListTeams(_ context.Context, filter TeamFilter) ([]*Team, int64, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
 	var result []*Team
 	for _, team := range s.teams {
-		if team.IsActive {
-			teamCopy := *team
-			result = append(result, &teamCopy)
+		// By default, only return active teams (soft delete behavior)
+		if filter.IsActive == nil {
+			if !team.IsActive {
+				continue
+			}
+		} else if team.IsActive != *filter.IsActive {
+			continue
 		}
+		if filter.Blocked != nil && team.Blocked != *filter.Blocked {
+			continue
+		}
+		teamCopy := *team
+		result = append(result, &teamCopy)
 	}
 
-	if offset >= len(result) {
-		return []*Team{}, nil
+	total := int64(len(result))
+	if filter.Offset >= len(result) {
+		return []*Team{}, total, nil
 	}
-	end := offset + limit
-	if end > len(result) {
+	end := filter.Offset + filter.Limit
+	if end > len(result) || filter.Limit == 0 {
 		end = len(result)
 	}
-	return result[offset:end], nil
+	return result[filter.Offset:end], total, nil
 }
 
-func (s *MemoryStore) GetUser(ctx context.Context, userID string) (*User, error) {
+func (s *MemoryStore) BlockTeam(_ context.Context, teamID string, blocked bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if team, ok := s.teams[teamID]; ok {
+		team.Blocked = blocked
+	}
+	return nil
+}
+
+func (s *MemoryStore) GetUser(_ context.Context, userID string) (*User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	user, ok := s.users[userID]
@@ -188,7 +312,7 @@ func (s *MemoryStore) GetUser(ctx context.Context, userID string) (*User, error)
 	return &userCopy, nil
 }
 
-func (s *MemoryStore) GetUserByEmail(ctx context.Context, email string) (*User, error) {
+func (s *MemoryStore) GetUserByEmail(_ context.Context, email string) (*User, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 	for _, user := range s.users {
@@ -200,7 +324,11 @@ func (s *MemoryStore) GetUserByEmail(ctx context.Context, email string) (*User, 
 	return nil, nil
 }
 
-func (s *MemoryStore) CreateUser(ctx context.Context, user *User) error {
+func (s *MemoryStore) GetUserBySSOID(_ context.Context, _ string) (*User, error) {
+	return nil, nil
+}
+
+func (s *MemoryStore) CreateUser(_ context.Context, user *User) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	userCopy := *user
@@ -208,7 +336,35 @@ func (s *MemoryStore) CreateUser(ctx context.Context, user *User) error {
 	return nil
 }
 
-func (s *MemoryStore) DeleteUser(ctx context.Context, userID string) error {
+func (s *MemoryStore) UpdateUser(_ context.Context, user *User) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	userCopy := *user
+	s.users[user.ID] = &userCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateUserSpent(_ context.Context, userID string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if user, ok := s.users[userID]; ok {
+		user.Spend += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) ResetUserBudget(_ context.Context, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if user, ok := s.users[userID]; ok {
+		user.Spend = 0
+		user.ModelSpend = make(map[string]float64)
+		user.BudgetResetAt = user.BudgetDuration.NextResetTime()
+	}
+	return nil
+}
+
+func (s *MemoryStore) DeleteUser(_ context.Context, userID string) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if user, ok := s.users[userID]; ok {
@@ -217,7 +373,34 @@ func (s *MemoryStore) DeleteUser(ctx context.Context, userID string) error {
 	return nil
 }
 
-func (s *MemoryStore) LogUsage(ctx context.Context, log *UsageLog) error {
+func (s *MemoryStore) ListUsers(_ context.Context, filter UserFilter) ([]*User, int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*User
+	for _, user := range s.users {
+		if filter.IsActive != nil && user.IsActive != *filter.IsActive {
+			continue
+		}
+		if filter.TeamID != nil && (user.TeamID == nil || *user.TeamID != *filter.TeamID) {
+			continue
+		}
+		userCopy := *user
+		result = append(result, &userCopy)
+	}
+
+	total := int64(len(result))
+	if filter.Offset >= len(result) {
+		return []*User{}, total, nil
+	}
+	end := filter.Offset + filter.Limit
+	if end > len(result) || filter.Limit == 0 {
+		end = len(result)
+	}
+	return result[filter.Offset:end], total, nil
+}
+
+func (s *MemoryStore) LogUsage(_ context.Context, log *UsageLog) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	logCopy := *log
@@ -226,7 +409,7 @@ func (s *MemoryStore) LogUsage(ctx context.Context, log *UsageLog) error {
 	return nil
 }
 
-func (s *MemoryStore) GetUsageStats(ctx context.Context, filter UsageFilter) (*UsageStats, error) {
+func (s *MemoryStore) GetUsageStats(_ context.Context, filter UsageFilter) (*UsageStats, error) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()
 
@@ -274,3 +457,259 @@ func (s *MemoryStore) GetUsageStats(ctx context.Context, filter UsageFilter) (*U
 
 	return stats, nil
 }
+
+func (s *MemoryStore) GetDailyUsage(_ context.Context, _ DailyUsageFilter) ([]*DailyUsage, error) {
+	return []*DailyUsage{}, nil
+}
+
+// Budget operations
+
+func (s *MemoryStore) GetBudget(_ context.Context, budgetID string) (*Budget, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	b, ok := s.budgets[budgetID]
+	if !ok {
+		return nil, nil
+	}
+	bCopy := *b
+	return &bCopy, nil
+}
+
+func (s *MemoryStore) CreateBudget(_ context.Context, budget *Budget) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	bCopy := *budget
+	s.budgets[budget.ID] = &bCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateBudget(_ context.Context, budget *Budget) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	bCopy := *budget
+	s.budgets[budget.ID] = &bCopy
+	return nil
+}
+
+func (s *MemoryStore) DeleteBudget(_ context.Context, budgetID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.budgets, budgetID)
+	return nil
+}
+
+// Organization operations
+
+func (s *MemoryStore) GetOrganization(_ context.Context, orgID string) (*Organization, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	org, ok := s.organizations[orgID]
+	if !ok {
+		return nil, nil
+	}
+	orgCopy := *org
+	return &orgCopy, nil
+}
+
+func (s *MemoryStore) CreateOrganization(_ context.Context, org *Organization) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	orgCopy := *org
+	s.organizations[org.ID] = &orgCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateOrganization(_ context.Context, org *Organization) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	orgCopy := *org
+	s.organizations[org.ID] = &orgCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateOrganizationSpent(_ context.Context, orgID string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if org, ok := s.organizations[orgID]; ok {
+		org.Spend += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) DeleteOrganization(_ context.Context, orgID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.organizations, orgID)
+	return nil
+}
+
+func (s *MemoryStore) ListOrganizations(_ context.Context, limit, offset int) ([]*Organization, int64, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*Organization
+	for _, org := range s.organizations {
+		orgCopy := *org
+		result = append(result, &orgCopy)
+	}
+
+	total := int64(len(result))
+	if offset >= len(result) {
+		return []*Organization{}, total, nil
+	}
+	end := offset + limit
+	if end > len(result) || limit == 0 {
+		end = len(result)
+	}
+	return result[offset:end], total, nil
+}
+
+// Team membership operations
+
+func membershipKey(userID, teamID string) string {
+	return userID + ":" + teamID
+}
+
+func (s *MemoryStore) GetTeamMembership(_ context.Context, userID, teamID string) (*TeamMembership, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	m, ok := s.teamMemberships[membershipKey(userID, teamID)]
+	if !ok {
+		return nil, nil
+	}
+	mCopy := *m
+	return &mCopy, nil
+}
+
+func (s *MemoryStore) CreateTeamMembership(_ context.Context, membership *TeamMembership) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	mCopy := *membership
+	s.teamMemberships[membershipKey(membership.UserID, membership.TeamID)] = &mCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateTeamMembershipSpent(_ context.Context, userID, teamID string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if m, ok := s.teamMemberships[membershipKey(userID, teamID)]; ok {
+		m.Spend += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) DeleteTeamMembership(_ context.Context, userID, teamID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.teamMemberships, membershipKey(userID, teamID))
+	return nil
+}
+
+func (s *MemoryStore) ListTeamMembers(_ context.Context, teamID string) ([]*TeamMembership, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*TeamMembership
+	for _, m := range s.teamMemberships {
+		if m.TeamID == teamID {
+			mCopy := *m
+			result = append(result, &mCopy)
+		}
+	}
+	return result, nil
+}
+
+// End user operations
+
+func (s *MemoryStore) GetEndUser(_ context.Context, userID string) (*EndUser, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	eu, ok := s.endUsers[userID]
+	if !ok {
+		return nil, nil
+	}
+	euCopy := *eu
+	return &euCopy, nil
+}
+
+func (s *MemoryStore) CreateEndUser(_ context.Context, endUser *EndUser) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	euCopy := *endUser
+	s.endUsers[endUser.UserID] = &euCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateEndUserSpent(_ context.Context, userID string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if eu, ok := s.endUsers[userID]; ok {
+		eu.Spend += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) BlockEndUser(_ context.Context, userID string, blocked bool) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if eu, ok := s.endUsers[userID]; ok {
+		eu.Blocked = blocked
+	}
+	return nil
+}
+
+func (s *MemoryStore) DeleteEndUser(_ context.Context, userID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.endUsers, userID)
+	return nil
+}
+
+// Budget reset operations
+
+func (s *MemoryStore) GetKeysNeedingBudgetReset(_ context.Context) ([]*APIKey, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*APIKey
+	now := time.Now()
+	for _, key := range s.apiKeys {
+		if key.IsActive && key.BudgetResetAt != nil && now.After(*key.BudgetResetAt) {
+			keyCopy := *key
+			result = append(result, &keyCopy)
+		}
+	}
+	return result, nil
+}
+
+func (s *MemoryStore) GetTeamsNeedingBudgetReset(_ context.Context) ([]*Team, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*Team
+	now := time.Now()
+	for _, team := range s.teams {
+		if team.IsActive && team.BudgetResetAt != nil && now.After(*team.BudgetResetAt) {
+			teamCopy := *team
+			result = append(result, &teamCopy)
+		}
+	}
+	return result, nil
+}
+
+func (s *MemoryStore) GetUsersNeedingBudgetReset(_ context.Context) ([]*User, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*User
+	now := time.Now()
+	for _, user := range s.users {
+		if user.IsActive && user.BudgetResetAt != nil && now.After(*user.BudgetResetAt) {
+			userCopy := *user
+			result = append(result, &userCopy)
+		}
+	}
+	return result, nil
+}
+
+var _ Store = (*MemoryStore)(nil)
