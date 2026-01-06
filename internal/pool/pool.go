@@ -22,7 +22,11 @@ var (
 
 // GetChatRequest gets a ChatRequest from the pool.
 func GetChatRequest() *types.ChatRequest {
-	return requestPool.Get().(*types.ChatRequest)
+	v := requestPool.Get()
+	if req, ok := v.(*types.ChatRequest); ok {
+		return req
+	}
+	return new(types.ChatRequest)
 }
 
 // PutChatRequest returns a ChatRequest to the pool.
@@ -34,7 +38,11 @@ func PutChatRequest(req *types.ChatRequest) {
 
 // GetChatResponse gets a ChatResponse from the pool.
 func GetChatResponse() *types.ChatResponse {
-	return responsePool.Get().(*types.ChatResponse)
+	v := responsePool.Get()
+	if resp, ok := v.(*types.ChatResponse); ok {
+		return resp
+	}
+	return new(types.ChatResponse)
 }
 
 // PutChatResponse returns a ChatResponse to the pool.
