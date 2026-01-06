@@ -8,6 +8,7 @@ import (
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
+	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp"
 	"go.opentelemetry.io/otel/propagation"
 	"go.opentelemetry.io/otel/sdk/resource"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"
@@ -20,23 +21,35 @@ const (
 	TracerName = "llmux"
 )
 
+// ExporterType defines the OTLP exporter type.
+type ExporterType string
+
+const (
+	ExporterGRPC ExporterType = "grpc"
+	ExporterHTTP ExporterType = "http"
+)
+
 // TracingConfig contains configuration for OpenTelemetry tracing.
 type TracingConfig struct {
-	Enabled     bool
-	Endpoint    string  // OTLP endpoint (e.g., "localhost:4317")
-	ServiceName string  // Service name for traces
-	SampleRate  float64 // Sampling rate (0.0 to 1.0)
-	Insecure    bool    // Use insecure connection (no TLS)
+	Enabled      bool
+	Endpoint     string       // OTLP endpoint (e.g., "localhost:4317" for gRPC, "localhost:4318" for HTTP)
+	ExporterType ExporterType // "grpc" or "http"
+	ServiceName  string       // Service name for traces
+	SampleRate   float64      // Sampling rate (0.0 to 1.0)
+	Insecure     bool         // Use insecure connection (no TLS)
+	Headers      map[string]string // Custom headers for OTLP exporter
 }
 
 // DefaultTracingConfig returns sensible defaults.
 func DefaultTracingConfig() TracingConfig {
 	return TracingConfig{
-		Enabled:     false,
-		Endpoint:    "localhost:4317",
-		ServiceName: "llmux",
-		SampleRate:  1.0,
-		Insecure:    true,
+		Enabled:      false,
+		Endpoint:     "localhost:4317",
+		ExporterType: ExporterGRPC,
+		ServiceName:  "llmux",
+		SampleRate:   1.0,
+		Insecure:     true,
+		Headers:      make(map[string]string),
 	}
 }
 
@@ -55,15 +68,17 @@ func InitTracing(ctx context.Context, cfg TracingConfig) (*TracerProvider, error
 		}, nil
 	}
 
-	// Create OTLP exporter
-	opts := []otlptracegrpc.Option{
-		otlptracegrpc.WithEndpoint(cfg.Endpoint),
-	}
-	if cfg.Insecure {
-		opts = append(opts, otlptracegrpc.WithInsecure())
+	// Create OTLP exporter based on type
+	var exporter sdktrace.SpanExporter
+	var err error
+
+	switch cfg.ExporterType {
+	case ExporterHTTP:
+		exporter, err = createHTTPExporter(ctx, cfg)
+	default: // gRPC is default
+		exporter, err = createGRPCExporter(ctx, cfg)
 	}
 
-	exporter, err := otlptracegrpc.New(ctx, opts...)
 	if err != nil {
 		return nil, err
 	}
@@ -178,4 +193,32 @@ func SpanFromContext(ctx context.Context) trace.Span {
 // ContextWithTimeout creates a context with timeout and propagates trace context.
 func ContextWithTimeout(parent context.Context, timeout time.Duration) (context.Context, context.CancelFunc) {
 	return context.WithTimeout(parent, timeout)
+}
+
+// createGRPCExporter creates an OTLP gRPC exporter.
+func createGRPCExporter(ctx context.Context, cfg TracingConfig) (sdktrace.SpanExporter, error) {
+	opts := []otlptracegrpc.Option{
+		otlptracegrpc.WithEndpoint(cfg.Endpoint),
+	}
+	if cfg.Insecure {
+		opts = append(opts, otlptracegrpc.WithInsecure())
+	}
+	if len(cfg.Headers) > 0 {
+		opts = append(opts, otlptracegrpc.WithHeaders(cfg.Headers))
+	}
+	return otlptracegrpc.New(ctx, opts...)
+}
+
+// createHTTPExporter creates an OTLP HTTP exporter.
+func createHTTPExporter(ctx context.Context, cfg TracingConfig) (sdktrace.SpanExporter, error) {
+	opts := []otlptracehttp.Option{
+		otlptracehttp.WithEndpoint(cfg.Endpoint),
+	}
+	if cfg.Insecure {
+		opts = append(opts, otlptracehttp.WithInsecure())
+	}
+	if len(cfg.Headers) > 0 {
+		opts = append(opts, otlptracehttp.WithHeaders(cfg.Headers))
+	}
+	return otlptracehttp.New(ctx, opts...)
 }
