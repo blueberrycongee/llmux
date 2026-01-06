@@ -12,33 +12,36 @@ import (
 )
 
 var (
-	// RequestsTotal counts total requests by provider, model, and status.
+	// RequestsTotal counts total requests by provider, model, and status (legacy).
+	// For new code, use ProxyTotalRequests from prometheus.go instead.
 	RequestsTotal = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "llmux",
 			Name:      "requests_total",
-			Help:      "Total number of LLM requests",
+			Help:      "Total number of LLM requests (legacy)",
 		},
 		[]string{"provider", "model", "status"},
 	)
 
-	// RequestLatency tracks request latency distribution.
+	// RequestLatency tracks request latency distribution (legacy).
+	// For new code, use RequestTotalLatency from prometheus.go instead.
 	RequestLatency = promauto.NewHistogramVec(
 		prometheus.HistogramOpts{
 			Namespace: "llmux",
 			Name:      "request_latency_seconds",
-			Help:      "Request latency in seconds",
+			Help:      "Request latency in seconds (legacy)",
 			Buckets:   []float64{0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 60, 120},
 		},
 		[]string{"provider", "model"},
 	)
 
-	// TokenUsage tracks token consumption by type.
+	// TokenUsage tracks token consumption by type (legacy).
+	// For new code, use InputTokens/OutputTokens from prometheus.go instead.
 	TokenUsage = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Namespace: "llmux",
 			Name:      "token_usage_total",
-			Help:      "Total token usage",
+			Help:      "Total token usage (legacy)",
 		},
 		[]string{"provider", "model", "type"}, // type: input, output
 	)
@@ -51,16 +54,6 @@ var (
 			Help:      "Total upstream errors by type",
 		},
 		[]string{"provider", "error_type"},
-	)
-
-	// ActiveRequests tracks currently processing requests.
-	ActiveRequests = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: "llmux",
-			Name:      "active_requests",
-			Help:      "Number of currently active requests",
-		},
-		[]string{"provider"},
 	)
 
 	// CircuitBreakerState tracks circuit breaker status.
