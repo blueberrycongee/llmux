@@ -7,6 +7,19 @@ English | [简体中文](README_CN.md)
 
 A high-performance LLM Gateway written in Go. Route requests across multiple LLM providers with intelligent load balancing, unified API, and enterprise-grade features.
 
+## 🚀 Performance: LLMux vs LiteLLM
+
+We conducted a fair, head-to-head benchmark comparing LLMux (Go) against LiteLLM (Python).
+Both gateways were tested on the same hardware (limited to 4 CPU cores) against a local Mock Server with fixed 50ms latency.
+
+| Metric | 🚀 LLMux (Go) | 🐢 LiteLLM (Python) | Difference |
+| :--- | :--- | :--- | :--- |
+| **Throughput (RPS)** | **1943.35** | **246.52** | **~8x Faster** |
+| **Mean Latency** | **51.29 ms** | **403.94 ms** | **~8x Lower Overhead** |
+| **P99 Latency** | **91.71 ms** | **845.37 ms** | **Stable vs Jittery** |
+
+*Benchmark Config: 10k requests, 100 concurrency, 4 CPU cores, 50ms backend latency.*
+
 ## Features
 
 - **Unified OpenAI-Compatible API** - Single endpoint for all providers
