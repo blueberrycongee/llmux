@@ -1,0 +1,29 @@
+# LLMux Benchmark Configuration Template
+# Copy this file to llmux_bench_config.yaml and modify as needed
+
+server:
+  port: 3000
+  read_timeout: 30s
+  write_timeout: 120s
+  idle_timeout: 60s
+
+providers:
+  - name: mock-provider
+    type: openai
+    api_key: your-api-key-here  # Replace with actual key or use mock
+    base_url: http://localhost:8081/v1
+    models:
+      - gpt-4o
+      - gpt-4
+      - gpt-3.5-turbo
+    max_concurrent: 1000
+    timeout: 5s
+
+routing:
+  default_provider: mock-provider
+  strategy: simple-shuffle
+  fallback_enabled: false
+
+logging:
+  level: error  # Use 'error' to reduce logging overhead during benchmarks
+  format: json

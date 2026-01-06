@@ -41,5 +41,8 @@ config/config.local.yaml
 dist/
 .kiro/
 
-# Benchmark results
+# Benchmark results and local configs
 bench/results/*.json
+bench/llmux_bench_config.yaml
+
+
