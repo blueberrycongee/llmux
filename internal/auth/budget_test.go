@@ -83,9 +83,9 @@ func TestBudget_NeedsReset(t *testing.T) {
 	future := time.Now().Add(1 * time.Hour)
 
 	tests := []struct {
-		name      string
-		resetAt   *time.Time
-		expected  bool
+		name     string
+		resetAt  *time.Time
+		expected bool
 	}{
 		{"nil reset time", nil, false},
 		{"past reset time", &past, true},

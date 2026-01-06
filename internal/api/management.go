@@ -32,26 +32,26 @@ func NewManagementHandler(store auth.Store, logger *slog.Logger) *ManagementHand
 
 // GenerateKeyRequest represents a request to generate a new API key.
 type GenerateKeyRequest struct {
-	Name               string             `json:"key_name,omitempty"`
-	KeyAlias           *string            `json:"key_alias,omitempty"`
-	TeamID             *string            `json:"team_id,omitempty"`
-	UserID             *string            `json:"user_id,omitempty"`
-	OrganizationID     *string            `json:"organization_id,omitempty"`
-	Models             []string           `json:"models,omitempty"`
-	MaxBudget          *float64           `json:"max_budget,omitempty"`
-	SoftBudget         *float64           `json:"soft_budget,omitempty"`
-	BudgetDuration     string             `json:"budget_duration,omitempty"`
-	TPMLimit           *int64             `json:"tpm_limit,omitempty"`
-	RPMLimit           *int64             `json:"rpm_limit,omitempty"`
-	MaxParallelReqs    *int               `json:"max_parallel_requests,omitempty"`
-	ModelMaxBudget     map[string]float64 `json:"model_max_budget,omitempty"`
-	ModelTPMLimit      map[string]int64   `json:"model_tpm_limit,omitempty"`
-	ModelRPMLimit      map[string]int64   `json:"model_rpm_limit,omitempty"`
-	Duration           string             `json:"duration,omitempty"` // Key expiry duration
-	Metadata           auth.Metadata      `json:"metadata,omitempty"`
-	KeyType            string             `json:"key_type,omitempty"` // llm_api, management, read_only
-	AutoRotate         bool               `json:"auto_rotate,omitempty"`
-	RotationInterval   string             `json:"rotation_interval,omitempty"` // e.g., "30d", "90d"
+	Name             string             `json:"key_name,omitempty"`
+	KeyAlias         *string            `json:"key_alias,omitempty"`
+	TeamID           *string            `json:"team_id,omitempty"`
+	UserID           *string            `json:"user_id,omitempty"`
+	OrganizationID   *string            `json:"organization_id,omitempty"`
+	Models           []string           `json:"models,omitempty"`
+	MaxBudget        *float64           `json:"max_budget,omitempty"`
+	SoftBudget       *float64           `json:"soft_budget,omitempty"`
+	BudgetDuration   string             `json:"budget_duration,omitempty"`
+	TPMLimit         *int64             `json:"tpm_limit,omitempty"`
+	RPMLimit         *int64             `json:"rpm_limit,omitempty"`
+	MaxParallelReqs  *int               `json:"max_parallel_requests,omitempty"`
+	ModelMaxBudget   map[string]float64 `json:"model_max_budget,omitempty"`
+	ModelTPMLimit    map[string]int64   `json:"model_tpm_limit,omitempty"`
+	ModelRPMLimit    map[string]int64   `json:"model_rpm_limit,omitempty"`
+	Duration         string             `json:"duration,omitempty"` // Key expiry duration
+	Metadata         auth.Metadata      `json:"metadata,omitempty"`
+	KeyType          string             `json:"key_type,omitempty"` // llm_api, management, read_only
+	AutoRotate       bool               `json:"auto_rotate,omitempty"`
+	RotationInterval string             `json:"rotation_interval,omitempty"` // e.g., "30d", "90d"
 }
 
 // GenerateKeyResponse represents the response after generating a key.
@@ -180,21 +180,21 @@ func (h *ManagementHandler) GenerateKey(w http.ResponseWriter, r *http.Request) 
 
 // UpdateKeyRequest represents a request to update an API key.
 type UpdateKeyRequest struct {
-	Key                string             `json:"key"` // Key ID or hash
-	Name               *string            `json:"key_name,omitempty"`
-	KeyAlias           *string            `json:"key_alias,omitempty"`
-	Models             []string           `json:"models,omitempty"`
-	MaxBudget          *float64           `json:"max_budget,omitempty"`
-	SoftBudget         *float64           `json:"soft_budget,omitempty"`
-	BudgetDuration     *string            `json:"budget_duration,omitempty"`
-	TPMLimit           *int64             `json:"tpm_limit,omitempty"`
-	RPMLimit           *int64             `json:"rpm_limit,omitempty"`
-	MaxParallelReqs    *int               `json:"max_parallel_requests,omitempty"`
-	ModelMaxBudget     map[string]float64 `json:"model_max_budget,omitempty"`
-	Metadata           auth.Metadata      `json:"metadata,omitempty"`
-	Duration           *string            `json:"duration,omitempty"`
-	AutoRotate         *bool              `json:"auto_rotate,omitempty"`
-	RotationInterval   *string            `json:"rotation_interval,omitempty"`
+	Key              string             `json:"key"` // Key ID or hash
+	Name             *string            `json:"key_name,omitempty"`
+	KeyAlias         *string            `json:"key_alias,omitempty"`
+	Models           []string           `json:"models,omitempty"`
+	MaxBudget        *float64           `json:"max_budget,omitempty"`
+	SoftBudget       *float64           `json:"soft_budget,omitempty"`
+	BudgetDuration   *string            `json:"budget_duration,omitempty"`
+	TPMLimit         *int64             `json:"tpm_limit,omitempty"`
+	RPMLimit         *int64             `json:"rpm_limit,omitempty"`
+	MaxParallelReqs  *int               `json:"max_parallel_requests,omitempty"`
+	ModelMaxBudget   map[string]float64 `json:"model_max_budget,omitempty"`
+	Metadata         auth.Metadata      `json:"metadata,omitempty"`
+	Duration         *string            `json:"duration,omitempty"`
+	AutoRotate       *bool              `json:"auto_rotate,omitempty"`
+	RotationInterval *string            `json:"rotation_interval,omitempty"`
 }
 
 // UpdateKey handles POST /key/update
@@ -338,8 +338,14 @@ func (h *ManagementHandler) GetKeyInfo(w http.ResponseWriter, r *http.Request) {
 func (h *ManagementHandler) ListKeys(w http.ResponseWriter, r *http.Request) {
 	teamID := r.URL.Query().Get("team_id")
 	userID := r.URL.Query().Get("user_id")
-	limit, _ := strconv.Atoi(r.URL.Query().Get("limit"))
-	offset, _ := strconv.Atoi(r.URL.Query().Get("offset"))
+	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
+	if err != nil {
+		limit = 0
+	}
+	offset, err := strconv.Atoi(r.URL.Query().Get("offset"))
+	if err != nil {
+		offset = 0
+	}
 
 	if limit <= 0 {
 		limit = 50

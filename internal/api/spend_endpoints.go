@@ -114,12 +114,12 @@ func (h *ManagementHandler) GetSpendByKeys(w http.ResponseWriter, r *http.Reques
 
 	// Build response with spend info
 	type keySpend struct {
-		KeyID      string  `json:"key_id"`
-		KeyPrefix  string  `json:"key_prefix"`
-		KeyName    string  `json:"key_name"`
-		TeamID     *string `json:"team_id,omitempty"`
-		Spend      float64 `json:"spend"`
-		MaxBudget  float64 `json:"max_budget"`
+		KeyID     string  `json:"key_id"`
+		KeyPrefix string  `json:"key_prefix"`
+		KeyName   string  `json:"key_name"`
+		TeamID    *string `json:"team_id,omitempty"`
+		Spend     float64 `json:"spend"`
+		MaxBudget float64 `json:"max_budget"`
 	}
 
 	result := make([]keySpend, 0, len(keys))
@@ -269,14 +269,14 @@ func (h *ManagementHandler) GetGlobalActivity(w http.ResponseWriter, r *http.Req
 	}
 
 	h.writeJSON(w, http.StatusOK, map[string]any{
-		"daily_data":        dailyData,
-		"sum_api_requests":  sumRequests,
-		"sum_total_tokens":  sumTokens,
-		"total_cost":        stats.TotalCost,
-		"avg_latency_ms":    stats.AvgLatencyMs,
-		"success_rate":      stats.SuccessRate,
-		"unique_models":     stats.UniqueModels,
-		"unique_providers":  stats.UniqueProviders,
+		"daily_data":       dailyData,
+		"sum_api_requests": sumRequests,
+		"sum_total_tokens": sumTokens,
+		"total_cost":       stats.TotalCost,
+		"avg_latency_ms":   stats.AvgLatencyMs,
+		"success_rate":     stats.SuccessRate,
+		"unique_models":    stats.UniqueModels,
+		"unique_providers": stats.UniqueProviders,
 	})
 }
 

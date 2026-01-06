@@ -17,20 +17,20 @@ import (
 
 // NewUserRequest represents a request to create a new user.
 type NewUserRequest struct {
-	UserID         string             `json:"user_id,omitempty"`
-	UserAlias      *string            `json:"user_alias,omitempty"`
-	UserEmail      *string            `json:"user_email,omitempty"`
-	TeamID         *string            `json:"team_id,omitempty"`
-	OrganizationID *string            `json:"organization_id,omitempty"`
-	UserRole       string             `json:"user_role,omitempty"` // proxy_admin, org_admin, internal_user
-	Models         []string           `json:"models,omitempty"`
-	MaxBudget      *float64           `json:"max_budget,omitempty"`
-	BudgetDuration string             `json:"budget_duration,omitempty"`
-	TPMLimit       *int64             `json:"tpm_limit,omitempty"`
-	RPMLimit       *int64             `json:"rpm_limit,omitempty"`
-	MaxParallelReqs *int              `json:"max_parallel_requests,omitempty"`
-	ModelMaxBudget map[string]float64 `json:"model_max_budget,omitempty"`
-	Metadata       auth.Metadata      `json:"metadata,omitempty"`
+	UserID          string             `json:"user_id,omitempty"`
+	UserAlias       *string            `json:"user_alias,omitempty"`
+	UserEmail       *string            `json:"user_email,omitempty"`
+	TeamID          *string            `json:"team_id,omitempty"`
+	OrganizationID  *string            `json:"organization_id,omitempty"`
+	UserRole        string             `json:"user_role,omitempty"` // proxy_admin, org_admin, internal_user
+	Models          []string           `json:"models,omitempty"`
+	MaxBudget       *float64           `json:"max_budget,omitempty"`
+	BudgetDuration  string             `json:"budget_duration,omitempty"`
+	TPMLimit        *int64             `json:"tpm_limit,omitempty"`
+	RPMLimit        *int64             `json:"rpm_limit,omitempty"`
+	MaxParallelReqs *int               `json:"max_parallel_requests,omitempty"`
+	ModelMaxBudget  map[string]float64 `json:"model_max_budget,omitempty"`
+	Metadata        auth.Metadata      `json:"metadata,omitempty"`
 }
 
 // NewUser handles POST /user/new
@@ -53,21 +53,21 @@ func (h *ManagementHandler) NewUser(w http.ResponseWriter, r *http.Request) {
 	}
 
 	user := &auth.User{
-		ID:             userID,
-		Alias:          req.UserAlias,
-		Email:          req.UserEmail,
-		TeamID:         req.TeamID,
-		OrganizationID: req.OrganizationID,
-		Role:           role,
-		Models:         req.Models,
-		TPMLimit:       req.TPMLimit,
-		RPMLimit:       req.RPMLimit,
+		ID:                  userID,
+		Alias:               req.UserAlias,
+		Email:               req.UserEmail,
+		TeamID:              req.TeamID,
+		OrganizationID:      req.OrganizationID,
+		Role:                role,
+		Models:              req.Models,
+		TPMLimit:            req.TPMLimit,
+		RPMLimit:            req.RPMLimit,
 		MaxParallelRequests: req.MaxParallelReqs,
-		ModelMaxBudget: req.ModelMaxBudget,
-		Metadata:       req.Metadata,
-		IsActive:       true,
-		CreatedAt:      &now,
-		UpdatedAt:      &now,
+		ModelMaxBudget:      req.ModelMaxBudget,
+		Metadata:            req.Metadata,
+		IsActive:            true,
+		CreatedAt:           &now,
+		UpdatedAt:           &now,
 	}
 
 	if req.MaxBudget != nil {
@@ -90,18 +90,18 @@ func (h *ManagementHandler) NewUser(w http.ResponseWriter, r *http.Request) {
 
 // UpdateUserRequest represents a request to update a user.
 type UpdateUserRequest struct {
-	UserID         string             `json:"user_id"`
-	UserAlias      *string            `json:"user_alias,omitempty"`
-	UserEmail      *string            `json:"user_email,omitempty"`
-	UserRole       *string            `json:"user_role,omitempty"`
-	Models         []string           `json:"models,omitempty"`
-	MaxBudget      *float64           `json:"max_budget,omitempty"`
-	BudgetDuration *string            `json:"budget_duration,omitempty"`
-	TPMLimit       *int64             `json:"tpm_limit,omitempty"`
-	RPMLimit       *int64             `json:"rpm_limit,omitempty"`
-	MaxParallelReqs *int              `json:"max_parallel_requests,omitempty"`
-	ModelMaxBudget map[string]float64 `json:"model_max_budget,omitempty"`
-	Metadata       auth.Metadata      `json:"metadata,omitempty"`
+	UserID          string             `json:"user_id"`
+	UserAlias       *string            `json:"user_alias,omitempty"`
+	UserEmail       *string            `json:"user_email,omitempty"`
+	UserRole        *string            `json:"user_role,omitempty"`
+	Models          []string           `json:"models,omitempty"`
+	MaxBudget       *float64           `json:"max_budget,omitempty"`
+	BudgetDuration  *string            `json:"budget_duration,omitempty"`
+	TPMLimit        *int64             `json:"tpm_limit,omitempty"`
+	RPMLimit        *int64             `json:"rpm_limit,omitempty"`
+	MaxParallelReqs *int               `json:"max_parallel_requests,omitempty"`
+	ModelMaxBudget  map[string]float64 `json:"model_max_budget,omitempty"`
+	Metadata        auth.Metadata      `json:"metadata,omitempty"`
 }
 
 // UpdateUser handles POST /user/update

@@ -9,10 +9,10 @@ import (
 type KeyType string
 
 const (
-	KeyTypeLLMAPI     KeyType = "llm_api"     // Can only call LLM API routes
-	KeyTypeManagement KeyType = "management"  // Can call management routes
-	KeyTypeReadOnly   KeyType = "read_only"   // Can only call info/read routes
-	KeyTypeDefault    KeyType = "default"     // Uses default allowed routes
+	KeyTypeLLMAPI     KeyType = "llm_api"    // Can only call LLM API routes
+	KeyTypeManagement KeyType = "management" // Can call management routes
+	KeyTypeReadOnly   KeyType = "read_only"  // Can only call info/read routes
+	KeyTypeDefault    KeyType = "default"    // Uses default allowed routes
 )
 
 // APIKey represents an API key with its associated permissions and limits.
@@ -144,29 +144,29 @@ const (
 
 // UsageLog records API usage for billing and analytics.
 type UsageLog struct {
-	ID             int64      `json:"id"`
-	RequestID      string     `json:"request_id"`
-	APIKeyID       string     `json:"api_key"`
-	TeamID         *string    `json:"team_id,omitempty"`
-	OrganizationID *string    `json:"organization_id,omitempty"`
-	UserID         *string    `json:"user,omitempty"`
-	EndUserID      *string    `json:"end_user,omitempty"`
-	Model          string     `json:"model"`
-	ModelGroup     *string    `json:"model_group,omitempty"`
-	Provider       string     `json:"custom_llm_provider"`
-	CallType       string     `json:"call_type"` // completion, embedding, etc.
-	InputTokens    int        `json:"prompt_tokens"`
-	OutputTokens   int        `json:"completion_tokens"`
-	TotalTokens    int        `json:"total_tokens"`
-	Cost           float64    `json:"spend"`
-	LatencyMs      int        `json:"latency_ms,omitempty"`
-	StatusCode     *int       `json:"status_code,omitempty"`
-	Status         *string    `json:"status,omitempty"`
-	CacheHit       *string    `json:"cache_hit,omitempty"`
-	RequestTags    []string   `json:"request_tags,omitempty"`
-	Metadata       Metadata   `json:"metadata,omitempty"`
-	StartTime      time.Time  `json:"startTime"`
-	EndTime        time.Time  `json:"endTime"`
+	ID             int64     `json:"id"`
+	RequestID      string    `json:"request_id"`
+	APIKeyID       string    `json:"api_key"`
+	TeamID         *string   `json:"team_id,omitempty"`
+	OrganizationID *string   `json:"organization_id,omitempty"`
+	UserID         *string   `json:"user,omitempty"`
+	EndUserID      *string   `json:"end_user,omitempty"`
+	Model          string    `json:"model"`
+	ModelGroup     *string   `json:"model_group,omitempty"`
+	Provider       string    `json:"custom_llm_provider"`
+	CallType       string    `json:"call_type"` // completion, embedding, etc.
+	InputTokens    int       `json:"prompt_tokens"`
+	OutputTokens   int       `json:"completion_tokens"`
+	TotalTokens    int       `json:"total_tokens"`
+	Cost           float64   `json:"spend"`
+	LatencyMs      int       `json:"latency_ms,omitempty"`
+	StatusCode     *int      `json:"status_code,omitempty"`
+	Status         *string   `json:"status,omitempty"`
+	CacheHit       *string   `json:"cache_hit,omitempty"`
+	RequestTags    []string  `json:"request_tags,omitempty"`
+	Metadata       Metadata  `json:"metadata,omitempty"`
+	StartTime      time.Time `json:"startTime"`
+	EndTime        time.Time `json:"endTime"`
 }
 
 // Metadata is a flexible key-value store for custom attributes.

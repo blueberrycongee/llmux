@@ -20,12 +20,12 @@ var ErrNoDeploymentsWithTag = errors.New("no deployments match the requested tag
 // BaseRouter provides common functionality for all routing strategies.
 // Specific strategies embed this and override the selection logic.
 type BaseRouter struct {
-	mu              sync.RWMutex
-	deployments     map[string][]*ExtendedDeployment // model -> deployments
-	stats           map[string]*DeploymentStats      // deploymentID -> stats
-	config          RouterConfig
-	rng             *rand.Rand
-	strategy        Strategy
+	mu          sync.RWMutex
+	deployments map[string][]*ExtendedDeployment // model -> deployments
+	stats       map[string]*DeploymentStats      // deploymentID -> stats
+	config      RouterConfig
+	rng         *rand.Rand
+	strategy    Strategy
 }
 
 // NewBaseRouter creates a new base router with the given configuration.

@@ -182,15 +182,15 @@ type MetricsLabelConfig struct {
 
 // LabelFilterManager manages label filters for different metric groups.
 type LabelFilterManager struct {
-	configs  map[string]*LabelFilter // metric name -> filter
-	default_ *LabelFilter
+	configs       map[string]*LabelFilter // metric name -> filter
+	defaultFilter *LabelFilter
 }
 
 // NewLabelFilterManager creates a new label filter manager.
 func NewLabelFilterManager(configs []MetricsLabelConfig) *LabelFilterManager {
 	mgr := &LabelFilterManager{
-		configs:  make(map[string]*LabelFilter),
-		default_: &LabelFilter{}, // No filtering by default
+		configs:       make(map[string]*LabelFilter),
+		defaultFilter: &LabelFilter{}, // No filtering by default
 	}
 
 	for _, cfg := range configs {
@@ -211,7 +211,7 @@ func (m *LabelFilterManager) GetFilter(metricName string) *LabelFilter {
 	if filter, ok := m.configs[metricName]; ok {
 		return filter
 	}
-	return m.default_
+	return m.defaultFilter
 }
 
 // FilterLabels filters labels based on the configuration.

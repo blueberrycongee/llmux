@@ -19,19 +19,19 @@ const (
 // across multiple entities (keys, teams, users).
 // This follows LiteLLM's LiteLLM_BudgetTable pattern.
 type Budget struct {
-	ID                  string            `json:"budget_id"`
-	MaxBudget           *float64          `json:"max_budget,omitempty"`           // Hard budget limit
-	SoftBudget          *float64          `json:"soft_budget,omitempty"`          // Alert threshold (doesn't block)
-	MaxParallelRequests *int              `json:"max_parallel_requests,omitempty"` // Concurrent request limit
-	TPMLimit            *int64            `json:"tpm_limit,omitempty"`            // Tokens per minute
-	RPMLimit            *int64            `json:"rpm_limit,omitempty"`            // Requests per minute
-	ModelMaxBudget      map[string]float64 `json:"model_max_budget,omitempty"`    // Per-model budget limits
-	BudgetDuration      BudgetDuration    `json:"budget_duration,omitempty"`      // Reset period
-	BudgetResetAt       *time.Time        `json:"budget_reset_at,omitempty"`      // Next reset time
-	CreatedAt           time.Time         `json:"created_at"`
-	CreatedBy           string            `json:"created_by"`
-	UpdatedAt           time.Time         `json:"updated_at"`
-	UpdatedBy           string            `json:"updated_by"`
+	ID                  string             `json:"budget_id"`
+	MaxBudget           *float64           `json:"max_budget,omitempty"`            // Hard budget limit
+	SoftBudget          *float64           `json:"soft_budget,omitempty"`           // Alert threshold (doesn't block)
+	MaxParallelRequests *int               `json:"max_parallel_requests,omitempty"` // Concurrent request limit
+	TPMLimit            *int64             `json:"tpm_limit,omitempty"`             // Tokens per minute
+	RPMLimit            *int64             `json:"rpm_limit,omitempty"`             // Requests per minute
+	ModelMaxBudget      map[string]float64 `json:"model_max_budget,omitempty"`      // Per-model budget limits
+	BudgetDuration      BudgetDuration     `json:"budget_duration,omitempty"`       // Reset period
+	BudgetResetAt       *time.Time         `json:"budget_reset_at,omitempty"`       // Next reset time
+	CreatedAt           time.Time          `json:"created_at"`
+	CreatedBy           string             `json:"created_by"`
+	UpdatedAt           time.Time          `json:"updated_at"`
+	UpdatedBy           string             `json:"updated_by"`
 }
 
 // RateLimitType defines how rate limits are enforced.
@@ -48,12 +48,12 @@ const (
 
 // RateLimits holds rate limiting configuration for an entity.
 type RateLimits struct {
-	TPMLimit      *int64            `json:"tpm_limit,omitempty"`       // Tokens per minute
-	RPMLimit      *int64            `json:"rpm_limit,omitempty"`       // Requests per minute
-	ModelTPMLimit map[string]int64  `json:"model_tpm_limit,omitempty"` // Per-model TPM
-	ModelRPMLimit map[string]int64  `json:"model_rpm_limit,omitempty"` // Per-model RPM
-	TPMLimitType  RateLimitType     `json:"tpm_limit_type,omitempty"`
-	RPMLimitType  RateLimitType     `json:"rpm_limit_type,omitempty"`
+	TPMLimit      *int64           `json:"tpm_limit,omitempty"`       // Tokens per minute
+	RPMLimit      *int64           `json:"rpm_limit,omitempty"`       // Requests per minute
+	ModelTPMLimit map[string]int64 `json:"model_tpm_limit,omitempty"` // Per-model TPM
+	ModelRPMLimit map[string]int64 `json:"model_rpm_limit,omitempty"` // Per-model RPM
+	TPMLimitType  RateLimitType    `json:"tpm_limit_type,omitempty"`
+	RPMLimitType  RateLimitType    `json:"rpm_limit_type,omitempty"`
 }
 
 // BudgetStatus represents the current budget state.

@@ -43,11 +43,11 @@ type RequestMetrics struct {
 	Labels Labels
 
 	// Timing
-	StartTime      time.Time
-	EndTime        time.Time
-	TTFT           time.Duration // Time to first token
-	OverheadTime   time.Duration // LLMux processing overhead
-	UpstreamTime   time.Duration // Actual LLM API time
+	StartTime    time.Time
+	EndTime      time.Time
+	TTFT         time.Duration // Time to first token
+	OverheadTime time.Duration // LLMux processing overhead
+	UpstreamTime time.Duration // Actual LLM API time
 
 	// Tokens
 	InputTokens  int

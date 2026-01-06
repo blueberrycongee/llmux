@@ -170,7 +170,9 @@ func (h *ManagementHandler) UpdateOrganization(w http.ResponseWriter, r *http.Re
 				budget.BudgetResetAt = budget.BudgetDuration.NextResetTime()
 			}
 			budget.UpdatedAt = time.Now()
-			h.store.UpdateBudget(r.Context(), budget)
+			if err := h.store.UpdateBudget(r.Context(), budget); err != nil {
+				h.logger.Error("failed to update budget", "error", err)
+			}
 		}
 	}
 
@@ -237,7 +239,10 @@ func (h *ManagementHandler) GetOrganizationInfo(w http.ResponseWriter, r *http.R
 	// Get budget info if exists
 	var budget *auth.Budget
 	if org.BudgetID != nil {
-		budget, _ = h.store.GetBudget(r.Context(), *org.BudgetID)
+		budget, err = h.store.GetBudget(r.Context(), *org.BudgetID)
+		if err != nil {
+			h.logger.Error("failed to get budget", "error", err)
+		}
 	}
 
 	h.writeJSON(w, http.StatusOK, map[string]any{

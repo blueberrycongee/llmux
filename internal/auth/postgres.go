@@ -147,16 +147,25 @@ func (s *PostgresStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIK
 
 	// Parse JSON fields
 	if allowedModels.Valid && allowedModels.String != "" {
-		_ = json.Unmarshal([]byte(allowedModels.String), &key.AllowedModels)
+		if err := json.Unmarshal([]byte(allowedModels.String), &key.AllowedModels); err != nil {
+			// Log but don't fail - use empty slice
+			key.AllowedModels = nil
+		}
 	}
 	if modelMaxBudget.Valid && modelMaxBudget.String != "" {
-		_ = json.Unmarshal([]byte(modelMaxBudget.String), &key.ModelMaxBudget)
+		if err := json.Unmarshal([]byte(modelMaxBudget.String), &key.ModelMaxBudget); err != nil {
+			key.ModelMaxBudget = nil
+		}
 	}
 	if modelSpend.Valid && modelSpend.String != "" {
-		_ = json.Unmarshal([]byte(modelSpend.String), &key.ModelSpend)
+		if err := json.Unmarshal([]byte(modelSpend.String), &key.ModelSpend); err != nil {
+			key.ModelSpend = nil
+		}
 	}
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		_ = json.Unmarshal([]byte(metadataJSON.String), &key.Metadata)
+		if err := json.Unmarshal([]byte(metadataJSON.String), &key.Metadata); err != nil {
+			key.Metadata = nil
+		}
 	}
 
 	return &key, nil
@@ -164,10 +173,22 @@ func (s *PostgresStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIK
 
 // CreateAPIKey inserts a new API key.
 func (s *PostgresStore) CreateAPIKey(ctx context.Context, key *APIKey) error {
-	allowedModelsJSON, _ := json.Marshal(key.AllowedModels)
-	modelMaxBudgetJSON, _ := json.Marshal(key.ModelMaxBudget)
-	modelSpendJSON, _ := json.Marshal(key.ModelSpend)
-	metadataJSON, _ := json.Marshal(key.Metadata)
+	allowedModelsJSON, err := json.Marshal(key.AllowedModels)
+	if err != nil {
+		allowedModelsJSON = []byte("[]")
+	}
+	modelMaxBudgetJSON, err := json.Marshal(key.ModelMaxBudget)
+	if err != nil {
+		modelMaxBudgetJSON = []byte("{}")
+	}
+	modelSpendJSON, err := json.Marshal(key.ModelSpend)
+	if err != nil {
+		modelSpendJSON = []byte("{}")
+	}
+	metadataJSON, err := json.Marshal(key.Metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
 
 	query := `
 		INSERT INTO api_keys (id, key_hash, key_prefix, name, key_alias, team_id, user_id, organization_id,
@@ -176,7 +197,7 @@ func (s *PostgresStore) CreateAPIKey(ctx context.Context, key *APIKey) error {
 		                      metadata, created_at, updated_at, expires_at, is_active, blocked)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22, $23, $24)`
 
-	_, err := s.db.ExecContext(ctx, query,
+	_, err = s.db.ExecContext(ctx, query,
 		key.ID, key.KeyHash, key.KeyPrefix, key.Name, key.KeyAlias,
 		key.TeamID, key.UserID, key.OrganizationID,
 		string(allowedModelsJSON), key.TPMLimit, key.RPMLimit,
@@ -302,10 +323,14 @@ func (s *PostgresStore) GetTeam(ctx context.Context, teamID string) (*Team, erro
 		team.RPMLimit = &rpmLimit.Int64
 	}
 	if models.Valid && models.String != "" {
-		_ = json.Unmarshal([]byte(models.String), &team.Models)
+		if err := json.Unmarshal([]byte(models.String), &team.Models); err != nil {
+			team.Models = nil
+		}
 	}
 	if metadataJSON.Valid && metadataJSON.String != "" {
-		_ = json.Unmarshal([]byte(metadataJSON.String), &team.Metadata)
+		if err := json.Unmarshal([]byte(metadataJSON.String), &team.Metadata); err != nil {
+			team.Metadata = nil
+		}
 	}
 
 	return &team, nil
@@ -313,15 +338,21 @@ func (s *PostgresStore) GetTeam(ctx context.Context, teamID string) (*Team, erro
 
 // CreateTeam inserts a new team.
 func (s *PostgresStore) CreateTeam(ctx context.Context, team *Team) error {
-	modelsJSON, _ := json.Marshal(team.Models)
-	metadataJSON, _ := json.Marshal(team.Metadata)
+	modelsJSON, err := json.Marshal(team.Models)
+	if err != nil {
+		modelsJSON = []byte("[]")
+	}
+	metadataJSON, err := json.Marshal(team.Metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
 
 	query := `
 		INSERT INTO teams (id, team_alias, organization_id, max_budget, spend, 
 		                   tpm_limit, rpm_limit, models, metadata, created_at, updated_at, is_active, blocked)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
-	_, err := s.db.ExecContext(ctx, query,
+	_, err = s.db.ExecContext(ctx, query,
 		team.ID, team.Alias, team.OrganizationID, team.MaxBudget, team.SpentBudget,
 		team.TPMLimit, team.RPMLimit, string(modelsJSON), string(metadataJSON),
 		team.CreatedAt, team.UpdatedAt, team.IsActive, team.Blocked,
@@ -467,15 +498,21 @@ func (s *PostgresStore) GetUserByEmail(ctx context.Context, email string) (*User
 
 // CreateUser inserts a new user.
 func (s *PostgresStore) CreateUser(ctx context.Context, user *User) error {
-	modelsJSON, _ := json.Marshal(user.Models)
-	metadataJSON, _ := json.Marshal(user.Metadata)
+	modelsJSON, err := json.Marshal(user.Models)
+	if err != nil {
+		modelsJSON = []byte("[]")
+	}
+	metadataJSON, err := json.Marshal(user.Metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
 
 	query := `
 		INSERT INTO users (id, user_alias, user_email, team_id, organization_id, user_role,
 		                   max_budget, spend, models, metadata, is_active, created_at, updated_at)
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)`
 
-	_, err := s.db.ExecContext(ctx, query,
+	_, err = s.db.ExecContext(ctx, query,
 		user.ID, user.Alias, user.Email, user.TeamID, user.OrganizationID, user.Role,
 		user.MaxBudget, user.Spend, string(modelsJSON), string(metadataJSON),
 		user.IsActive, user.CreatedAt, user.UpdatedAt,
@@ -492,8 +529,14 @@ func (s *PostgresStore) DeleteUser(ctx context.Context, userID string) error {
 
 // LogUsage records API usage.
 func (s *PostgresStore) LogUsage(ctx context.Context, log *UsageLog) error {
-	tagsJSON, _ := json.Marshal(log.RequestTags)
-	metadataJSON, _ := json.Marshal(log.Metadata)
+	tagsJSON, err := json.Marshal(log.RequestTags)
+	if err != nil {
+		tagsJSON = []byte("[]")
+	}
+	metadataJSON, err := json.Marshal(log.Metadata)
+	if err != nil {
+		metadataJSON = []byte("{}")
+	}
 
 	query := `
 		INSERT INTO usage_logs (request_id, api_key, team_id, organization_id, "user", end_user,
@@ -503,7 +546,7 @@ func (s *PostgresStore) LogUsage(ctx context.Context, log *UsageLog) error {
 		                        metadata, "startTime", "endTime")
 		VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20, $21, $22)`
 
-	_, err := s.db.ExecContext(ctx, query,
+	_, err = s.db.ExecContext(ctx, query,
 		log.RequestID, log.APIKeyID, log.TeamID, log.OrganizationID, log.UserID, log.EndUserID,
 		log.Model, log.ModelGroup, log.Provider, log.CallType,
 		log.InputTokens, log.OutputTokens, log.TotalTokens, log.Cost,

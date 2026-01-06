@@ -17,21 +17,21 @@ import (
 
 // NewTeamRequest represents a request to create a new team.
 type NewTeamRequest struct {
-	TeamID             string             `json:"team_id,omitempty"`
-	TeamAlias          *string            `json:"team_alias,omitempty"`
-	OrganizationID     *string            `json:"organization_id,omitempty"`
-	Members            []TeamMember       `json:"members_with_roles,omitempty"`
-	Models             []string           `json:"models,omitempty"`
-	MaxBudget          *float64           `json:"max_budget,omitempty"`
-	BudgetDuration     string             `json:"budget_duration,omitempty"`
-	TPMLimit           *int64             `json:"tpm_limit,omitempty"`
-	RPMLimit           *int64             `json:"rpm_limit,omitempty"`
-	MaxParallelReqs    *int               `json:"max_parallel_requests,omitempty"`
-	ModelMaxBudget     map[string]float64 `json:"model_max_budget,omitempty"`
-	ModelTPMLimit      map[string]int64   `json:"model_tpm_limit,omitempty"`
-	ModelRPMLimit      map[string]int64   `json:"model_rpm_limit,omitempty"`
-	Metadata           auth.Metadata      `json:"metadata,omitempty"`
-	Blocked            bool               `json:"blocked,omitempty"`
+	TeamID          string             `json:"team_id,omitempty"`
+	TeamAlias       *string            `json:"team_alias,omitempty"`
+	OrganizationID  *string            `json:"organization_id,omitempty"`
+	Members         []TeamMember       `json:"members_with_roles,omitempty"`
+	Models          []string           `json:"models,omitempty"`
+	MaxBudget       *float64           `json:"max_budget,omitempty"`
+	BudgetDuration  string             `json:"budget_duration,omitempty"`
+	TPMLimit        *int64             `json:"tpm_limit,omitempty"`
+	RPMLimit        *int64             `json:"rpm_limit,omitempty"`
+	MaxParallelReqs *int               `json:"max_parallel_requests,omitempty"`
+	ModelMaxBudget  map[string]float64 `json:"model_max_budget,omitempty"`
+	ModelTPMLimit   map[string]int64   `json:"model_tpm_limit,omitempty"`
+	ModelRPMLimit   map[string]int64   `json:"model_rpm_limit,omitempty"`
+	Metadata        auth.Metadata      `json:"metadata,omitempty"`
+	Blocked         bool               `json:"blocked,omitempty"`
 }
 
 // TeamMember represents a team member with role.
@@ -55,21 +55,21 @@ func (h *ManagementHandler) NewTeam(w http.ResponseWriter, r *http.Request) {
 	}
 
 	team := &auth.Team{
-		ID:             teamID,
-		Alias:          req.TeamAlias,
-		OrganizationID: req.OrganizationID,
-		Models:         req.Models,
-		TPMLimit:       req.TPMLimit,
-		RPMLimit:       req.RPMLimit,
+		ID:                  teamID,
+		Alias:               req.TeamAlias,
+		OrganizationID:      req.OrganizationID,
+		Models:              req.Models,
+		TPMLimit:            req.TPMLimit,
+		RPMLimit:            req.RPMLimit,
 		MaxParallelRequests: req.MaxParallelReqs,
-		ModelMaxBudget: req.ModelMaxBudget,
-		ModelTPMLimit:  req.ModelTPMLimit,
-		ModelRPMLimit:  req.ModelRPMLimit,
-		Metadata:       req.Metadata,
-		IsActive:       true,
-		Blocked:        req.Blocked,
-		CreatedAt:      now,
-		UpdatedAt:      now,
+		ModelMaxBudget:      req.ModelMaxBudget,
+		ModelTPMLimit:       req.ModelTPMLimit,
+		ModelRPMLimit:       req.ModelRPMLimit,
+		Metadata:            req.Metadata,
+		IsActive:            true,
+		Blocked:             req.Blocked,
+		CreatedAt:           now,
+		UpdatedAt:           now,
 	}
 
 	if req.MaxBudget != nil {
@@ -110,17 +110,17 @@ func (h *ManagementHandler) NewTeam(w http.ResponseWriter, r *http.Request) {
 
 // UpdateTeamRequest represents a request to update a team.
 type UpdateTeamRequest struct {
-	TeamID         string             `json:"team_id"`
-	TeamAlias      *string            `json:"team_alias,omitempty"`
-	Models         []string           `json:"models,omitempty"`
-	MaxBudget      *float64           `json:"max_budget,omitempty"`
-	BudgetDuration *string            `json:"budget_duration,omitempty"`
-	TPMLimit       *int64             `json:"tpm_limit,omitempty"`
-	RPMLimit       *int64             `json:"rpm_limit,omitempty"`
-	MaxParallelReqs *int              `json:"max_parallel_requests,omitempty"`
-	ModelMaxBudget map[string]float64 `json:"model_max_budget,omitempty"`
-	Metadata       auth.Metadata      `json:"metadata,omitempty"`
-	Blocked        *bool              `json:"blocked,omitempty"`
+	TeamID          string             `json:"team_id"`
+	TeamAlias       *string            `json:"team_alias,omitempty"`
+	Models          []string           `json:"models,omitempty"`
+	MaxBudget       *float64           `json:"max_budget,omitempty"`
+	BudgetDuration  *string            `json:"budget_duration,omitempty"`
+	TPMLimit        *int64             `json:"tpm_limit,omitempty"`
+	RPMLimit        *int64             `json:"rpm_limit,omitempty"`
+	MaxParallelReqs *int               `json:"max_parallel_requests,omitempty"`
+	ModelMaxBudget  map[string]float64 `json:"model_max_budget,omitempty"`
+	Metadata        auth.Metadata      `json:"metadata,omitempty"`
+	Blocked         *bool              `json:"blocked,omitempty"`
 }
 
 // UpdateTeam handles POST /team/update
