@@ -2,80 +2,79 @@
 
 [![Go Version](https://img.shields.io/badge/Go-1.23+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
-[![CI](https://github.com/blueberrycongee/llmux/actions/workflows/ci.yaml/badge.svg)](https://github.com/blueberrycongee/llmux/actions)
 
-High-performance LLM Gateway written in Go. A production-ready alternative to LiteLLM with better performance, lower resource usage, and cloud-native design.
+English | [简体中文](README_CN.md)
 
-## Why LLMux?
-
-LiteLLM (Python) has known issues in high-concurrency production environments:
-
-| Issue | LiteLLM (Python) | LLMux (Go) |
-|-------|------------------|------------|
-| GIL Bottleneck | P99 latency spikes at 300 RPS | Handles 1000+ RPS smoothly |
-| Memory Leaks | 12GB+ after long runs | Stable ~100MB |
-| Cold Start | Slow due to dependencies | < 1 second |
-| Deployment | Complex Python environment | Single binary, < 20MB image |
+A high-performance LLM Gateway written in Go. Route requests across multiple LLM providers with intelligent load balancing, unified API, and enterprise-grade features.
 
 ## Features
 
-- **Multi-Provider Support** - OpenAI, Anthropic, Azure OpenAI, Google Gemini
-- **OpenAI-Compatible API** - Drop-in replacement for OpenAI SDK
-- **SSE Streaming** - Efficient streaming with buffer pooling
-- **High Availability** - Circuit breaker, rate limiting, concurrency control
-- **Observability** - OpenTelemetry tracing, Prometheus metrics, log redaction
-- **Authentication** - API key validation with SHA-256 hashing
-- **Multi-Tenant** - Per-key/team rate limiting and budget control
-- **Cloud-Native** - Distroless image, Helm chart, HPA support
+- **Unified OpenAI-Compatible API** - Single endpoint for all providers
+- **Multi-Provider Support** - OpenAI, Anthropic Claude, Google Gemini, Azure OpenAI
+- **6 Routing Strategies** - simple-shuffle, lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
+- **Streaming Support** - Real-time SSE streaming with proper forwarding
+- **Response Caching** - In-memory, Redis, or dual-layer caching
+- **Observability** - Prometheus metrics + OpenTelemetry tracing
+- **Multi-Tenant Auth** - API keys, teams, users, organizations with budgets
+- **Rate Limiting** - Per-key TPM/RPM limits with model-level granularity
+- **Production Ready** - Docker, Kubernetes, Helm deployment configs
 
 ## Quick Start
 
-### Binary
+### Prerequisites
+
+- Go 1.23+
+- (Optional) PostgreSQL for auth/usage tracking
+- (Optional) Redis for distributed caching
+
+### Build & Run
 
 ```bash
+# Clone
+git clone https://github.com/blueberrycongee/llmux.git
+cd llmux
+
+# Configure
+cp .env.example .env
+# Edit .env with your API keys
+
 # Build
 make build
 
 # Run
-export OPENAI_API_KEY=sk-xxx
 ./bin/llmux --config config/config.yaml
 ```
 
 ### Docker
 
 ```bash
-docker run -d -p 8080:8080 \
-  -e OPENAI_API_KEY=sk-xxx \
-  ghcr.io/blueberrycongee/llmux:latest
-```
-
-### Kubernetes (Helm)
-
-```bash
-# Create secret
-kubectl create secret generic openai-credentials \
-  --from-literal=api-key=sk-xxx -n llmux
-
-# Install
-helm install llmux ./deploy/helm/llmux \
-  --namespace llmux --create-namespace
-```
-
-## Usage
-
-LLMux is fully compatible with OpenAI SDK:
-
-```bash
-curl http://localhost:8080/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "Hello!"}],
-    "stream": true
-  }'
+docker build -t llmux .
+docker run -p 8080:8080 -v $(pwd)/config:/config llmux
 ```
 
 ## Configuration
+
+### Environment Variables
+
+```bash
+# Provider API Keys
+OPENAI_API_KEY=sk-xxx
+ANTHROPIC_API_KEY=sk-ant-xxx
+GOOGLE_API_KEY=xxx
+AZURE_OPENAI_API_KEY=xxx
+
+# Database (optional)
+DB_HOST=localhost
+DB_USER=llmux
+DB_PASSWORD=xxx
+DB_NAME=llmux
+
+# Redis (optional)
+REDIS_ADDR=localhost:6379
+REDIS_PASSWORD=xxx
+```
+
+### config.yaml
 
 ```yaml
 server:
@@ -88,18 +87,25 @@ providers:
     type: openai
     api_key: ${OPENAI_API_KEY}
     base_url: https://api.openai.com/v1
-    models: [gpt-4o, gpt-4o-mini]
-    timeout: 60s
+    models:
+      - gpt-4o
+      - gpt-4o-mini
 
   - name: anthropic
     type: anthropic
     api_key: ${ANTHROPIC_API_KEY}
-    models: [claude-3-5-sonnet-20241022]
+    models:
+      - claude-3-5-sonnet-20241022
 
 routing:
-  strategy: simple-shuffle
+  strategy: simple-shuffle  # or: lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
   fallback_enabled: true
   retry_count: 3
+
+cache:
+  enabled: true
+  type: local  # local, redis, dual
+  ttl: 1h
 
 metrics:
   enabled: true
@@ -110,122 +116,138 @@ tracing:
   endpoint: localhost:4317
 ```
 
-See [config/config.yaml](config/config.yaml) for full configuration options.
+### OpenAI-Compatible Providers
 
-## Architecture
+LLMux works with any OpenAI-compatible API (SiliconFlow, Together AI, etc.):
 
+```yaml
+providers:
+  - name: siliconflow
+    type: openai
+    api_key: ${SILICONFLOW_API_KEY}
+    base_url: https://api.siliconflow.cn/v1
+    models:
+      - deepseek-ai/DeepSeek-V3
 ```
-┌─────────────────────────────────────────────────────────┐
-│                        Client                            │
-└─────────────────────────────────────────────────────────┘
-                           │
-                           ▼
-┌─────────────────────────────────────────────────────────┐
-│                      LLMux Gateway                       │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐  ┌─────────┐ │
-│  │ Metrics  │  │ Tracing  │  │ Redactor │  │ ReqID   │ │
-│  └──────────┘  └──────────┘  └──────────┘  └─────────┘ │
-│  ┌──────────┐  ┌──────────┐  ┌──────────┐              │
-│  │ Circuit  │  │  Rate    │  │ Semaphore│              │
-│  │ Breaker  │  │ Limiter  │  │          │              │
-│  └──────────┘  └──────────┘  └──────────┘              │
-└─────────────────────────────────────────────────────────┘
-                           │
-          ┌────────────────┼────────────────┐
-          ▼                ▼                ▼
-    ┌──────────┐    ┌──────────┐    ┌──────────┐
-    │  OpenAI  │    │ Anthropic│    │  Gemini  │
-    └──────────┘    └──────────┘    └──────────┘
+
+## API Reference
+
+### Chat Completions
+
+```bash
+curl http://localhost:8080/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "gpt-4o",
+    "messages": [{"role": "user", "content": "Hello!"}],
+    "stream": false
+  }'
+```
+
+### List Models
+
+```bash
+curl http://localhost:8080/v1/models
+```
+
+### Health Check
+
+```bash
+curl http://localhost:8080/health/live
+curl http://localhost:8080/health/ready
+```
+
+## Management API
+
+When database is enabled, full management endpoints are available:
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/key/generate` | POST | Generate API key |
+| `/key/update` | POST | Update API key |
+| `/key/delete` | POST | Delete API keys |
+| `/key/info` | GET | Get key info |
+| `/key/list` | GET | List keys |
+| `/team/new` | POST | Create team |
+| `/team/update` | POST | Update team |
+| `/team/delete` | POST | Delete team |
+| `/user/new` | POST | Create user |
+| `/organization/new` | POST | Create organization |
+| `/spend/logs` | GET | Get spend logs |
+| `/global/activity` | GET | Global activity metrics |
+
+## Routing Strategies
+
+| Strategy | Description |
+|----------|-------------|
+| `simple-shuffle` | Random selection with optional weight/rpm/tpm weighting |
+| `lowest-latency` | Select deployment with lowest average latency (supports TTFT for streaming) |
+| `least-busy` | Select deployment with fewest active requests |
+| `lowest-tpm-rpm` | Select deployment with lowest TPM/RPM usage |
+| `lowest-cost` | Select deployment with lowest cost per token |
+| `tag-based` | Filter deployments by request tags |
+
+## Deployment
+
+### Kubernetes
+
+```bash
+kubectl apply -f deploy/k8s/
+```
+
+### Helm
+
+```bash
+helm install llmux deploy/helm/llmux
+```
+
+## Development
+
+```bash
+# Run tests
+make test
+
+# Run with coverage
+make coverage
+
+# Lint
+make lint
+
+# Format
+make fmt
+
+# All checks
+make check
 ```
 
 ## Project Structure
 
 ```
-llmux/
-├── cmd/server/              # Entry point
+├── cmd/server/        # Entry point
+├── config/            # Configuration files
 ├── internal/
-│   ├── api/                 # HTTP handlers
-│   ├── auth/                # Authentication & multi-tenant
-│   ├── config/              # Configuration management
-│   ├── metrics/             # Prometheus metrics
-│   ├── observability/       # Tracing, logging, redaction
-│   ├── provider/            # LLM provider adapters
-│   ├── resilience/          # Circuit breaker, rate limiter
-│   ├── router/              # Request routing
-│   └── streaming/           # SSE streaming
+│   ├── api/           # HTTP handlers
+│   ├── auth/          # Authentication & authorization
+│   ├── cache/         # Response caching
+│   ├── provider/      # LLM provider adapters
+│   │   ├── openai/
+│   │   ├── anthropic/
+│   │   ├── azure/
+│   │   └── gemini/
+│   └── router/        # Request routing strategies
 ├── pkg/
-│   ├── types/               # Request/response types
-│   └── errors/              # Error definitions
-├── deploy/
-│   ├── helm/                # Helm chart
-│   └── k8s/                 # Kubernetes manifests
-└── config/                  # Configuration examples
+│   ├── types/         # Shared types
+│   └── errors/        # Error definitions
+└── deploy/            # Deployment configs
+    ├── k8s/
+    └── helm/
 ```
-
-## Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/v1/chat/completions` | POST | Chat completions (OpenAI compatible) |
-| `/v1/models` | GET | List available models |
-| `/health/live` | GET | Liveness probe |
-| `/health/ready` | GET | Readiness probe |
-| `/metrics` | GET | Prometheus metrics |
-
-## Performance
-
-| Metric | Target |
-|--------|--------|
-| P99 Latency | < 100ms (gateway overhead) |
-| Throughput | 1000+ QPS |
-| Memory | < 100MB |
-| Cold Start | < 1s |
-| Image Size | < 20MB |
-
-## Development
-
-```bash
-# Install dependencies
-go mod download
-
-# Run tests
-make test
-
-# Run with coverage
-make test-coverage
-
-# Lint
-make lint
-
-# Build
-make build
-```
-
-## Roadmap
-
-- [x] Multi-provider support (OpenAI, Anthropic, Azure, Gemini)
-- [x] SSE streaming with buffer pooling
-- [x] Circuit breaker, rate limiter, semaphore
-- [x] OpenTelemetry tracing
-- [x] Log redaction (API keys, PII)
-- [x] Helm chart and CI/CD
-- [x] Authentication system (API key validation)
-- [x] Multi-tenant rate limiting
-- [x] PostgreSQL integration
-- [ ] Redis caching
-- [ ] Token counting (tiktoken)
-- [ ] Cost calculation
-- [ ] Admin UI
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-
-1. Code passes `golangci-lint`
-2. Tests are included for new features
-3. Comments follow GoDoc conventions
-4. Commits follow [Conventional Commits](https://www.conventionalcommits.org/)
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) for details.
+MIT License - see [LICENSE](LICENSE)
+
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md)
