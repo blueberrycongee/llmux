@@ -129,6 +129,21 @@ func (m *MockLLMServer) Reset() {
 	m.nextStatus = 0
 	m.Latency = 0
 	m.ErrorRate = 0
+	m.StreamDelay = 0
+}
+
+// SetLatency sets the simulated latency for requests (thread-safe).
+func (m *MockLLMServer) SetLatency(d time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.Latency = d
+}
+
+// SetStreamDelay sets the delay between stream chunks (thread-safe).
+func (m *MockLLMServer) SetStreamDelay(d time.Duration) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	m.StreamDelay = d
 }
 
 // SetNextResponse sets the content for the next response.
@@ -216,9 +231,14 @@ func (m *MockLLMServer) handleChatCompletions(w http.ResponseWriter, r *http.Req
 	body, _ := readBody(r) //nolint:errcheck // test code
 	m.recordRequest(r, body)
 
+	// Get latency with lock
+	m.mu.Lock()
+	latency := m.Latency
+	m.mu.Unlock()
+
 	// Apply latency
-	if m.Latency > 0 {
-		time.Sleep(m.Latency)
+	if latency > 0 {
+		time.Sleep(latency)
 	}
 
 	// Check for configured error
@@ -283,7 +303,9 @@ func (m *MockLLMServer) handleChatCompletions(w http.ResponseWriter, r *http.Req
 
 	model := req.Model
 	if model == "" {
+		m.mu.Lock()
 		model = m.DefaultModel
+		m.mu.Unlock()
 	}
 
 	if req.Stream {
@@ -350,10 +372,14 @@ func (m *MockLLMServer) buildChatResponse(model, content string, toolCalls []Moc
 }
 
 func (m *MockLLMServer) estimateTokens(data []byte) int {
-	if m.TokensPerChar == 0 {
-		m.TokensPerChar = 0.25
+	m.mu.Lock()
+	tokensPerChar := m.TokensPerChar
+	m.mu.Unlock()
+
+	if tokensPerChar == 0 {
+		tokensPerChar = 0.25
 	}
-	tokens := int(float64(len(data)) * m.TokensPerChar)
+	tokens := int(float64(len(data)) * tokensPerChar)
 	if tokens < 1 {
 		tokens = 1
 	}
@@ -378,9 +404,14 @@ func (m *MockLLMServer) handleStreamingResponse(w http.ResponseWriter, model, co
 		finishReason = "stop"
 	}
 
+	// Get stream delay with lock
+	m.mu.Lock()
+	streamDelay := m.StreamDelay
+	m.mu.Unlock()
+
 	// Handle tool calls streaming
 	if len(toolCalls) > 0 {
-		m.streamToolCalls(w, flusher, id, created, model, toolCalls, finishReason)
+		m.streamToolCalls(w, flusher, id, created, model, toolCalls, finishReason, streamDelay)
 		return
 	}
 
@@ -418,8 +449,8 @@ func (m *MockLLMServer) handleStreamingResponse(w http.ResponseWriter, model, co
 		fmt.Fprintf(w, "data: %s\n\n", jsonData)
 		flusher.Flush()
 
-		if m.StreamDelay > 0 {
-			time.Sleep(m.StreamDelay)
+		if streamDelay > 0 {
+			time.Sleep(streamDelay)
 		}
 	}
 
@@ -428,7 +459,7 @@ func (m *MockLLMServer) handleStreamingResponse(w http.ResponseWriter, model, co
 	flusher.Flush()
 }
 
-func (m *MockLLMServer) streamToolCalls(w http.ResponseWriter, flusher http.Flusher, id string, created int64, model string, toolCalls []MockToolCall, finishReason string) {
+func (m *MockLLMServer) streamToolCalls(w http.ResponseWriter, flusher http.Flusher, id string, created int64, model string, toolCalls []MockToolCall, finishReason string, streamDelay time.Duration) {
 	// First chunk with role
 	firstDelta := map[string]any{
 		"role":    "assistant",
@@ -501,8 +532,8 @@ func (m *MockLLMServer) streamToolCalls(w http.ResponseWriter, flusher http.Flus
 			fmt.Fprintf(w, "data: %s\n\n", chunkData)
 			flusher.Flush()
 
-			if m.StreamDelay > 0 {
-				time.Sleep(m.StreamDelay)
+			if streamDelay > 0 {
+				time.Sleep(streamDelay)
 			}
 		}
 	}

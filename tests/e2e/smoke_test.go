@@ -165,7 +165,7 @@ func TestSmoke_ConcurrentRequests(t *testing.T) {
 
 func TestSmoke_ServerHandlesSlowUpstream(t *testing.T) {
 	resetMock()
-	mockLLM.Latency = 500 * time.Millisecond
+	mockLLM.SetLatency(500 * time.Millisecond)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()

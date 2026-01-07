@@ -207,7 +207,7 @@ func TestFallback_TimeoutTriggersFailover(t *testing.T) {
 	defer mockFallback.Close()
 
 	// Primary is very slow
-	mockPrimary.Latency = 10 * time.Second
+	mockPrimary.SetLatency(10 * time.Second)
 
 	// Fallback is fast
 	mockFallback.SetNextResponse("Fast fallback response")

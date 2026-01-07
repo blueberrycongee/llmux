@@ -200,7 +200,7 @@ func TestRouting_DifferentModelsSequential(t *testing.T) {
 
 func TestRouting_RequestTimeout(t *testing.T) {
 	resetMock()
-	mockLLM.Latency = 5 * time.Second // Very slow response
+	mockLLM.SetLatency(5 * time.Second) // Very slow response
 
 	// Use a short timeout
 	ctx, cancel := context.WithTimeout(context.Background(), 500*time.Millisecond)
