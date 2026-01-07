@@ -3,17 +3,20 @@ package cache
 import (
 	"fmt"
 	"time"
+
+	"github.com/blueberrycongee/llmux/internal/cache/semantic"
 )
 
 // Config holds the complete cache configuration.
 type Config struct {
-	Type      CacheType         `yaml:"type"`      // Cache type: local, redis, dual
+	Type      CacheType         `yaml:"type"`      // Cache type: local, redis, dual, semantic
 	Enabled   bool              `yaml:"enabled"`   // Enable/disable caching
 	Namespace string            `yaml:"namespace"` // Key namespace prefix
 	TTL       time.Duration     `yaml:"ttl"`       // Default TTL
 	Memory    MemoryCacheConfig `yaml:"memory"`    // In-memory cache config
 	Redis     RedisCacheConfig  `yaml:"redis"`     // Redis cache config
 	Dual      DualCacheConfig   `yaml:"dual"`      // Dual cache config
+	Semantic  semantic.Config   `yaml:"semantic"`  // Semantic cache config
 }
 
 // DefaultConfig returns sensible defaults.
@@ -26,6 +29,7 @@ func DefaultConfig() Config {
 		Memory:    DefaultMemoryCacheConfig(),
 		Redis:     DefaultRedisCacheConfig(),
 		Dual:      DefaultDualCacheConfig(),
+		Semantic:  semantic.DefaultConfig(),
 	}
 }
 

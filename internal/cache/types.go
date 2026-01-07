@@ -12,10 +12,10 @@ import (
 type CacheType string
 
 const (
-	CacheTypeLocal         CacheType = "local"          // In-memory cache
-	CacheTypeRedis         CacheType = "redis"          // Redis cache
-	CacheTypeRedisSemantic CacheType = "redis-semantic" // Redis with semantic similarity
-	CacheTypeDual          CacheType = "dual"           // In-memory + Redis dual cache
+	CacheTypeLocal    CacheType = "local"    // In-memory cache
+	CacheTypeRedis    CacheType = "redis"    // Redis cache
+	CacheTypeDual     CacheType = "dual"     // In-memory + Redis dual cache
+	CacheTypeSemantic CacheType = "semantic" // Semantic cache with vector similarity
 )
 
 // CacheControl allows per-request cache behavior customization.
