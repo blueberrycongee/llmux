@@ -14,19 +14,21 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
-	"github.com/blueberrycongee/llmux/internal/provider"
-	"github.com/blueberrycongee/llmux/internal/provider/anthropic"
-	"github.com/blueberrycongee/llmux/internal/provider/azure"
-	"github.com/blueberrycongee/llmux/internal/provider/gemini"
-	"github.com/blueberrycongee/llmux/internal/provider/openai"
-	"github.com/blueberrycongee/llmux/internal/router"
 )
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("server failed", "error", err)
+		os.Exit(1)
+	}
+}
+
+func run() error {
 	configPath := flag.String("config", "config/config.yaml", "path to configuration file")
 	flag.Parse()
 
@@ -41,9 +43,9 @@ func main() {
 	// Load configuration
 	cfgManager, err := config.NewManager(*configPath, logger)
 	if err != nil {
-		logger.Error("failed to load configuration", "error", err)
-		os.Exit(1)
+		return fmt.Errorf("failed to load configuration: %w", err)
 	}
+	defer cfgManager.Close()
 
 	cfg := cfgManager.Get()
 
@@ -66,58 +68,22 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if err := cfgManager.Watch(ctx); err != nil {
-		logger.Warn("config hot-reload disabled", "error", err)
+	if watchErr := cfgManager.Watch(ctx); watchErr != nil {
+		logger.Warn("config hot-reload disabled", "error", watchErr)
 	}
 
-	// Initialize provider registry
-	registry := provider.NewRegistry()
-	registry.RegisterFactory("openai", openai.New)
-	registry.RegisterFactory("anthropic", anthropic.New)
-	registry.RegisterFactory("azure", azure.New)
-	registry.RegisterFactory("gemini", gemini.New)
+	// Build llmux.Client options from config
+	opts := buildClientOptions(cfg, logger)
 
-	// Create providers from config
-	for _, provCfg := range cfg.Providers {
-		pCfg := provider.ProviderConfig{
-			Name:          provCfg.Name,
-			Type:          provCfg.Type,
-			APIKey:        provCfg.APIKey,
-			BaseURL:       provCfg.BaseURL,
-			Models:        provCfg.Models,
-			MaxConcurrent: provCfg.MaxConcurrent,
-			TimeoutSec:    int(provCfg.Timeout.Seconds()),
-		}
-
-		prov, err := registry.CreateProvider(pCfg)
-		if err != nil {
-			logger.Error("failed to create provider", "name", provCfg.Name, "error", err)
-			continue
-		}
-		logger.Info("provider registered", "name", prov.Name(), "models", provCfg.Models)
+	// Create llmux.Client
+	client, err := llmux.New(opts...)
+	if err != nil {
+		return fmt.Errorf("failed to create llmux client: %w", err)
 	}
+	defer client.Close()
 
-	// Initialize router
-	simpleRouter := router.NewSimpleRouter(cfg.Routing.CooldownPeriod)
-
-	// Register deployments
-	for _, provCfg := range cfg.Providers {
-		for _, model := range provCfg.Models {
-			deployment := &provider.Deployment{
-				ID:            fmt.Sprintf("%s-%s", provCfg.Name, model),
-				ProviderName:  provCfg.Name,
-				ModelName:     model,
-				BaseURL:       provCfg.BaseURL,
-				APIKey:        provCfg.APIKey,
-				MaxConcurrent: provCfg.MaxConcurrent,
-				Timeout:       int(provCfg.Timeout.Seconds()),
-			}
-			simpleRouter.AddDeployment(deployment)
-		}
-	}
-
-	// Initialize API handler
-	handler := api.NewHandler(registry, simpleRouter, logger, nil)
+	// Initialize API handler using ClientHandler (wraps llmux.Client)
+	handler := api.NewClientHandler(client, logger, nil)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
@@ -150,20 +116,25 @@ func main() {
 	}
 
 	// Start server in goroutine
+	serverErr := make(chan error, 1)
 	go func() {
 		logger.Info("server listening", "port", cfg.Server.Port)
 		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			logger.Error("server error", "error", err)
-			os.Exit(1)
+			serverErr <- err
 		}
+		close(serverErr)
 	}()
 
-	// Wait for shutdown signal
+	// Wait for shutdown signal or server error
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
-	<-quit
 
-	logger.Info("shutting down server...")
+	select {
+	case <-quit:
+		logger.Info("shutting down server...")
+	case err := <-serverErr:
+		return fmt.Errorf("server error: %w", err)
+	}
 
 	// Graceful shutdown with timeout
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
@@ -180,6 +151,68 @@ func main() {
 		}
 	}
 
-	cfgManager.Close()
 	logger.Info("server stopped")
+	return nil
+}
+
+// buildClientOptions converts config.Config to llmux.Option slice.
+func buildClientOptions(cfg *config.Config, logger *slog.Logger) []llmux.Option {
+	// Pre-allocate with estimated capacity
+	opts := make([]llmux.Option, 0, len(cfg.Providers)+6)
+
+	// Add logger
+	opts = append(opts, llmux.WithLogger(logger))
+
+	// Add providers from config
+	for _, provCfg := range cfg.Providers {
+		opts = append(opts, llmux.WithProvider(llmux.ProviderConfig{
+			Name:    provCfg.Name,
+			Type:    provCfg.Type,
+			APIKey:  provCfg.APIKey,
+			BaseURL: provCfg.BaseURL,
+			Models:  provCfg.Models,
+		}))
+	}
+
+	// Set routing strategy
+	strategy := mapRoutingStrategy(cfg.Routing.Strategy)
+	opts = append(opts, llmux.WithRouterStrategy(strategy))
+
+	// Set cooldown period
+	if cfg.Routing.CooldownPeriod > 0 {
+		opts = append(opts, llmux.WithCooldown(cfg.Routing.CooldownPeriod))
+	}
+
+	// Set timeout
+	if cfg.Server.WriteTimeout > 0 {
+		opts = append(opts, llmux.WithTimeout(cfg.Server.WriteTimeout))
+	}
+
+	// Enable retry and fallback
+	opts = append(opts,
+		llmux.WithRetry(3, 100*time.Millisecond),
+		llmux.WithFallback(true),
+	)
+
+	return opts
+}
+
+// mapRoutingStrategy converts config strategy string to llmux.Strategy.
+func mapRoutingStrategy(strategy string) llmux.Strategy {
+	switch strategy {
+	case "shuffle", "random":
+		return llmux.StrategyShuffle
+	case "round-robin", "roundrobin":
+		return llmux.StrategyRoundRobin
+	case "lowest-latency", "latency":
+		return llmux.StrategyLowestLatency
+	case "least-busy", "leastbusy":
+		return llmux.StrategyLeastBusy
+	case "lowest-tpm-rpm", "tpm-rpm":
+		return llmux.StrategyLowestTPMRPM
+	case "lowest-cost", "cost":
+		return llmux.StrategyLowestCost
+	default:
+		return llmux.StrategyShuffle
+	}
 }
