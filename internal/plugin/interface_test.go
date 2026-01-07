@@ -219,7 +219,7 @@ func TestContext_ContextCancellation(t *testing.T) {
 	case <-ctx.Done():
 		// Expected
 	default:
-		t.Error("Context should be cancelled")
+		t.Error("Context should be canceled")
 	}
 
 	if ctx.Err() != context.Canceled {

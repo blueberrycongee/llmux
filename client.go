@@ -177,7 +177,10 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 		}
 		if sc.Response != nil {
 			// Run PostHooks even on short-circuit (e.g., for logging)
-			finalResp, _ := c.pipeline.RunPostHooks(pCtx, sc.Response, nil, c.pipeline.PluginCount())
+			finalResp, hookErr := c.pipeline.RunPostHooks(pCtx, sc.Response, nil, c.pipeline.PluginCount())
+			if hookErr != nil {
+				c.logger.Warn("PostHook error during short-circuit", "error", hookErr)
+			}
 			return finalResp, nil
 		}
 	}
@@ -401,7 +404,9 @@ func (c *Client) Close() error {
 	}
 	c.httpClient.CloseIdleConnections()
 	if c.pipeline != nil {
-		c.pipeline.Shutdown()
+		if err := c.pipeline.Shutdown(); err != nil {
+			c.logger.Warn("failed to shutdown plugin pipeline", "error", err)
+		}
 	}
 	c.logger.Info("llmux client closed")
 	return nil

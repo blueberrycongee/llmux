@@ -230,6 +230,7 @@ func (p *Pipeline) RunPreHooks(
 			// Continue to next plugin unless PropagateErrors is set
 			if p.config.PropagateErrors {
 				// Store error for potential use, but don't short-circuit
+				p.logger.Debug("error propagation enabled but not fully implemented")
 			}
 		} else {
 			p.logger.Debug("PreHook completed",
