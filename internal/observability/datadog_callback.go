@@ -9,12 +9,13 @@ import (
 	"compress/gzip"
 	"context"
 	"fmt"
-	"github.com/goccy/go-json"
 	"net/http"
 	"os"
 	"strings"
 	"sync"
 	"time"
+
+	"github.com/goccy/go-json"
 )
 
 // DatadogStatus represents the log status level.

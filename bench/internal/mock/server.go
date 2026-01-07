@@ -4,11 +4,12 @@ package mock
 
 import (
 	"fmt"
-	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 	"sync/atomic"
 	"time"
+
+	"github.com/goccy/go-json"
 )
 
 // Server is a mock LLM API server.

@@ -2,8 +2,9 @@ package cache
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/pkg/types"
 )

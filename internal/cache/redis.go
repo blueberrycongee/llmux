@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"github.com/goccy/go-json"
 	"sync/atomic"
 	"time"
 
+	"github.com/goccy/go-json"
 	"github.com/redis/go-redis/v9"
 )
 

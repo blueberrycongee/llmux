@@ -5,11 +5,12 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"github.com/goccy/go-json"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/bench/internal/runner"
 )

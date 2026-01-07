@@ -8,10 +8,11 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"github.com/goccy/go-json"
 	"io"
 	"net/http"
 	"sync"
+
+	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/pkg/types"
 )

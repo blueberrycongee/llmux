@@ -6,9 +6,10 @@ package observability
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"os"
 	"time"
+
+	"github.com/goccy/go-json"
 
 	"go.opentelemetry.io/otel/attribute"
 	"go.opentelemetry.io/otel/exporters/otlp/otlplog/otlploggrpc"

@@ -2,13 +2,14 @@ package cache
 
 import (
 	"context"
-	"github.com/goccy/go-json"
 	"testing"
 	"time"
 
-	"github.com/blueberrycongee/llmux/pkg/types"
+	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 func TestHandler_GetAndSetCachedResponse(t *testing.T) {
