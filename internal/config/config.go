@@ -22,6 +22,30 @@ type Config struct {
 	Auth      AuthConfig       `yaml:"auth"`
 	Database  DatabaseConfig   `yaml:"database"`
 	Cache     CacheConfig      `yaml:"cache"`
+	MCP       MCPConfig        `yaml:"mcp"`
+}
+
+// MCPConfig contains MCP (Model Context Protocol) settings.
+type MCPConfig struct {
+	Enabled                  bool              `yaml:"enabled"`
+	Clients                  []MCPClientConfig `yaml:"clients"`
+	DefaultConnectionTimeout time.Duration     `yaml:"default_connection_timeout"`
+	DefaultExecutionTimeout  time.Duration     `yaml:"default_execution_timeout"`
+}
+
+// MCPClientConfig defines a single MCP client configuration.
+type MCPClientConfig struct {
+	ID                string            `yaml:"id"`
+	Name              string            `yaml:"name"`
+	Type              string            `yaml:"type"` // http, stdio, sse
+	URL               string            `yaml:"url,omitempty"`
+	Command           string            `yaml:"command,omitempty"`
+	Args              []string          `yaml:"args,omitempty"`
+	Envs              []string          `yaml:"envs,omitempty"`
+	Headers           map[string]string `yaml:"headers,omitempty"`
+	ToolsToExecute    []string          `yaml:"tools_to_execute,omitempty"`
+	ConnectionTimeout time.Duration     `yaml:"connection_timeout,omitempty"`
+	ExecutionTimeout  time.Duration     `yaml:"execution_timeout,omitempty"`
 }
 
 // CacheConfig contains caching settings.
@@ -205,6 +229,12 @@ func DefaultConfig() *Config {
 				MinIdleConns: 2,
 				MaxRetries:   3,
 			},
+		},
+		MCP: MCPConfig{
+			Enabled:                  false,
+			Clients:                  []MCPClientConfig{},
+			DefaultConnectionTimeout: 30 * time.Second,
+			DefaultExecutionTimeout:  60 * time.Second,
 		},
 	}
 }
