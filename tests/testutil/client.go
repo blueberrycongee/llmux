@@ -46,18 +46,52 @@ func (c *TestClient) WithTimeout(timeout time.Duration) *TestClient {
 
 // ChatCompletionRequest represents a chat completion request.
 type ChatCompletionRequest struct {
-	Model       string            `json:"model"`
-	Messages    []ChatMessage     `json:"messages"`
-	Stream      bool              `json:"stream,omitempty"`
-	MaxTokens   int               `json:"max_tokens,omitempty"`
-	Temperature *float64          `json:"temperature,omitempty"`
-	Tools       []json.RawMessage `json:"tools,omitempty"`
+	Model          string            `json:"model"`
+	Messages       []ChatMessage     `json:"messages"`
+	Stream         bool              `json:"stream,omitempty"`
+	MaxTokens      int               `json:"max_tokens,omitempty"`
+	Temperature    *float64          `json:"temperature,omitempty"`
+	Tools          []json.RawMessage `json:"tools,omitempty"`
+	ToolChoice     any               `json:"tool_choice,omitempty"`
+	ResponseFormat *ResponseFormat   `json:"response_format,omitempty"`
+	Stop           []string          `json:"stop,omitempty"`
+	TopP           *float64          `json:"top_p,omitempty"`
+	N              int               `json:"n,omitempty"`
+	Seed           *int              `json:"seed,omitempty"`
+}
+
+// ResponseFormat specifies the output format.
+type ResponseFormat struct {
+	Type       string      `json:"type"` // "text", "json_object", "json_schema"
+	JSONSchema *JSONSchema `json:"json_schema,omitempty"`
+}
+
+// JSONSchema for structured outputs.
+type JSONSchema struct {
+	Name   string `json:"name"`
+	Schema any    `json:"schema"`
+	Strict bool   `json:"strict,omitempty"`
 }
 
 // ChatMessage represents a message in the conversation.
 type ChatMessage struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	Role       string            `json:"role"`
+	Content    string            `json:"content,omitempty"`
+	ToolCalls  []ToolCallMessage `json:"tool_calls,omitempty"`
+	ToolCallID string            `json:"tool_call_id,omitempty"`
+}
+
+// ToolCallMessage represents a tool call in a message.
+type ToolCallMessage struct {
+	ID       string              `json:"id"`
+	Type     string              `json:"type"`
+	Function FunctionCallMessage `json:"function"`
+}
+
+// FunctionCallMessage represents a function call.
+type FunctionCallMessage struct {
+	Name      string `json:"name"`
+	Arguments string `json:"arguments"`
 }
 
 // ChatCompletionResponse represents a chat completion response.
@@ -69,12 +103,23 @@ type ChatCompletionResponse struct {
 	Choices []struct {
 		Index   int `json:"index"`
 		Message struct {
-			Role    string `json:"role"`
-			Content string `json:"content"`
+			Role      string         `json:"role"`
+			Content   string         `json:"content"`
+			ToolCalls []ToolCallResp `json:"tool_calls,omitempty"`
 		} `json:"message"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage *types.Usage `json:"usage,omitempty"`
+}
+
+// ToolCallResp represents a tool call in the response.
+type ToolCallResp struct {
+	ID       string `json:"id"`
+	Type     string `json:"type"`
+	Function struct {
+		Name      string `json:"name"`
+		Arguments string `json:"arguments"`
+	} `json:"function"`
 }
 
 // ErrorResponse represents an API error response.
@@ -136,6 +181,21 @@ func (c *TestClient) ChatCompletion(ctx context.Context, req *ChatCompletionRequ
 	resp.Body.Close()
 
 	return &chatResp, resp, nil
+}
+
+// ChatCompletionWithTools sends a chat completion request with tools/function calling.
+func (c *TestClient) ChatCompletionWithTools(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, *http.Response, error) {
+	return c.ChatCompletion(ctx, req)
+}
+
+// ChatCompletionWithFormat sends a chat completion request with response_format.
+func (c *TestClient) ChatCompletionWithFormat(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, *http.Response, error) {
+	return c.ChatCompletion(ctx, req)
+}
+
+// ChatCompletionWithToolResult sends a chat completion with tool results in messages.
+func (c *TestClient) ChatCompletionWithToolResult(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, *http.Response, error) {
+	return c.ChatCompletion(ctx, req)
 }
 
 // ChatCompletionStream sends a streaming chat completion request.

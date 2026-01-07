@@ -65,6 +65,13 @@ func TestSmoke_ListModels(t *testing.T) {
 
 	testutil.RequireStatusOK(t, resp)
 	testutil.AssertJSONResponse(t, resp)
+
+	// Note: Current implementation returns empty list (TODO in handler.go)
+	// This test documents the current behavior
+	// When ListModels is properly implemented, update this test to verify:
+	// - Response contains "object": "list"
+	// - Response contains "data" array with model objects
+	// - Each model has "id", "object", "created", "owned_by" fields
 }
 
 func TestSmoke_InvalidEndpoint_Returns404(t *testing.T) {

@@ -42,12 +42,28 @@ type serverOptions struct {
 	cacheType       string
 	redisURL        string
 	authEnabled     bool
+	timeout         time.Duration
+	providers       []ProviderConfig // Multiple providers for fallback testing
+}
+
+// ProviderConfig defines a provider for testing.
+type ProviderConfig struct {
+	Name   string
+	URL    string
+	Models []string
 }
 
 // WithMockProvider configures the server to use a mock LLM provider.
 func WithMockProvider(mockURL string) ServerOption {
 	return func(o *serverOptions) {
 		o.mockProviderURL = mockURL
+	}
+}
+
+// WithMultipleProviders configures multiple providers for fallback testing.
+func WithMultipleProviders(providers []ProviderConfig) ServerOption {
+	return func(o *serverOptions) {
+		o.providers = providers
 	}
 }
 
@@ -88,12 +104,20 @@ func WithAuth() ServerOption {
 	}
 }
 
+// WithTimeout sets the request timeout.
+func WithTimeout(timeout time.Duration) ServerOption {
+	return func(o *serverOptions) {
+		o.timeout = timeout
+	}
+}
+
 // NewTestServer creates a new test server with the given options.
 func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	options := &serverOptions{
 		mockAPIKey: "test-api-key",
 		models:     []string{"gpt-4o-mock", "gpt-3.5-turbo-mock"},
 		port:       0, // Random port
+		timeout:    30 * time.Second,
 	}
 
 	for _, opt := range opts {
@@ -121,8 +145,42 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	registry := provider.NewRegistry()
 	registry.RegisterFactory("openai", openai.New)
 
-	// Create mock provider if URL provided
-	if options.mockProviderURL != "" {
+	// Initialize router with no cooldown for testing
+	simpleRouter := router.NewSimpleRouter(0) // No cooldown in tests
+
+	// Handle multiple providers for fallback testing
+	if len(options.providers) > 0 {
+		for _, p := range options.providers {
+			pCfg := provider.ProviderConfig{
+				Name:          p.Name,
+				Type:          "openai",
+				APIKey:        options.mockAPIKey,
+				BaseURL:       p.URL,
+				Models:        p.Models,
+				MaxConcurrent: 100,
+				TimeoutSec:    int(options.timeout.Seconds()),
+			}
+
+			if _, err := registry.CreateProvider(pCfg); err != nil {
+				return nil, fmt.Errorf("create provider %s: %w", p.Name, err)
+			}
+
+			// Register deployments for each model
+			for _, model := range p.Models {
+				deployment := &provider.Deployment{
+					ID:            fmt.Sprintf("%s-%s", p.Name, model),
+					ProviderName:  p.Name,
+					ModelName:     model,
+					BaseURL:       p.URL,
+					APIKey:        options.mockAPIKey,
+					MaxConcurrent: 100,
+					Timeout:       int(options.timeout.Seconds()),
+				}
+				simpleRouter.AddDeployment(deployment)
+			}
+		}
+	} else if options.mockProviderURL != "" {
+		// Single mock provider (original behavior)
 		pCfg := provider.ProviderConfig{
 			Name:          "mock-openai",
 			Type:          "openai",
@@ -130,19 +188,14 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 			BaseURL:       options.mockProviderURL,
 			Models:        options.models,
 			MaxConcurrent: 100,
-			TimeoutSec:    30,
+			TimeoutSec:    int(options.timeout.Seconds()),
 		}
 
 		if _, err := registry.CreateProvider(pCfg); err != nil {
 			return nil, fmt.Errorf("create mock provider: %w", err)
 		}
-	}
 
-	// Initialize router with no cooldown for testing
-	simpleRouter := router.NewSimpleRouter(0) // No cooldown in tests
-
-	// Register deployments
-	if options.mockProviderURL != "" {
+		// Register deployments
 		for _, model := range options.models {
 			deployment := &provider.Deployment{
 				ID:            fmt.Sprintf("mock-openai-%s", model),
@@ -151,7 +204,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 				BaseURL:       options.mockProviderURL,
 				APIKey:        options.mockAPIKey,
 				MaxConcurrent: 100,
-				Timeout:       30,
+				Timeout:       int(options.timeout.Seconds()),
 			}
 			simpleRouter.AddDeployment(deployment)
 		}
