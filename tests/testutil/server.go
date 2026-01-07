@@ -1,0 +1,268 @@
+package testutil
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"net"
+	"net/http"
+	"os"
+	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
+
+	"github.com/blueberrycongee/llmux/internal/api"
+	"github.com/blueberrycongee/llmux/internal/config"
+	"github.com/blueberrycongee/llmux/internal/metrics"
+	"github.com/blueberrycongee/llmux/internal/provider"
+	"github.com/blueberrycongee/llmux/internal/provider/openai"
+	"github.com/blueberrycongee/llmux/internal/router"
+)
+
+// TestServer manages a LLMux server instance for testing.
+type TestServer struct {
+	server   *http.Server
+	listener net.Listener
+	config   *config.Config
+	baseURL  string
+	logger   *slog.Logger
+	registry *provider.Registry
+	router   router.Router
+}
+
+// ServerOption configures the test server.
+type ServerOption func(*serverOptions)
+
+type serverOptions struct {
+	mockProviderURL string
+	mockAPIKey      string
+	models          []string
+	port            int
+	cacheEnabled    bool
+	cacheType       string
+	redisURL        string
+	authEnabled     bool
+}
+
+// WithMockProvider configures the server to use a mock LLM provider.
+func WithMockProvider(mockURL string) ServerOption {
+	return func(o *serverOptions) {
+		o.mockProviderURL = mockURL
+	}
+}
+
+// WithMockAPIKey sets the API key for the mock provider.
+func WithMockAPIKey(apiKey string) ServerOption {
+	return func(o *serverOptions) {
+		o.mockAPIKey = apiKey
+	}
+}
+
+// WithModels sets the models to register.
+func WithModels(models ...string) ServerOption {
+	return func(o *serverOptions) {
+		o.models = models
+	}
+}
+
+// WithPort sets a specific port for the server.
+func WithPort(port int) ServerOption {
+	return func(o *serverOptions) {
+		o.port = port
+	}
+}
+
+// WithCache enables caching with the specified type.
+func WithCache(cacheType string, redisURL string) ServerOption {
+	return func(o *serverOptions) {
+		o.cacheEnabled = true
+		o.cacheType = cacheType
+		o.redisURL = redisURL
+	}
+}
+
+// WithAuth enables authentication.
+func WithAuth() ServerOption {
+	return func(o *serverOptions) {
+		o.authEnabled = true
+	}
+}
+
+// NewTestServer creates a new test server with the given options.
+func NewTestServer(opts ...ServerOption) (*TestServer, error) {
+	options := &serverOptions{
+		mockAPIKey: "test-api-key",
+		models:     []string{"gpt-4o-mock", "gpt-3.5-turbo-mock"},
+		port:       0, // Random port
+	}
+
+	for _, opt := range opts {
+		opt(options)
+	}
+
+	// Create logger (discard in tests)
+	logger := slog.New(slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level: slog.LevelError, // Only log errors in tests
+	}))
+
+	// Create config
+	cfg := config.DefaultConfig()
+	cfg.Server.Port = options.port
+	cfg.Auth.Enabled = options.authEnabled
+	cfg.Cache.Enabled = options.cacheEnabled
+	if options.cacheType != "" {
+		cfg.Cache.Type = options.cacheType
+	}
+	if options.redisURL != "" {
+		cfg.Cache.Redis.Addr = options.redisURL
+	}
+
+	// Initialize provider registry
+	registry := provider.NewRegistry()
+	registry.RegisterFactory("openai", openai.New)
+
+	// Create mock provider if URL provided
+	if options.mockProviderURL != "" {
+		pCfg := provider.ProviderConfig{
+			Name:          "mock-openai",
+			Type:          "openai",
+			APIKey:        options.mockAPIKey,
+			BaseURL:       options.mockProviderURL,
+			Models:        options.models,
+			MaxConcurrent: 100,
+			TimeoutSec:    30,
+		}
+
+		if _, err := registry.CreateProvider(pCfg); err != nil {
+			return nil, fmt.Errorf("create mock provider: %w", err)
+		}
+	}
+
+	// Initialize router with no cooldown for testing
+	simpleRouter := router.NewSimpleRouter(0) // No cooldown in tests
+
+	// Register deployments
+	if options.mockProviderURL != "" {
+		for _, model := range options.models {
+			deployment := &provider.Deployment{
+				ID:            fmt.Sprintf("mock-openai-%s", model),
+				ProviderName:  "mock-openai",
+				ModelName:     model,
+				BaseURL:       options.mockProviderURL,
+				APIKey:        options.mockAPIKey,
+				MaxConcurrent: 100,
+				Timeout:       30,
+			}
+			simpleRouter.AddDeployment(deployment)
+		}
+	}
+
+	// Create handler
+	handler := api.NewHandler(registry, simpleRouter, logger, nil)
+
+	// Setup routes
+	mux := http.NewServeMux()
+	mux.HandleFunc("GET /health/live", handler.HealthCheck)
+	mux.HandleFunc("GET /health/ready", handler.HealthCheck)
+	mux.HandleFunc("POST /v1/chat/completions", handler.ChatCompletions)
+	mux.HandleFunc("GET /v1/models", handler.ListModels)
+	mux.Handle("GET /metrics", promhttp.Handler())
+
+	// Apply middleware
+	var httpHandler http.Handler = mux
+	httpHandler = metrics.Middleware(httpHandler)
+
+	// Create listener
+	addr := fmt.Sprintf("127.0.0.1:%d", options.port)
+	listener, err := net.Listen("tcp", addr)
+	if err != nil {
+		return nil, fmt.Errorf("listen: %w", err)
+	}
+
+	server := &http.Server{
+		Handler:      httpHandler,
+		ReadTimeout:  cfg.Server.ReadTimeout,
+		WriteTimeout: cfg.Server.WriteTimeout,
+		IdleTimeout:  cfg.Server.IdleTimeout,
+	}
+
+	return &TestServer{
+		server:   server,
+		listener: listener,
+		config:   cfg,
+		baseURL:  fmt.Sprintf("http://%s", listener.Addr().String()),
+		logger:   logger,
+		registry: registry,
+		router:   simpleRouter,
+	}, nil
+}
+
+// Start starts the test server in a goroutine.
+func (s *TestServer) Start() error {
+	go func() {
+		if err := s.server.Serve(s.listener); err != nil && err != http.ErrServerClosed {
+			s.logger.Error("server error", "error", err)
+		}
+	}()
+
+	// Wait for server to be ready
+	return s.waitForReady(5 * time.Second)
+}
+
+// Stop gracefully shuts down the test server.
+func (s *TestServer) Stop() error {
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	return s.server.Shutdown(ctx)
+}
+
+// URL returns the server's base URL.
+func (s *TestServer) URL() string {
+	return s.baseURL
+}
+
+// Client returns an HTTP client configured for the test server.
+func (s *TestServer) Client() *http.Client {
+	return &http.Client{
+		Timeout: 30 * time.Second,
+	}
+}
+
+// Config returns the server's configuration.
+func (s *TestServer) Config() *config.Config {
+	return s.config
+}
+
+// Registry returns the provider registry.
+func (s *TestServer) Registry() *provider.Registry {
+	return s.registry
+}
+
+// Router returns the router.
+func (s *TestServer) Router() router.Router {
+	return s.router
+}
+
+func (s *TestServer) waitForReady(timeout time.Duration) error {
+	client := &http.Client{Timeout: time.Second}
+	deadline := time.Now().Add(timeout)
+	ctx := context.Background()
+
+	for time.Now().Before(deadline) {
+		req, err := http.NewRequestWithContext(ctx, "GET", s.baseURL+"/health/ready", http.NoBody)
+		if err != nil {
+			time.Sleep(50 * time.Millisecond)
+			continue
+		}
+		resp, err := client.Do(req)
+		if err == nil {
+			resp.Body.Close()
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			}
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	return fmt.Errorf("server not ready after %v", timeout)
+}

@@ -1,0 +1,279 @@
+package testutil
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"fmt"
+	"io"
+	"net/http"
+	"strings"
+	"time"
+
+	"github.com/goccy/go-json"
+
+	"github.com/blueberrycongee/llmux/pkg/types"
+)
+
+// TestClient provides helper methods for making API requests in tests.
+type TestClient struct {
+	baseURL    string
+	httpClient *http.Client
+	apiKey     string
+}
+
+// NewTestClient creates a new test client.
+func NewTestClient(baseURL string) *TestClient {
+	return &TestClient{
+		baseURL: baseURL,
+		httpClient: &http.Client{
+			Timeout: 30 * time.Second,
+		},
+	}
+}
+
+// WithAPIKey sets the API key for requests.
+func (c *TestClient) WithAPIKey(apiKey string) *TestClient {
+	c.apiKey = apiKey
+	return c
+}
+
+// WithTimeout sets the client timeout.
+func (c *TestClient) WithTimeout(timeout time.Duration) *TestClient {
+	c.httpClient.Timeout = timeout
+	return c
+}
+
+// ChatCompletionRequest represents a chat completion request.
+type ChatCompletionRequest struct {
+	Model       string            `json:"model"`
+	Messages    []ChatMessage     `json:"messages"`
+	Stream      bool              `json:"stream,omitempty"`
+	MaxTokens   int               `json:"max_tokens,omitempty"`
+	Temperature *float64          `json:"temperature,omitempty"`
+	Tools       []json.RawMessage `json:"tools,omitempty"`
+}
+
+// ChatMessage represents a message in the conversation.
+type ChatMessage struct {
+	Role    string `json:"role"`
+	Content string `json:"content"`
+}
+
+// ChatCompletionResponse represents a chat completion response.
+type ChatCompletionResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
+	Model   string `json:"model"`
+	Choices []struct {
+		Index   int `json:"index"`
+		Message struct {
+			Role    string `json:"role"`
+			Content string `json:"content"`
+		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
+	} `json:"choices"`
+	Usage *types.Usage `json:"usage,omitempty"`
+}
+
+// ErrorResponse represents an API error response.
+type ErrorResponse struct {
+	Error struct {
+		Message string `json:"message"`
+		Type    string `json:"type"`
+		Code    string `json:"code,omitempty"`
+	} `json:"error"`
+}
+
+// StreamChunk represents a streaming response chunk.
+type StreamChunk struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
+	Model   string `json:"model"`
+	Choices []struct {
+		Index int `json:"index"`
+		Delta struct {
+			Role    string `json:"role,omitempty"`
+			Content string `json:"content,omitempty"`
+		} `json:"delta"`
+		FinishReason string `json:"finish_reason,omitempty"`
+	} `json:"choices"`
+}
+
+// ChatCompletion sends a chat completion request.
+func (c *TestClient) ChatCompletion(ctx context.Context, req *ChatCompletionRequest) (*ChatCompletionResponse, *http.Response, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("do request: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, resp, nil
+	}
+
+	var chatResp ChatCompletionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&chatResp); err != nil {
+		resp.Body.Close()
+		return nil, resp, fmt.Errorf("decode response: %w", err)
+	}
+	resp.Body.Close()
+
+	return &chatResp, resp, nil
+}
+
+// ChatCompletionStream sends a streaming chat completion request.
+func (c *TestClient) ChatCompletionStream(ctx context.Context, req *ChatCompletionRequest) (*StreamReader, *http.Response, error) {
+	req.Stream = true
+
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/v1/chat/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("do request: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, resp, nil
+	}
+
+	return &StreamReader{
+		reader: bufio.NewReader(resp.Body),
+		body:   resp.Body,
+	}, resp, nil
+}
+
+// HealthCheck checks the health endpoint.
+func (c *TestClient) HealthCheck(ctx context.Context, path string) (*http.Response, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+path, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	return c.httpClient.Do(httpReq)
+}
+
+// ListModels lists available models.
+func (c *TestClient) ListModels(ctx context.Context) (*http.Response, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/v1/models", http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	if c.apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	return c.httpClient.Do(httpReq)
+}
+
+// GetMetrics fetches the metrics endpoint.
+func (c *TestClient) GetMetrics(ctx context.Context) (string, error) {
+	httpReq, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+"/metrics", http.NoBody)
+	if err != nil {
+		return "", fmt.Errorf("create request: %w", err)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return "", fmt.Errorf("do request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return "", fmt.Errorf("read body: %w", err)
+	}
+
+	return string(body), nil
+}
+
+// StreamReader reads SSE events from a streaming response.
+type StreamReader struct {
+	reader *bufio.Reader
+	body   io.ReadCloser
+}
+
+// Next reads the next chunk from the stream.
+// Returns nil, io.EOF when the stream is complete.
+func (r *StreamReader) Next() (*StreamChunk, error) {
+	for {
+		line, err := r.reader.ReadString('\n')
+		if err != nil {
+			return nil, err
+		}
+
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+
+		if !strings.HasPrefix(line, "data: ") {
+			continue
+		}
+
+		data := strings.TrimPrefix(line, "data: ")
+		if data == "[DONE]" {
+			return nil, io.EOF
+		}
+
+		var chunk StreamChunk
+		if err := json.Unmarshal([]byte(data), &chunk); err != nil {
+			return nil, fmt.Errorf("unmarshal chunk: %w", err)
+		}
+
+		return &chunk, nil
+	}
+}
+
+// Close closes the stream.
+func (r *StreamReader) Close() error {
+	return r.body.Close()
+}
+
+// CollectContent reads all chunks and returns the accumulated content.
+func (r *StreamReader) CollectContent() (string, error) {
+	var content strings.Builder
+	for {
+		chunk, err := r.Next()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return "", err
+		}
+		if len(chunk.Choices) > 0 {
+			content.WriteString(chunk.Choices[0].Delta.Content)
+		}
+	}
+	return content.String(), nil
+}
