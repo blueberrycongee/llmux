@@ -15,6 +15,7 @@ import (
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/pkg/types"
+	"github.com/blueberrycongee/llmux/providers"
 )
 
 // Client is the main entry point for LLMux library mode.
@@ -508,8 +509,12 @@ func (c *Client) createRouter(strategy Strategy) router.Router {
 }
 
 func (c *Client) registerBuiltinFactories() {
-	// Built-in factories will be registered here
-	// For now, users need to use WithProviderInstance or register factories manually
+	// Register all built-in provider factories from the providers package
+	for _, name := range providers.List() {
+		if factory, ok := providers.Get(name); ok {
+			c.factories[name] = factory
+		}
+	}
 }
 
 func (c *Client) availableFactories() []string {
