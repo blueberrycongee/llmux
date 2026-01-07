@@ -13,16 +13,16 @@ import (
 // success/failure counts, and more.
 type MetricsPlugin struct {
 	priority int
-	
+
 	// Global metrics
-	TotalRequests     atomic.Int64
+	TotalRequests      atomic.Int64
 	SuccessfulRequests atomic.Int64
-	FailedRequests    atomic.Int64
-	TotalTokens       atomic.Int64
-	PromptTokens      atomic.Int64
-	CompletionTokens  atomic.Int64
-	CacheHits         atomic.Int64
-	RateLimited       atomic.Int64
+	FailedRequests     atomic.Int64
+	TotalTokens        atomic.Int64
+	PromptTokens       atomic.Int64
+	CompletionTokens   atomic.Int64
+	CacheHits          atomic.Int64
+	RateLimited        atomic.Int64
 
 	// Latency tracking (in milliseconds)
 	latencies     []int64
@@ -40,19 +40,19 @@ type MetricsPlugin struct {
 
 // ModelMetrics tracks metrics for a specific model.
 type ModelMetrics struct {
-	Requests         atomic.Int64
-	Successes        atomic.Int64
-	Failures         atomic.Int64
-	TotalTokens      atomic.Int64
-	TotalLatencyMs   atomic.Int64
+	Requests       atomic.Int64
+	Successes      atomic.Int64
+	Failures       atomic.Int64
+	TotalTokens    atomic.Int64
+	TotalLatencyMs atomic.Int64
 }
 
 // ProviderMetrics tracks metrics for a specific provider.
 type ProviderMetrics struct {
-	Requests         atomic.Int64
-	Successes        atomic.Int64
-	Failures         atomic.Int64
-	TotalLatencyMs   atomic.Int64
+	Requests       atomic.Int64
+	Successes      atomic.Int64
+	Failures       atomic.Int64
+	TotalLatencyMs atomic.Int64
 }
 
 // RequestMetrics contains metrics for a single request.
@@ -102,8 +102,8 @@ func NewMetricsPlugin(opts ...MetricsOption) *MetricsPlugin {
 	return p
 }
 
-func (p *MetricsPlugin) Name() string     { return "metrics" }
-func (p *MetricsPlugin) Priority() int    { return p.priority }
+func (p *MetricsPlugin) Name() string  { return "metrics" }
+func (p *MetricsPlugin) Priority() int { return p.priority }
 
 func (p *MetricsPlugin) PreHook(ctx *plugin.Context, req *types.ChatRequest) (*types.ChatRequest, *plugin.ShortCircuit, error) {
 	p.TotalRequests.Add(1)
@@ -240,11 +240,11 @@ type MetricsSnapshot struct {
 }
 
 type ModelStats struct {
-	Requests      int64
-	Successes     int64
-	Failures      int64
-	TotalTokens   int64
-	AvgLatencyMs  float64
+	Requests     int64
+	Successes    int64
+	Failures     int64
+	TotalTokens  int64
+	AvgLatencyMs float64
 }
 
 type ProviderStats struct {

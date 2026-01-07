@@ -25,13 +25,13 @@ type mockPlugin struct {
 	postHookCalled atomic.Bool
 	cleanupCalled  atomic.Bool
 
-	preHookReq    *types.ChatRequest
-	preHookErr    error
-	preHookSC     *ShortCircuit
-	postHookResp  *types.ChatResponse
-	postHookErr   error
-	postHookPErr  error
-	cleanupErr    error
+	preHookReq   *types.ChatRequest
+	preHookErr   error
+	preHookSC    *ShortCircuit
+	postHookResp *types.ChatResponse
+	postHookErr  error
+	postHookPErr error
+	cleanupErr   error
 
 	preHookDelay  time.Duration
 	postHookDelay time.Duration
@@ -110,8 +110,8 @@ type mockStreamPlugin struct {
 	onStreamChunkCalled  atomic.Int32
 	postStreamHookCalled atomic.Bool
 
-	streamShortCircuit   *StreamShortCircuit
-	onChunkFilter        bool // If true, return nil chunk to filter
+	streamShortCircuit *StreamShortCircuit
+	onChunkFilter      bool // If true, return nil chunk to filter
 }
 
 func newMockStreamPlugin(name string, priority int) *mockStreamPlugin {

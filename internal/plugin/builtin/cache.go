@@ -84,8 +84,8 @@ func NewCachePlugin(backend CacheBackend, opts ...CacheOption) *CachePlugin {
 	return p
 }
 
-func (p *CachePlugin) Name() string     { return "cache" }
-func (p *CachePlugin) Priority() int    { return p.priority }
+func (p *CachePlugin) Name() string  { return "cache" }
+func (p *CachePlugin) Priority() int { return p.priority }
 
 func (p *CachePlugin) PreHook(ctx *plugin.Context, req *types.ChatRequest) (*types.ChatRequest, *plugin.ShortCircuit, error) {
 	// Skip caching for streaming requests for now
@@ -108,7 +108,7 @@ func (p *CachePlugin) PreHook(ctx *plugin.Context, req *types.ChatRequest) (*typ
 
 	if resp != nil {
 		p.logger.Debug("cache hit", "key", key)
-		
+
 		// Mark as cache hit in context
 		ctx.Set("cache_hit", true)
 		ctx.Set("cache_key", key)

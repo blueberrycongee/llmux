@@ -64,8 +64,8 @@ func NewLoggingPlugin(logger *slog.Logger, opts ...LoggingOption) *LoggingPlugin
 	return p
 }
 
-func (p *LoggingPlugin) Name() string     { return "logging" }
-func (p *LoggingPlugin) Priority() int    { return p.priority }
+func (p *LoggingPlugin) Name() string  { return "logging" }
+func (p *LoggingPlugin) Priority() int { return p.priority }
 
 func (p *LoggingPlugin) PreHook(ctx *plugin.Context, req *types.ChatRequest) (*types.ChatRequest, *plugin.ShortCircuit, error) {
 	attrs := []any{
@@ -132,7 +132,7 @@ func (p *LoggingPlugin) PostHook(ctx *plugin.Context, resp *types.ChatResponse, 
 		p.logger.Error("chat completion request failed", attrs...)
 	} else if resp != nil {
 		attrs = append(attrs, "response_id", resp.ID)
-		
+
 		if resp.Usage != nil {
 			attrs = append(attrs,
 				"prompt_tokens", resp.Usage.PromptTokens,

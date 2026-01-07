@@ -177,7 +177,7 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 		}
 		if sc.Response != nil {
 			// Run PostHooks even on short-circuit (e.g., for logging)
-			finalResp, _, _ := c.pipeline.RunPostHooks(pCtx, sc.Response, nil, c.pipeline.PluginCount())
+			finalResp, _ := c.pipeline.RunPostHooks(pCtx, sc.Response, nil, c.pipeline.PluginCount())
 			return finalResp, nil
 		}
 	}
@@ -217,7 +217,7 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	// Run PostHooks
 	// We pass the number of plugins that ran in PreHook phase (all of them if no short-circuit)
 	runFrom := c.pipeline.PluginCount()
-	finalResp, finalErr, _ := c.pipeline.RunPostHooks(pCtx, resp, err, runFrom)
+	finalResp, finalErr := c.pipeline.RunPostHooks(pCtx, resp, err, runFrom)
 
 	if finalErr == nil && finalResp != nil {
 		// Store in cache if successful and not streaming

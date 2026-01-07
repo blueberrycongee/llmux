@@ -69,11 +69,11 @@ func main() {
 		llmux.WithLogger(logger),
 
 		// Register plugins (executed in priority order)
-		llmux.WithPlugin(rateLimitPlugin),  // Priority: 5
-		llmux.WithPlugin(cachePlugin),      // Priority: 10
-		llmux.WithPlugin(loggingPlugin),    // Priority: 1000
-		llmux.WithPlugin(metricsPlugin),    // Priority: 999
-		llmux.WithPlugin(customPlugin),     // Priority: 50
+		llmux.WithPlugin(rateLimitPlugin), // Priority: 5
+		llmux.WithPlugin(cachePlugin),     // Priority: 10
+		llmux.WithPlugin(loggingPlugin),   // Priority: 1000
+		llmux.WithPlugin(metricsPlugin),   // Priority: 999
+		llmux.WithPlugin(customPlugin),    // Priority: 50
 
 		// Optional: configure plugin pipeline
 		llmux.WithPluginConfig(plugin.PipelineConfig{
@@ -130,8 +130,8 @@ type CustomPlugin struct {
 	logger *slog.Logger
 }
 
-func (p *CustomPlugin) Name() string     { return "custom-plugin" }
-func (p *CustomPlugin) Priority() int    { return 50 }
+func (p *CustomPlugin) Name() string  { return "custom-plugin" }
+func (p *CustomPlugin) Priority() int { return 50 }
 
 func (p *CustomPlugin) PreHook(ctx *plugin.Context, req *llmux.ChatRequest) (*llmux.ChatRequest, *plugin.ShortCircuit, error) {
 	p.logger.Info("custom plugin: request received",

@@ -87,8 +87,8 @@ func NewRateLimitPlugin(rate float64, burst int, opts ...RateLimitOption) *RateL
 	return p
 }
 
-func (p *RateLimitPlugin) Name() string     { return "rate-limit" }
-func (p *RateLimitPlugin) Priority() int    { return p.priority }
+func (p *RateLimitPlugin) Name() string  { return "rate-limit" }
+func (p *RateLimitPlugin) Priority() int { return p.priority }
 
 func (p *RateLimitPlugin) PreHook(ctx *plugin.Context, req *types.ChatRequest) (*types.ChatRequest, *plugin.ShortCircuit, error) {
 	key := p.KeyFunc(ctx)
@@ -148,10 +148,10 @@ func (p *RateLimitPlugin) getLimiter(key string) *tokenBucket {
 
 // tokenBucket implements a simple token bucket rate limiter.
 type tokenBucket struct {
-	rate     float64       // tokens per second
-	burst    int           // max tokens
-	tokens   float64       // current tokens
-	lastTime time.Time     // last refill time
+	rate     float64   // tokens per second
+	burst    int       // max tokens
+	tokens   float64   // current tokens
+	lastTime time.Time // last refill time
 	mu       sync.Mutex
 }
 
