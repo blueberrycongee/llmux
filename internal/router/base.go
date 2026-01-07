@@ -21,7 +21,7 @@ var ErrNoDeploymentsWithTag = errors.New("no deployments match the requested tag
 // Specific strategies embed this and override the selection logic.
 type BaseRouter struct {
 	mu          sync.RWMutex
-	rngMu       sync.Mutex // Separate mutex for rng (math/rand.Rand is not thread-safe)
+	rngMu       sync.Mutex                       // Separate mutex for rng (math/rand.Rand is not thread-safe)
 	deployments map[string][]*ExtendedDeployment // model -> deployments
 	stats       map[string]*DeploymentStats      // deploymentID -> stats
 	config      RouterConfig

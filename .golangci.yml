@@ -23,8 +23,6 @@ linters:
     - bodyclose
     - noctx
     - prealloc
-  disable:
-    - exportloopref  # Deprecated since Go 1.22
 
 linters-settings:
   errcheck:
