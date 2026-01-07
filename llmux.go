@@ -29,6 +29,7 @@
 package llmux
 
 import (
+	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/pkg/cache"
 	"github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -137,6 +138,23 @@ type (
 
 	// CacheControl allows per-request cache behavior customization.
 	CacheControl = cache.Control
+)
+
+// Re-export plugin types.
+// For full plugin functionality, import github.com/blueberrycongee/llmux/internal/plugin or pkg/plugin.
+type (
+	// PluginInterface defines the interface for LLMux plugins.
+	// Plugins can intercept and modify requests/responses at various lifecycle points.
+	PluginInterface = plugin.Plugin
+
+	// PluginContext provides execution context for plugins.
+	PluginContext = plugin.Context
+
+	// PluginShortCircuit represents a plugin's decision to short-circuit the request.
+	PluginShortCircuit = plugin.ShortCircuit
+
+	// PluginPipelineConfig holds configuration for the plugin pipeline.
+	PluginPipelineConfig = plugin.PipelineConfig
 )
 
 // Re-export error types.

@@ -11,6 +11,7 @@ import (
 
 	"github.com/goccy/go-json"
 
+	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/pkg/cache"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -31,6 +32,7 @@ type Client struct {
 	httpClient  *http.Client
 	logger      *slog.Logger
 	config      *ClientConfig
+	pipeline    *plugin.Pipeline
 
 	// Provider factories for creating providers from config
 	factories map[string]provider.Factory
@@ -127,6 +129,21 @@ func New(opts ...Option) (*Client, error) {
 		"cache_enabled", cfg.CacheEnabled,
 	)
 
+	// Initialize plugin pipeline
+	pipelineConfig := plugin.DefaultPipelineConfig()
+	if cfg.PluginConfig != nil {
+		pipelineConfig = *cfg.PluginConfig
+	}
+	c.pipeline = plugin.NewPipeline(c.logger, pipelineConfig)
+
+	// Register plugins
+	for _, p := range cfg.Plugins {
+		if err := c.pipeline.Register(p); err != nil {
+			return nil, fmt.Errorf("register plugin %s: %w", p.Name(), err)
+		}
+	}
+	c.logger.Info("plugin pipeline initialized", "plugins", c.pipeline.PluginCount())
+
 	return c, nil
 }
 
@@ -143,39 +160,73 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 		return nil, fmt.Errorf("messages is required")
 	}
 
-	// Check cache for non-streaming requests
-	if c.cache != nil && !req.Stream {
-		if cached, err := c.getFromCache(ctx, req); err == nil && cached != nil {
-			return cached, nil
+	// Get plugin context
+	pCtx := c.pipeline.GetContext(ctx, generateRequestID())
+	defer c.pipeline.PutContext(pCtx)
+
+	// Run PreHooks
+	req, sc, _ := c.pipeline.RunPreHooks(pCtx, req)
+	if sc != nil {
+		// Short-circuit
+		if sc.Error != nil {
+			if !sc.AllowFallback {
+				return nil, sc.Error
+			}
+			// Fallback logic could go here, but for now just return error
+			return nil, sc.Error
+		}
+		if sc.Response != nil {
+			// Run PostHooks even on short-circuit (e.g., for logging)
+			finalResp, _, _ := c.pipeline.RunPostHooks(pCtx, sc.Response, nil, c.pipeline.PluginCount())
+			return finalResp, nil
 		}
 	}
 
-	// Route to deployment
-	deployment, err := c.router.Pick(ctx, req.Model)
-	if err != nil {
-		return nil, fmt.Errorf("no available deployment for model %s: %w", req.Model, err)
-	}
+	var resp *ChatResponse
+	var err error
 
-	// Get provider
-	c.mu.RLock()
-	prov, ok := c.providers[deployment.ProviderName]
-	c.mu.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("provider %s not found", deployment.ProviderName)
-	}
-
-	// Execute with retry
-	resp, err := c.executeWithRetry(ctx, prov, deployment, req)
-	if err != nil {
-		return nil, err
-	}
-
-	// Store in cache
+	// Check cache for non-streaming requests (if not handled by plugin)
+	// Note: Ideally cache should be a plugin, but keeping this for backward compatibility
+	// or if built-in cache is preferred.
 	if c.cache != nil && !req.Stream {
-		c.storeInCache(ctx, req, resp)
+		if cached, cacheErr := c.getFromCache(ctx, req); cacheErr == nil && cached != nil {
+			resp = cached
+		}
 	}
 
-	return resp, nil
+	if resp == nil {
+		// Route to deployment
+		var deployment *provider.Deployment
+		deployment, err = c.router.Pick(ctx, req.Model)
+		if err != nil {
+			err = fmt.Errorf("no available deployment for model %s: %w", req.Model, err)
+		} else {
+			// Get provider
+			c.mu.RLock()
+			prov, ok := c.providers[deployment.ProviderName]
+			c.mu.RUnlock()
+			if !ok {
+				err = fmt.Errorf("provider %s not found", deployment.ProviderName)
+			} else {
+				// Execute with retry
+				resp, err = c.executeWithRetry(ctx, prov, deployment, req)
+			}
+		}
+	}
+
+	// Run PostHooks
+	// We pass the number of plugins that ran in PreHook phase (all of them if no short-circuit)
+	runFrom := c.pipeline.PluginCount()
+	finalResp, finalErr, _ := c.pipeline.RunPostHooks(pCtx, resp, err, runFrom)
+
+	if finalErr == nil && finalResp != nil {
+		// Store in cache if successful and not streaming
+		if c.cache != nil && !req.Stream {
+			c.storeInCache(ctx, req, finalResp)
+		}
+	}
+
+	return finalResp, finalErr
 }
 
 // ChatCompletionStream sends a streaming chat completion request.
@@ -349,8 +400,15 @@ func (c *Client) Close() error {
 		c.cache.Close()
 	}
 	c.httpClient.CloseIdleConnections()
+	if c.pipeline != nil {
+		c.pipeline.Shutdown()
+	}
 	c.logger.Info("llmux client closed")
 	return nil
+}
+
+func generateRequestID() string {
+	return fmt.Sprintf("req-%d", time.Now().UnixNano())
 }
 
 // RegisterProviderFactory registers a custom provider factory.

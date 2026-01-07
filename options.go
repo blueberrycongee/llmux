@@ -3,6 +3,8 @@ package llmux
 import (
 	"log/slog"
 	"time"
+
+	"github.com/blueberrycongee/llmux/internal/plugin"
 )
 
 // ClientConfig holds all configuration for the LLMux client.
@@ -31,6 +33,10 @@ type ClientConfig struct {
 
 	// Logging
 	Logger *slog.Logger
+
+	// Plugins
+	Plugins      []plugin.Plugin
+	PluginConfig *plugin.PipelineConfig
 }
 
 // providerInstance holds a pre-configured provider with its models.
@@ -182,5 +188,20 @@ func WithTimeout(d time.Duration) Option {
 func WithLogger(logger *slog.Logger) Option {
 	return func(c *ClientConfig) {
 		c.Logger = logger
+	}
+}
+
+// WithPlugin adds a plugin to the client.
+// Plugins are executed in the order of their priority.
+func WithPlugin(p plugin.Plugin) Option {
+	return func(c *ClientConfig) {
+		c.Plugins = append(c.Plugins, p)
+	}
+}
+
+// WithPluginConfig sets the plugin pipeline configuration.
+func WithPluginConfig(config plugin.PipelineConfig) Option {
+	return func(c *ClientConfig) {
+		c.PluginConfig = &config
 	}
 }
