@@ -484,7 +484,7 @@ func TestPipeline_RunPostHooks_ReverseOrder(t *testing.T) {
 	ctx := p.GetContext(context.Background(), "test")
 	resp := &types.ChatResponse{ID: "test"}
 	// runFrom = 3 means all 3 plugins' PreHooks were run
-	p.RunPostHooks(ctx, resp, nil, 3)
+	_, _ = p.RunPostHooks(ctx, resp, nil, 3)
 
 	mu.Lock()
 	defer mu.Unlock()
@@ -511,7 +511,7 @@ func TestPipeline_RunPostHooks_PartialExecution(t *testing.T) {
 	ctx := p.GetContext(context.Background(), "test")
 	resp := &types.ChatResponse{}
 	// runFrom = 2 means only first 2 plugins' PreHooks were run
-	p.RunPostHooks(ctx, resp, nil, 2)
+	_, _ = p.RunPostHooks(ctx, resp, nil, 2)
 
 	// Only p1 and p2 PostHooks should be called
 	if !p1.postHookCalled.Load() {
