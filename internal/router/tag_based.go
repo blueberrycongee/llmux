@@ -43,16 +43,16 @@ func (r *TagBasedRouter) Pick(ctx context.Context, model string) (*provider.Depl
 // PickWithContext filters deployments by tags and selects randomly.
 func (r *TagBasedRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	healthy := r.getHealthyDeployments(reqCtx.Model)
 	if len(healthy) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
 	// Apply tag filtering
 	filtered := r.filterByTags(healthy, reqCtx.Tags)
 	if len(filtered) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoDeploymentsWithTag
 	}
 
@@ -60,10 +60,14 @@ func (r *TagBasedRouter) PickWithContext(ctx context.Context, reqCtx *RequestCon
 	if reqCtx.EstimatedInputTokens > 0 {
 		filtered = r.filterByTPMRPM(filtered, reqCtx.EstimatedInputTokens)
 		if len(filtered) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
 
-	// Random selection from filtered deployments
-	return filtered[r.rng.Intn(len(filtered))].Deployment, nil
+	n := len(filtered)
+	r.mu.RUnlock()
+
+	// Random selection from filtered deployments (thread-safe)
+	return filtered[r.randIntn(n)].Deployment, nil
 }

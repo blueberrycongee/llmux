@@ -21,6 +21,7 @@ var ErrNoDeploymentsWithTag = errors.New("no deployments match the requested tag
 // Specific strategies embed this and override the selection logic.
 type BaseRouter struct {
 	mu          sync.RWMutex
+	rngMu       sync.Mutex // Separate mutex for rng (math/rand.Rand is not thread-safe)
 	deployments map[string][]*ExtendedDeployment // model -> deployments
 	stats       map[string]*DeploymentStats      // deploymentID -> stats
 	config      RouterConfig
@@ -42,6 +43,27 @@ func NewBaseRouter(config RouterConfig) *BaseRouter {
 // GetStrategy returns the current routing strategy.
 func (r *BaseRouter) GetStrategy() Strategy {
 	return r.strategy
+}
+
+// randIntn returns a random int in [0, n) in a thread-safe manner.
+func (r *BaseRouter) randIntn(n int) int {
+	r.rngMu.Lock()
+	defer r.rngMu.Unlock()
+	return r.rng.Intn(n)
+}
+
+// randFloat64 returns a random float64 in [0.0, 1.0) in a thread-safe manner.
+func (r *BaseRouter) randFloat64() float64 {
+	r.rngMu.Lock()
+	defer r.rngMu.Unlock()
+	return r.rng.Float64()
+}
+
+// randShuffle shuffles a slice in a thread-safe manner.
+func (r *BaseRouter) randShuffle(n int, swap func(i, j int)) {
+	r.rngMu.Lock()
+	defer r.rngMu.Unlock()
+	r.rng.Shuffle(n, swap)
 }
 
 // AddDeployment registers a new deployment with default configuration.
@@ -370,10 +392,9 @@ func (r *BaseRouter) Pick(ctx context.Context, model string) (*provider.Deployme
 // PickWithContext implements basic random selection with context.
 func (r *BaseRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	healthy := r.getHealthyDeployments(reqCtx.Model)
 	if len(healthy) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
@@ -381,10 +402,15 @@ func (r *BaseRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
 
-	// Random selection
-	return healthy[r.rng.Intn(len(healthy))].Deployment, nil
+	// Copy deployment pointer before releasing lock
+	n := len(healthy)
+	r.mu.RUnlock()
+
+	// Random selection (thread-safe)
+	return healthy[r.randIntn(n)].Deployment, nil
 }

@@ -28,10 +28,9 @@ func (r *SimpleShuffleRouter) Pick(ctx context.Context, model string) (*provider
 // PickWithContext selects a deployment using weighted random selection if weights are configured.
 func (r *SimpleShuffleRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	healthy := r.getHealthyDeployments(reqCtx.Model)
 	if len(healthy) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
@@ -39,6 +38,7 @@ func (r *SimpleShuffleRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
@@ -47,27 +47,34 @@ func (r *SimpleShuffleRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 	if reqCtx.EstimatedInputTokens > 0 {
 		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
 
+	// Make a copy of healthy slice for use after releasing lock
+	healthyCopy := make([]*ExtendedDeployment, len(healthy))
+	copy(healthyCopy, healthy)
+	r.mu.RUnlock()
+
 	// Try weighted selection by weight, rpm, or tpm (in that order)
-	if deployment := r.weightedPick(healthy, "weight"); deployment != nil {
+	if deployment := r.weightedPick(healthyCopy, "weight"); deployment != nil {
 		return deployment, nil
 	}
-	if deployment := r.weightedPick(healthy, "rpm"); deployment != nil {
+	if deployment := r.weightedPick(healthyCopy, "rpm"); deployment != nil {
 		return deployment, nil
 	}
-	if deployment := r.weightedPick(healthy, "tpm"); deployment != nil {
+	if deployment := r.weightedPick(healthyCopy, "tpm"); deployment != nil {
 		return deployment, nil
 	}
 
-	// Fall back to uniform random selection
-	return healthy[r.rng.Intn(len(healthy))].Deployment, nil
+	// Fall back to uniform random selection (thread-safe)
+	return healthyCopy[r.randIntn(len(healthyCopy))].Deployment, nil
 }
 
 // weightedPick performs weighted random selection based on the specified weight type.
 // Returns nil if no weights are configured for the given type.
+// Note: This method uses thread-safe random functions.
 func (r *SimpleShuffleRouter) weightedPick(deployments []*ExtendedDeployment, weightType string) *provider.Deployment {
 	weights := make([]float64, len(deployments))
 	hasWeights := false
@@ -107,8 +114,8 @@ func (r *SimpleShuffleRouter) weightedPick(deployments []*ExtendedDeployment, we
 		weights[i] /= totalWeight
 	}
 
-	// Weighted random selection
-	randVal := r.rng.Float64()
+	// Weighted random selection (thread-safe)
+	randVal := r.randFloat64()
 	var cumulative float64
 	for i, w := range weights {
 		cumulative += w

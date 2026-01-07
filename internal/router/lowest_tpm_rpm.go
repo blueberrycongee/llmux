@@ -32,10 +32,9 @@ func (r *LowestTPMRPMRouter) Pick(ctx context.Context, model string) (*provider.
 // PickWithContext selects the deployment with lowest TPM/RPM usage.
 func (r *LowestTPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	healthy := r.getHealthyDeployments(reqCtx.Model)
 	if len(healthy) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
@@ -43,30 +42,38 @@ func (r *LowestTPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *Reques
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
+
+	// Copy data needed for selection
+	type deploymentInfo struct {
+		deployment *ExtendedDeployment
+		currentTPM int64
+		currentRPM int64
+	}
+	candidates := make([]deploymentInfo, len(healthy))
+	for i, d := range healthy {
+		var currentTPM, currentRPM int64
+		if stats := r.stats[d.ID]; stats != nil {
+			currentTPM = stats.CurrentMinuteTPM
+			currentRPM = stats.CurrentMinuteRPM
+		}
+		candidates[i] = deploymentInfo{deployment: d, currentTPM: currentTPM, currentRPM: currentRPM}
+	}
+	r.mu.RUnlock()
+
+	// Shuffle first to randomize selection among equal candidates (thread-safe)
+	r.randShuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
 
 	// Filter by TPM/RPM limits and find lowest usage
 	var bestDeployment *ExtendedDeployment
 	lowestTPM := int64(-1)
 
-	// Shuffle first to randomize selection among equal candidates
-	shuffled := make([]*ExtendedDeployment, len(healthy))
-	copy(shuffled, healthy)
-	r.rng.Shuffle(len(shuffled), func(i, j int) {
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-	})
-
-	for _, d := range shuffled {
-		stats := r.stats[d.ID]
-		var currentTPM, currentRPM int64
-
-		if stats != nil {
-			currentTPM = stats.CurrentMinuteTPM
-			currentRPM = stats.CurrentMinuteRPM
-		}
-
+	for _, c := range candidates {
 		// Check if adding this request would exceed limits
 		estimatedTokens := int64(reqCtx.EstimatedInputTokens)
 		if estimatedTokens == 0 {
@@ -74,19 +81,19 @@ func (r *LowestTPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *Reques
 		}
 
 		// Skip if would exceed TPM limit
-		if d.Config.TPMLimit > 0 && currentTPM+estimatedTokens > d.Config.TPMLimit {
+		if c.deployment.Config.TPMLimit > 0 && c.currentTPM+estimatedTokens > c.deployment.Config.TPMLimit {
 			continue
 		}
 
 		// Skip if would exceed RPM limit
-		if d.Config.RPMLimit > 0 && currentRPM+1 >= d.Config.RPMLimit {
+		if c.deployment.Config.RPMLimit > 0 && c.currentRPM+1 >= c.deployment.Config.RPMLimit {
 			continue
 		}
 
 		// Select deployment with lowest TPM
-		if lowestTPM < 0 || currentTPM < lowestTPM {
-			lowestTPM = currentTPM
-			bestDeployment = d
+		if lowestTPM < 0 || c.currentTPM < lowestTPM {
+			lowestTPM = c.currentTPM
+			bestDeployment = c.deployment
 		}
 	}
 

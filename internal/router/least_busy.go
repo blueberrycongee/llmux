@@ -32,10 +32,9 @@ func (r *LeastBusyRouter) Pick(ctx context.Context, model string) (*provider.Dep
 // PickWithContext selects the deployment with fewest active requests.
 func (r *LeastBusyRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	healthy := r.getHealthyDeployments(reqCtx.Model)
 	if len(healthy) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
@@ -43,6 +42,7 @@ func (r *LeastBusyRouter) PickWithContext(ctx context.Context, reqCtx *RequestCo
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
@@ -51,38 +51,45 @@ func (r *LeastBusyRouter) PickWithContext(ctx context.Context, reqCtx *RequestCo
 	if reqCtx.EstimatedInputTokens > 0 {
 		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
+
+	// Copy data needed for selection
+	type deploymentInfo struct {
+		deployment     *ExtendedDeployment
+		activeRequests int64
+	}
+	candidates := make([]deploymentInfo, len(healthy))
+	for i, d := range healthy {
+		var activeRequests int64
+		if stats := r.stats[d.ID]; stats != nil {
+			activeRequests = stats.ActiveRequests
+		}
+		candidates[i] = deploymentInfo{deployment: d, activeRequests: activeRequests}
+	}
+	r.mu.RUnlock()
+
+	// Shuffle first to randomize selection among equal candidates (thread-safe)
+	r.randShuffle(len(candidates), func(i, j int) {
+		candidates[i], candidates[j] = candidates[j], candidates[i]
+	})
 
 	// Find deployment with minimum active requests
 	var minDeployment *ExtendedDeployment
 	minRequests := int64(-1)
 
-	// Shuffle first to randomize selection among equal candidates
-	shuffled := make([]*ExtendedDeployment, len(healthy))
-	copy(shuffled, healthy)
-	r.rng.Shuffle(len(shuffled), func(i, j int) {
-		shuffled[i], shuffled[j] = shuffled[j], shuffled[i]
-	})
-
-	for _, d := range shuffled {
-		stats := r.stats[d.ID]
-		var activeRequests int64
-		if stats != nil {
-			activeRequests = stats.ActiveRequests
-		}
-
-		// Initialize or update minimum
-		if minRequests < 0 || activeRequests < minRequests {
-			minRequests = activeRequests
-			minDeployment = d
+	for _, c := range candidates {
+		if minRequests < 0 || c.activeRequests < minRequests {
+			minRequests = c.activeRequests
+			minDeployment = c.deployment
 		}
 	}
 
 	if minDeployment == nil {
-		// Fallback to random selection (shouldn't happen)
-		return healthy[r.rng.Intn(len(healthy))].Deployment, nil
+		// Fallback to random selection (shouldn't happen, thread-safe)
+		return candidates[r.randIntn(len(candidates))].deployment.Deployment, nil
 	}
 
 	return minDeployment.Deployment, nil

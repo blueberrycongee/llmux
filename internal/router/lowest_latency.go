@@ -30,10 +30,9 @@ func (r *LowestLatencyRouter) Pick(ctx context.Context, model string) (*provider
 // PickWithContext selects the deployment with lowest latency, considering streaming mode.
 func (r *LowestLatencyRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	healthy := r.getHealthyDeployments(reqCtx.Model)
 	if len(healthy) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
@@ -41,6 +40,7 @@ func (r *LowestLatencyRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
@@ -49,6 +49,7 @@ func (r *LowestLatencyRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 	if reqCtx.EstimatedInputTokens > 0 {
 		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
@@ -84,8 +85,11 @@ func (r *LowestLatencyRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 		})
 	}
 
-	// Shuffle first to randomize order for equal latencies
-	r.rng.Shuffle(len(candidates), func(i, j int) {
+	latencyBuffer := r.config.LatencyBuffer
+	r.mu.RUnlock()
+
+	// Shuffle first to randomize order for equal latencies (thread-safe)
+	r.randShuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
 
@@ -97,13 +101,13 @@ func (r *LowestLatencyRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 	// Find lowest latency
 	lowestLatency := candidates[0].latency
 
-	// If lowest latency is 0, just pick randomly from all candidates
+	// If lowest latency is 0, just pick randomly from all candidates (thread-safe)
 	if lowestLatency == 0 {
-		return candidates[r.rng.Intn(len(candidates))].deployment.Deployment, nil
+		return candidates[r.randIntn(len(candidates))].deployment.Deployment, nil
 	}
 
 	// Find all deployments within the buffer threshold
-	buffer := r.config.LatencyBuffer * lowestLatency
+	buffer := latencyBuffer * lowestLatency
 	threshold := lowestLatency + buffer
 
 	validCandidates := make([]deploymentLatency, 0)
@@ -113,7 +117,7 @@ func (r *LowestLatencyRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 		}
 	}
 
-	// Random selection from valid candidates
-	selected := validCandidates[r.rng.Intn(len(validCandidates))]
+	// Random selection from valid candidates (thread-safe)
+	selected := validCandidates[r.randIntn(len(validCandidates))]
 	return selected.deployment.Deployment, nil
 }

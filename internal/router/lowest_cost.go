@@ -36,10 +36,9 @@ func (r *LowestCostRouter) Pick(ctx context.Context, model string) (*provider.De
 // PickWithContext selects the deployment with lowest cost per token.
 func (r *LowestCostRouter) PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error) {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
 	healthy := r.getHealthyDeployments(reqCtx.Model)
 	if len(healthy) == 0 {
+		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
@@ -47,6 +46,7 @@ func (r *LowestCostRouter) PickWithContext(ctx context.Context, reqCtx *RequestC
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
@@ -55,6 +55,7 @@ func (r *LowestCostRouter) PickWithContext(ctx context.Context, reqCtx *RequestC
 	if reqCtx.EstimatedInputTokens > 0 {
 		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
+			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
@@ -86,9 +87,10 @@ func (r *LowestCostRouter) PickWithContext(ctx context.Context, reqCtx *RequestC
 			cost:       totalCost,
 		})
 	}
+	r.mu.RUnlock()
 
-	// Shuffle first to randomize order for equal costs
-	r.rng.Shuffle(len(candidates), func(i, j int) {
+	// Shuffle first to randomize order for equal costs (thread-safe)
+	r.randShuffle(len(candidates), func(i, j int) {
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
 
