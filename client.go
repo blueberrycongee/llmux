@@ -16,6 +16,7 @@ import (
 	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/pkg/types"
 	"github.com/blueberrycongee/llmux/providers"
+	"github.com/blueberrycongee/llmux/routers"
 )
 
 // Client is the main entry point for LLMux library mode.
@@ -503,9 +504,19 @@ func (c *Client) addProviderInstance(name string, prov provider.Provider, models
 }
 
 func (c *Client) createRouter(strategy Strategy) router.Router {
-	// For now, return a simple implementation
-	// TODO: Import from routers package when available
-	return newSimpleRouter(c.config.CooldownPeriod, strategy)
+	// Use the routers package for all strategies
+	config := router.Config{
+		Strategy:           strategy,
+		CooldownPeriod:     c.config.CooldownPeriod,
+		LatencyBuffer:      0.1,
+		MaxLatencyListSize: 10,
+	}
+	r, err := routers.New(config)
+	if err != nil {
+		// Fallback to shuffle router if strategy is invalid
+		return routers.NewShuffleRouter()
+	}
+	return r
 }
 
 func (c *Client) registerBuiltinFactories() {

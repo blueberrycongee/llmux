@@ -9,6 +9,9 @@ import (
 	"net/http/httptest"
 	"testing"
 	"time"
+
+	"github.com/blueberrycongee/llmux/pkg/router"
+	"github.com/blueberrycongee/llmux/routers"
 )
 
 // mockProvider implements Provider interface for testing.
@@ -307,16 +310,16 @@ func TestOptions_WithCooldown(t *testing.T) {
 }
 
 func TestSimpleRouter_Pick(t *testing.T) {
-	router := newSimpleRouter(60*time.Second, StrategySimpleShuffle)
+	r := routers.NewShuffleRouter()
 
 	deployment := &Deployment{
 		ID:           "test-1",
 		ProviderName: "test",
 		ModelName:    "test-model",
 	}
-	router.AddDeployment(deployment)
+	r.AddDeployment(deployment)
 
-	picked, err := router.Pick(context.Background(), "test-model")
+	picked, err := r.Pick(context.Background(), "test-model")
 	if err != nil {
 		t.Fatalf("Pick() error = %v", err)
 	}
@@ -327,29 +330,33 @@ func TestSimpleRouter_Pick(t *testing.T) {
 }
 
 func TestSimpleRouter_Pick_NoDeployment(t *testing.T) {
-	router := newSimpleRouter(60*time.Second, StrategySimpleShuffle)
+	r := routers.NewShuffleRouter()
 
-	_, err := router.Pick(context.Background(), "nonexistent")
+	_, err := r.Pick(context.Background(), "nonexistent")
 	if err == nil {
 		t.Error("expected error for no deployment")
 	}
 }
 
 func TestSimpleRouter_Cooldown(t *testing.T) {
-	router := newSimpleRouter(100*time.Millisecond, StrategySimpleShuffle)
+	config := router.Config{
+		Strategy:       router.StrategySimpleShuffle,
+		CooldownPeriod: 100 * time.Millisecond,
+	}
+	r := routers.NewShuffleRouterWithConfig(config)
 
 	deployment := &Deployment{
 		ID:           "test-1",
 		ProviderName: "test",
 		ModelName:    "test-model",
 	}
-	router.AddDeployment(deployment)
+	r.AddDeployment(deployment)
 
 	// Report failure to trigger cooldown
-	router.ReportFailure(deployment, NewRateLimitError("test", "test-model", "rate limited"))
+	r.ReportFailure(deployment, NewRateLimitError("test", "test-model", "rate limited"))
 
 	// Should fail during cooldown
-	_, err := router.Pick(context.Background(), "test-model")
+	_, err := r.Pick(context.Background(), "test-model")
 	if err == nil {
 		t.Error("expected error during cooldown")
 	}
@@ -358,7 +365,7 @@ func TestSimpleRouter_Cooldown(t *testing.T) {
 	time.Sleep(150 * time.Millisecond)
 
 	// Should succeed after cooldown
-	picked, err := router.Pick(context.Background(), "test-model")
+	picked, err := r.Pick(context.Background(), "test-model")
 	if err != nil {
 		t.Fatalf("Pick() after cooldown error = %v", err)
 	}
@@ -368,25 +375,25 @@ func TestSimpleRouter_Cooldown(t *testing.T) {
 }
 
 func TestSimpleRouter_Stats(t *testing.T) {
-	router := newSimpleRouter(60*time.Second, StrategySimpleShuffle)
+	r := routers.NewShuffleRouter()
 
 	deployment := &Deployment{
 		ID:           "test-1",
 		ProviderName: "test",
 		ModelName:    "test-model",
 	}
-	router.AddDeployment(deployment)
+	r.AddDeployment(deployment)
 
 	// Report some metrics
-	router.ReportRequestStart(deployment)
-	router.ReportSuccess(deployment, &ResponseMetrics{
+	r.ReportRequestStart(deployment)
+	r.ReportSuccess(deployment, &ResponseMetrics{
 		Latency:      100 * time.Millisecond,
 		InputTokens:  10,
 		OutputTokens: 20,
 	})
-	router.ReportRequestEnd(deployment)
+	r.ReportRequestEnd(deployment)
 
-	stats := router.GetStats("test-1")
+	stats := r.GetStats("test-1")
 	if stats == nil {
 		t.Fatal("GetStats() returned nil")
 	}
