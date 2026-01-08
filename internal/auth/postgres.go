@@ -236,38 +236,95 @@ func (s *PostgresStore) DeleteAPIKey(ctx context.Context, keyID string) error {
 }
 
 // ListAPIKeys returns API keys with pagination.
-func (s *PostgresStore) ListAPIKeys(ctx context.Context, teamID *string, limit, offset int) ([]*APIKey, error) {
+func (s *PostgresStore) ListAPIKeys(ctx context.Context, filter APIKeyFilter) ([]*APIKey, int64, error) {
 	query := `
-		SELECT id, key_prefix, name, team_id, tpm_limit, rpm_limit, max_budget, 
+		SELECT id, key_prefix, name, team_id, user_id, organization_id, tpm_limit, rpm_limit, max_budget, 
 		       spent_budget, created_at, expires_at, last_used_at, is_active, blocked
 		FROM api_keys
-		WHERE is_active = true AND ($1::text IS NULL OR team_id = $1)
-		ORDER BY created_at DESC
-		LIMIT $2 OFFSET $3`
+		WHERE 1=1`
+	countQuery := `SELECT COUNT(*) FROM api_keys WHERE 1=1`
 
-	rows, err := s.db.QueryContext(ctx, query, teamID, limit, offset)
+	args := []interface{}{}
+	argIdx := 1
+
+	// Apply filters
+	if filter.IsActive != nil {
+		query += fmt.Sprintf(" AND is_active = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND is_active = $%d", argIdx)
+		args = append(args, *filter.IsActive)
+		argIdx++
+	} else {
+		// Default to active keys only if not specified
+		query += " AND is_active = true"
+		countQuery += " AND is_active = true"
+	}
+
+	if filter.TeamID != nil {
+		query += fmt.Sprintf(" AND team_id = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND team_id = $%d", argIdx)
+		args = append(args, *filter.TeamID)
+		argIdx++
+	}
+	if filter.UserID != nil {
+		query += fmt.Sprintf(" AND user_id = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND user_id = $%d", argIdx)
+		args = append(args, *filter.UserID)
+		argIdx++
+	}
+	if filter.OrganizationID != nil {
+		query += fmt.Sprintf(" AND organization_id = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND organization_id = $%d", argIdx)
+		args = append(args, *filter.OrganizationID)
+		argIdx++
+	}
+	if filter.Blocked != nil {
+		query += fmt.Sprintf(" AND blocked = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND blocked = $%d", argIdx)
+		args = append(args, *filter.Blocked)
+		argIdx++
+	}
+
+	// Get total count
+	var total int64
+	err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
-		return nil, fmt.Errorf("query api keys: %w", err)
+		return nil, 0, fmt.Errorf("count api keys: %w", err)
+	}
+
+	// Add ordering and pagination
+	query += " ORDER BY created_at DESC"
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, filter.Limit, filter.Offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query api keys: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
 	var keys []*APIKey
 	for rows.Next() {
 		var key APIKey
-		var teamIDVal sql.NullString
+		var teamIDVal, userIDVal, orgIDVal sql.NullString
 		var tpmLimit, rpmLimit sql.NullInt64
 		var expiresAt, lastUsedAt sql.NullTime
 
 		if err := rows.Scan(
-			&key.ID, &key.KeyPrefix, &key.Name, &teamIDVal,
+			&key.ID, &key.KeyPrefix, &key.Name, &teamIDVal, &userIDVal, &orgIDVal,
 			&tpmLimit, &rpmLimit, &key.MaxBudget, &key.SpentBudget,
 			&key.CreatedAt, &expiresAt, &lastUsedAt, &key.IsActive, &key.Blocked,
 		); err != nil {
-			return nil, fmt.Errorf("scan api key: %w", err)
+			return nil, 0, fmt.Errorf("scan api key: %w", err)
 		}
 
 		if teamIDVal.Valid {
 			key.TeamID = &teamIDVal.String
+		}
+		if userIDVal.Valid {
+			key.UserID = &userIDVal.String
+		}
+		if orgIDVal.Valid {
+			key.OrganizationID = &orgIDVal.String
 		}
 		if tpmLimit.Valid {
 			key.TPMLimit = &tpmLimit.Int64
@@ -283,7 +340,7 @@ func (s *PostgresStore) ListAPIKeys(ctx context.Context, teamID *string, limit, 
 		}
 		keys = append(keys, &key)
 	}
-	return keys, rows.Err()
+	return keys, total, rows.Err()
 }
 
 // GetTeam retrieves a team by ID.
@@ -376,33 +433,75 @@ func (s *PostgresStore) DeleteTeam(ctx context.Context, teamID string) error {
 }
 
 // ListTeams returns teams with pagination.
-func (s *PostgresStore) ListTeams(ctx context.Context, limit, offset int) ([]*Team, error) {
+func (s *PostgresStore) ListTeams(ctx context.Context, filter TeamFilter) ([]*Team, int64, error) {
 	query := `
-		SELECT id, team_alias, max_budget, spend, tpm_limit, rpm_limit, created_at, is_active, blocked
+		SELECT id, team_alias, organization_id, max_budget, spend, tpm_limit, rpm_limit, created_at, is_active, blocked
 		FROM teams
-		WHERE is_active = true
-		ORDER BY created_at DESC
-		LIMIT $1 OFFSET $2`
+		WHERE 1=1`
+	countQuery := `SELECT COUNT(*) FROM teams WHERE 1=1`
 
-	rows, err := s.db.QueryContext(ctx, query, limit, offset)
+	args := []interface{}{}
+	argIdx := 1
+
+	// Apply filters
+	if filter.IsActive != nil {
+		query += fmt.Sprintf(" AND is_active = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND is_active = $%d", argIdx)
+		args = append(args, *filter.IsActive)
+		argIdx++
+	} else {
+		// Default to active teams only if not specified
+		query += " AND is_active = true"
+		countQuery += " AND is_active = true"
+	}
+
+	if filter.OrganizationID != nil {
+		query += fmt.Sprintf(" AND organization_id = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND organization_id = $%d", argIdx)
+		args = append(args, *filter.OrganizationID)
+		argIdx++
+	}
+	if filter.Blocked != nil {
+		query += fmt.Sprintf(" AND blocked = $%d", argIdx)
+		countQuery += fmt.Sprintf(" AND blocked = $%d", argIdx)
+		args = append(args, *filter.Blocked)
+		argIdx++
+	}
+
+	// Get total count
+	var total int64
+	err := s.db.QueryRowContext(ctx, countQuery, args...).Scan(&total)
 	if err != nil {
-		return nil, fmt.Errorf("query teams: %w", err)
+		return nil, 0, fmt.Errorf("count teams: %w", err)
+	}
+
+	// Add ordering and pagination
+	query += " ORDER BY created_at DESC"
+	query += fmt.Sprintf(" LIMIT $%d OFFSET $%d", argIdx, argIdx+1)
+	args = append(args, filter.Limit, filter.Offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, 0, fmt.Errorf("query teams: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
 	var teams []*Team
 	for rows.Next() {
 		var team Team
-		var alias sql.NullString
+		var alias, orgID sql.NullString
 		var tpmLimit, rpmLimit sql.NullInt64
 		if err := rows.Scan(
-			&team.ID, &alias, &team.MaxBudget, &team.SpentBudget,
+			&team.ID, &alias, &orgID, &team.MaxBudget, &team.SpentBudget,
 			&tpmLimit, &rpmLimit, &team.CreatedAt, &team.IsActive, &team.Blocked,
 		); err != nil {
-			return nil, fmt.Errorf("scan team: %w", err)
+			return nil, 0, fmt.Errorf("scan team: %w", err)
 		}
 		if alias.Valid {
 			team.Alias = &alias.String
+		}
+		if orgID.Valid {
+			team.OrganizationID = &orgID.String
 		}
 		if tpmLimit.Valid {
 			team.TPMLimit = &tpmLimit.Int64
@@ -412,7 +511,7 @@ func (s *PostgresStore) ListTeams(ctx context.Context, limit, offset int) ([]*Te
 		}
 		teams = append(teams, &team)
 	}
-	return teams, rows.Err()
+	return teams, total, rows.Err()
 }
 
 // GetUser retrieves a user by ID.
@@ -591,3 +690,241 @@ func (s *PostgresStore) GetUsageStats(ctx context.Context, filter UsageFilter) (
 	}
 	return &stats, nil
 }
+
+// ========================================================================
+// API Key Operations - Missing Methods
+// ========================================================================
+
+// GetAPIKeyByID retrieves an API key by its ID.
+func (s *PostgresStore) GetAPIKeyByID(ctx context.Context, keyID string) (*APIKey, error) {
+	// Reuse GetAPIKeyByHash logic but with id filter
+	query := `
+		SELECT id, key_hash, key_prefix, name, key_alias, team_id, user_id, organization_id,
+		       allowed_models, tpm_limit, rpm_limit, max_budget, soft_budget, spent_budget,
+		       model_max_budget, model_spend, budget_duration, budget_reset_at,
+		       metadata, created_at, updated_at, expires_at, last_used_at, is_active, blocked
+		FROM api_keys
+		WHERE id = $1`
+
+	var key APIKey
+	var allowedModels, modelMaxBudget, modelSpend, metadataJSON sql.NullString
+	var keyAlias, teamID, userID, orgID sql.NullString
+	var tpmLimit, rpmLimit sql.NullInt64
+	var softBudget sql.NullFloat64
+	var budgetDuration sql.NullString
+	var budgetResetAt, expiresAt, lastUsedAt sql.NullTime
+
+	err := s.db.QueryRowContext(ctx, query, keyID).Scan(
+		&key.ID, &key.KeyHash, &key.KeyPrefix, &key.Name, &keyAlias,
+		&teamID, &userID, &orgID, &allowedModels, &tpmLimit, &rpmLimit,
+		&key.MaxBudget, &softBudget, &key.SpentBudget,
+		&modelMaxBudget, &modelSpend, &budgetDuration, &budgetResetAt,
+		&metadataJSON, &key.CreatedAt, &key.UpdatedAt, &expiresAt, &lastUsedAt,
+		&key.IsActive, &key.Blocked,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query api key: %w", err)
+	}
+
+	// Handle nullable fields
+	if keyAlias.Valid {
+		key.KeyAlias = &keyAlias.String
+	}
+	if teamID.Valid {
+		key.TeamID = &teamID.String
+	}
+	if userID.Valid {
+		key.UserID = &userID.String
+	}
+	if orgID.Valid {
+		key.OrganizationID = &orgID.String
+	}
+	if tpmLimit.Valid {
+		key.TPMLimit = &tpmLimit.Int64
+	}
+	if rpmLimit.Valid {
+		key.RPMLimit = &rpmLimit.Int64
+	}
+	if softBudget.Valid {
+		key.SoftBudget = &softBudget.Float64
+	}
+	if budgetDuration.Valid {
+		key.BudgetDuration = BudgetDuration(budgetDuration.String)
+	}
+	if budgetResetAt.Valid {
+		key.BudgetResetAt = &budgetResetAt.Time
+	}
+	if expiresAt.Valid {
+		key.ExpiresAt = &expiresAt.Time
+	}
+	if lastUsedAt.Valid {
+		key.LastUsedAt = &lastUsedAt.Time
+	}
+
+	// Parse JSON fields
+	if allowedModels.Valid && allowedModels.String != "" {
+		_ = json.Unmarshal([]byte(allowedModels.String), &key.AllowedModels)
+	}
+	if modelMaxBudget.Valid && modelMaxBudget.String != "" {
+		_ = json.Unmarshal([]byte(modelMaxBudget.String), &key.ModelMaxBudget)
+	}
+	if modelSpend.Valid && modelSpend.String != "" {
+		_ = json.Unmarshal([]byte(modelSpend.String), &key.ModelSpend)
+	}
+	if metadataJSON.Valid && metadataJSON.String != "" {
+		_ = json.Unmarshal([]byte(metadataJSON.String), &key.Metadata)
+	}
+
+	return &key, nil
+}
+
+// GetAPIKeyByAlias retrieves an API key by its alias.
+func (s *PostgresStore) GetAPIKeyByAlias(ctx context.Context, alias string) (*APIKey, error) {
+	query := `
+		SELECT id, key_hash, key_prefix, name, key_alias, team_id, user_id, organization_id,
+		       allowed_models, tpm_limit, rpm_limit, max_budget, soft_budget, spent_budget,
+		       model_max_budget, model_spend, budget_duration, budget_reset_at,
+		       metadata, created_at, updated_at, expires_at, last_used_at, is_active, blocked
+		FROM api_keys
+		WHERE key_alias = $1`
+
+	var key APIKey
+	var allowedModels, modelMaxBudget, modelSpend, metadataJSON sql.NullString
+	var keyAlias, teamID, userID, orgID sql.NullString
+	var tpmLimit, rpmLimit sql.NullInt64
+	var softBudget sql.NullFloat64
+	var budgetDuration sql.NullString
+	var budgetResetAt, expiresAt, lastUsedAt sql.NullTime
+
+	err := s.db.QueryRowContext(ctx, query, alias).Scan(
+		&key.ID, &key.KeyHash, &key.KeyPrefix, &key.Name, &keyAlias,
+		&teamID, &userID, &orgID, &allowedModels, &tpmLimit, &rpmLimit,
+		&key.MaxBudget, &softBudget, &key.SpentBudget,
+		&modelMaxBudget, &modelSpend, &budgetDuration, &budgetResetAt,
+		&metadataJSON, &key.CreatedAt, &key.UpdatedAt, &expiresAt, &lastUsedAt,
+		&key.IsActive, &key.Blocked,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("query api key by alias: %w", err)
+	}
+
+	// Handle nullable fields
+	if keyAlias.Valid {
+		key.KeyAlias = &keyAlias.String
+	}
+	if teamID.Valid {
+		key.TeamID = &teamID.String
+	}
+	if userID.Valid {
+		key.UserID = &userID.String
+	}
+	if orgID.Valid {
+		key.OrganizationID = &orgID.String
+	}
+	if tpmLimit.Valid {
+		key.TPMLimit = &tpmLimit.Int64
+	}
+	if rpmLimit.Valid {
+		key.RPMLimit = &rpmLimit.Int64
+	}
+	if softBudget.Valid {
+		key.SoftBudget = &softBudget.Float64
+	}
+	if budgetDuration.Valid {
+		key.BudgetDuration = BudgetDuration(budgetDuration.String)
+	}
+	if budgetResetAt.Valid {
+		key.BudgetResetAt = &budgetResetAt.Time
+	}
+	if expiresAt.Valid {
+		key.ExpiresAt = &expiresAt.Time
+	}
+	if lastUsedAt.Valid {
+		key.LastUsedAt = &lastUsedAt.Time
+	}
+
+	// Parse JSON fields
+	if allowedModels.Valid && allowedModels.String != "" {
+		_ = json.Unmarshal([]byte(allowedModels.String), &key.AllowedModels)
+	}
+	if modelMaxBudget.Valid && modelMaxBudget.String != "" {
+		_ = json.Unmarshal([]byte(modelMaxBudget.String), &key.ModelMaxBudget)
+	}
+	if modelSpend.Valid && modelSpend.String != "" {
+		_ = json.Unmarshal([]byte(modelSpend.String), &key.ModelSpend)
+	}
+	if metadataJSON.Valid && metadataJSON.String != "" {
+		_ = json.Unmarshal([]byte(metadataJSON.String), &key.Metadata)
+	}
+
+	return &key, nil
+}
+
+// UpdateAPIKey updates an API key.
+func (s *PostgresStore) UpdateAPIKey(ctx context.Context, key *APIKey) error {
+	allowedModelsJSON, _ := json.Marshal(key.AllowedModels)
+	modelMaxBudgetJSON, _ := json.Marshal(key.ModelMaxBudget)
+	modelSpendJSON, _ := json.Marshal(key.ModelSpend)
+	metadataJSON, _ := json.Marshal(key.Metadata)
+
+	query := `
+		UPDATE api_keys SET
+			key_prefix = $1, name = $2, key_alias = $3, team_id = $4, user_id = $5, organization_id = $6,
+			allowed_models = $7, tpm_limit = $8, rpm_limit = $9, max_budget = $10, soft_budget = $11,
+			model_max_budget = $12, model_spend = $13, budget_duration = $14, budget_reset_at = $15,
+			metadata = $16, updated_at = $17, expires_at = $18, is_active = $19, blocked = $20
+		WHERE id = $21`
+
+	_, err := s.db.ExecContext(ctx, query,
+		key.KeyPrefix, key.Name, key.KeyAlias, key.TeamID, key.UserID, key.OrganizationID,
+		string(allowedModelsJSON), key.TPMLimit, key.RPMLimit, key.MaxBudget, key.SoftBudget,
+		string(modelMaxBudgetJSON), string(modelSpendJSON), string(key.BudgetDuration), key.BudgetResetAt,
+		string(metadataJSON), time.Now(), key.ExpiresAt, key.IsActive, key.Blocked,
+		key.ID,
+	)
+	return err
+}
+
+// UpdateAPIKeyModelSpent updates the model-specific spend for an API key.
+func (s *PostgresStore) UpdateAPIKeyModelSpent(ctx context.Context, keyID, model string, amount float64) error {
+	query := `
+		UPDATE api_keys 
+		SET model_spend = COALESCE(model_spend, '{}'::jsonb) || jsonb_build_object($1, 
+			COALESCE((model_spend->>$1)::numeric, 0) + $2)
+		WHERE id = $3`
+	_, err := s.db.ExecContext(ctx, query, model, amount, keyID)
+	return err
+}
+
+// ResetAPIKeyBudget resets the budget for an API key.
+func (s *PostgresStore) ResetAPIKeyBudget(ctx context.Context, keyID string) error {
+	query := `
+		UPDATE api_keys 
+		SET spent_budget = 0, 
+		    model_spend = '{}'::jsonb,
+		    budget_reset_at = CASE 
+		        WHEN budget_duration = '1d' THEN NOW() + INTERVAL '1 day'
+		        WHEN budget_duration = '7d' THEN NOW() + INTERVAL '7 days'
+		        WHEN budget_duration = '30d' THEN NOW() + INTERVAL '30 days'
+		        ELSE NULL
+		    END
+		WHERE id = $1`
+	_, err := s.db.ExecContext(ctx, query, keyID)
+	return err
+}
+
+// BlockAPIKey blocks or unblocks an API key.
+func (s *PostgresStore) BlockAPIKey(ctx context.Context, keyID string, blocked bool) error {
+	query := `UPDATE api_keys SET blocked = $1, updated_at = $2 WHERE id = $3`
+	_, err := s.db.ExecContext(ctx, query, blocked, time.Now(), keyID)
+	return err
+}
+
+// Ensure PostgresStore implements Store interface
+var _ Store = (*PostgresStore)(nil)
