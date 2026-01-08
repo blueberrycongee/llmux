@@ -1,6 +1,7 @@
 package auth
 
 import (
+	"context"
 	"database/sql"
 	"fmt"
 	"time"
@@ -43,7 +44,7 @@ func (s *PostgresAuditLogStore) CreateAuditLog(log *AuditLog) error {
 			success, error, metadata
 		) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17, $18, $19, $20)`
 
-	_, err := s.db.Exec(query,
+	_, err := s.db.ExecContext(context.Background(), query,
 		log.ID, log.Timestamp, log.ActorID, log.ActorType, log.ActorEmail, log.ActorIP,
 		string(log.Action), string(log.ObjectType), log.ObjectID, log.TeamID, log.OrganizationID,
 		string(beforeValueJSON), string(afterValueJSON), string(diffJSON),
@@ -74,7 +75,7 @@ func (s *PostgresAuditLogStore) GetAuditLog(id string) (*AuditLog, error) {
 	var requestID, userAgent, requestURI sql.NullString
 	var errorMsg sql.NullString
 
-	err := s.db.QueryRow(query, id).Scan(
+	err := s.db.QueryRowContext(context.Background(), query, id).Scan(
 		&log.ID, &log.Timestamp, &log.ActorID, &log.ActorType, &actorEmail, &actorIP,
 		&log.Action, &log.ObjectType, &log.ObjectID, &teamID, &orgID,
 		&beforeValue, &afterValue, &diff, &requestID, &userAgent, &requestURI,
@@ -208,7 +209,7 @@ func (s *PostgresAuditLogStore) ListAuditLogs(filter AuditLogFilter) ([]*AuditLo
 
 	// Get total count
 	var total int64
-	err := s.db.QueryRow(countQuery, args...).Scan(&total)
+	err := s.db.QueryRowContext(context.Background(), countQuery, args...).Scan(&total)
 	if err != nil {
 		return nil, 0, fmt.Errorf("count audit logs: %w", err)
 	}
@@ -220,7 +221,7 @@ func (s *PostgresAuditLogStore) ListAuditLogs(filter AuditLogFilter) ([]*AuditLo
 		args = append(args, filter.Limit, filter.Offset)
 	}
 
-	rows, err := s.db.Query(query, args...)
+	rows, err := s.db.QueryContext(context.Background(), query, args...)
 	if err != nil {
 		return nil, 0, fmt.Errorf("query audit logs: %w", err)
 	}
@@ -296,7 +297,6 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 	if filter.OrganizationID != nil {
 		baseWhere += fmt.Sprintf(" AND organization_id = $%d", argIdx)
 		args = append(args, *filter.OrganizationID)
-		argIdx++
 	}
 
 	stats := &AuditLogStats{
@@ -313,7 +313,7 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 			COUNT(DISTINCT actor_id) as unique_actors
 		FROM audit_logs %s`, baseWhere)
 
-	err := s.db.QueryRow(basicQuery, args...).Scan(
+	err := s.db.QueryRowContext(context.Background(), basicQuery, args...).Scan(
 		&stats.TotalEvents, &stats.SuccessCount, &stats.FailureCount, &stats.UniqueActors,
 	)
 	if err != nil {
@@ -326,7 +326,7 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 		FROM audit_logs %s
 		GROUP BY action`, baseWhere)
 
-	actionRows, err := s.db.Query(actionQuery, args...)
+	actionRows, err := s.db.QueryContext(context.Background(), actionQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query action counts: %w", err)
 	}
@@ -347,7 +347,7 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 		FROM audit_logs %s
 		GROUP BY object_type`, baseWhere)
 
-	objectRows, err := s.db.Query(objectQuery, args...)
+	objectRows, err := s.db.QueryContext(context.Background(), objectQuery, args...)
 	if err != nil {
 		return nil, fmt.Errorf("query object type counts: %w", err)
 	}
@@ -368,7 +368,7 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 // DeleteAuditLogs deletes audit logs older than the specified time.
 func (s *PostgresAuditLogStore) DeleteAuditLogs(olderThan time.Time) (int64, error) {
 	query := `DELETE FROM audit_logs WHERE timestamp < $1`
-	result, err := s.db.Exec(query, olderThan)
+	result, err := s.db.ExecContext(context.Background(), query, olderThan)
 	if err != nil {
 		return 0, fmt.Errorf("delete audit logs: %w", err)
 	}

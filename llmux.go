@@ -81,6 +81,9 @@ type (
 
 	// ResponseFormat specifies the output format for the model.
 	ResponseFormat = types.ResponseFormat
+
+	// StreamOptions specifies options for streaming responses.
+	StreamOptions = types.StreamOptions
 )
 
 // Re-export provider types.

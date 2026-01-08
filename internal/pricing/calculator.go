@@ -1,3 +1,4 @@
+// Package pricing provides functionality for calculating model usage costs.
 package pricing
 
 import (

@@ -442,7 +442,6 @@ func (s *PostgresStore) GetDailyUsage(ctx context.Context, filter DailyUsageFilt
 	if filter.Provider != nil {
 		query += fmt.Sprintf(" AND provider = $%d", argIdx)
 		args = append(args, *filter.Provider)
-		argIdx++
 	}
 
 	query += " ORDER BY date DESC"

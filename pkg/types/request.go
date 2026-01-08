@@ -21,6 +21,7 @@ type ChatRequest struct {
 	Tools            []Tool          `json:"tools,omitempty"`
 	ToolChoice       json.RawMessage `json:"tool_choice,omitempty"`
 	ResponseFormat   *ResponseFormat `json:"response_format,omitempty"`
+	StreamOptions    *StreamOptions  `json:"stream_options,omitempty"`
 
 	// Extra holds provider-specific parameters that are passed through unchanged.
 	// This enables zero-copy forwarding of unknown fields.

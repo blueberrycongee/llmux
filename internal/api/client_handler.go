@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/goccy/go-json"
@@ -95,6 +96,13 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 	// Handle streaming response
 	if req.Stream {
+		// Force include_usage to get accurate token counts from supported providers (e.g. OpenAI)
+		if req.StreamOptions == nil {
+			req.StreamOptions = &llmux.StreamOptions{IncludeUsage: true}
+		} else {
+			req.StreamOptions.IncludeUsage = true
+		}
+
 		h.handleStreamResponse(w, r, req, start, requestID)
 		return
 	}
@@ -155,6 +163,9 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
+	var finalUsage *llmux.Usage
+	var completionContent strings.Builder
+
 	// Forward stream chunks
 	for {
 		chunk, err := stream.Recv()
@@ -174,6 +185,16 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 				h.logger.Error("stream recv error", "error", err, "model", req.Model)
 			}
 			break
+		}
+
+		// Capture usage if present (OpenAI standard puts it in the last chunk)
+		if chunk.Usage != nil {
+			finalUsage = chunk.Usage
+		}
+
+		// Accumulate content for fallback token calculation
+		if len(chunk.Choices) > 0 {
+			completionContent.WriteString(chunk.Choices[0].Delta.Content)
 		}
 
 		// Marshal and send chunk
@@ -199,10 +220,19 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 	latency := time.Since(start)
 	metrics.RecordRequest("llmux", req.Model, http.StatusOK, latency)
 
-	// === USAGE LOGGING FOR STREAMING (P0 Fix) ===
-	// Note: For streaming, we don't have accurate token counts, so we pass nil usage
-	// Token counts would need to be accumulated from SSE chunks if needed
-	h.recordUsage(r.Context(), requestID, req.Model, nil, start, latency)
+	// Calculate fallback usage if not returned by provider
+	if finalUsage == nil {
+		promptTokens := estimatePromptTokens(req.Messages)
+		completionTokens := len(completionContent.String()) / 4
+		finalUsage = &llmux.Usage{
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
+		}
+	}
+
+	// Record usage and update spent budget
+	h.recordUsage(r.Context(), requestID, req.Model, finalUsage, start, latency)
 }
 
 func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
@@ -336,3 +366,17 @@ func (h *ClientHandler) GetClient() *llmux.Client {
 
 // Ensure streaming package is imported for parser registration
 var _ = streaming.GetParser
+
+// estimatePromptTokens estimates the number of tokens in the prompt.
+// This is a rough approximation (chars / 4) used when the provider doesn't return usage.
+func estimatePromptTokens(messages []llmux.ChatMessage) int {
+	tokens := 0
+	for _, msg := range messages {
+		tokens += 4 // Message overhead
+		// msg.Content is json.RawMessage ([]byte), so len() gives byte count
+		tokens += len(msg.Content) / 4
+		tokens += len(msg.Name) / 4
+	}
+	tokens += 3 // Reply primer
+	return tokens
+}
