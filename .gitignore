@@ -46,3 +46,7 @@ bench/results/*.json
 bench/llmux_bench_config.yaml
 
 
+
+# UI Build Artifacts
+cmd/server/ui_assets/*
+!cmd/server/ui_assets/.gitkeep

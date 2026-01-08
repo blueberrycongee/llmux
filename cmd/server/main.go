@@ -4,7 +4,9 @@ package main
 import (
 	"context"
 	"flag"
+	"embed"
 	"fmt"
+	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -25,6 +27,9 @@ import (
 	"github.com/blueberrycongee/llmux/internal/secret/env"
 	"github.com/blueberrycongee/llmux/internal/secret/vault"
 )
+
+//go:embed all:ui_assets
+var uiAssets embed.FS
 
 func main() {
 	if err := run(); err != nil {
@@ -214,6 +219,15 @@ func run() error {
 	// Metrics endpoint
 	if cfg.Metrics.Enabled {
 		mux.Handle("GET "+cfg.Metrics.Path, promhttp.Handler())
+	}
+
+	// UI Static Files
+	uiFS, err := fs.Sub(uiAssets, "ui_assets")
+	if err != nil {
+		logger.Error("failed to load UI assets", "error", err)
+	} else {
+		// Serve UI at root
+		mux.Handle("/", http.FileServer(http.FS(uiFS)))
 	}
 
 	// Apply middleware stack
