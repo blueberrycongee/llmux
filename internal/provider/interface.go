@@ -72,6 +72,7 @@ type ProviderConfig struct {
 	Name          string
 	Type          string
 	APIKey        string
+	TokenSource   TokenSource
 	BaseURL       string
 	Models        []string
 	MaxConcurrent int

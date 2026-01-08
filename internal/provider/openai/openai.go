@@ -28,10 +28,10 @@ const (
 
 // Provider implements the OpenAI API adapter.
 type Provider struct {
-	apiKey  string
-	baseURL string
-	models  []string
-	client  *http.Client
+	tokenSource provider.TokenSource
+	baseURL     string
+	models      []string
+	client      *http.Client
 }
 
 // New creates a new OpenAI provider instance.
@@ -42,11 +42,16 @@ func New(cfg provider.ProviderConfig) (provider.Provider, error) {
 	}
 	baseURL = strings.TrimSuffix(baseURL, "/")
 
+	ts := cfg.TokenSource
+	if ts == nil {
+		ts = provider.NewStaticTokenSource(cfg.APIKey)
+	}
+
 	return &Provider{
-		apiKey:  cfg.APIKey,
-		baseURL: baseURL,
-		models:  cfg.Models,
-		client:  &http.Client{},
+		tokenSource: ts,
+		baseURL:     baseURL,
+		models:      cfg.Models,
+		client:      &http.Client{},
 	}, nil
 }
 
@@ -84,8 +89,13 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
+	token, err := p.tokenSource.Token()
+	if err != nil {
+		return nil, fmt.Errorf("get token: %w", err)
+	}
+
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("Authorization", "Bearer "+p.apiKey)
+	httpReq.Header.Set("Authorization", "Bearer "+token)
 
 	return httpReq, nil
 }
