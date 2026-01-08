@@ -69,6 +69,14 @@ func (h *ManagementHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /global/activity", h.GetGlobalActivity)
 	mux.HandleFunc("GET /global/spend/models", h.GetGlobalSpendByModel)
 	mux.HandleFunc("GET /global/spend/provider", h.GetGlobalSpendByProvider)
+
+	// ========================================================================
+	// Audit Log Routes
+	// ========================================================================
+	if h.auditStore != nil {
+		auditHandler := NewAuditLogHandler(h.auditStore, h.writeJSON, h.writeError)
+		auditHandler.RegisterAuditRoutes(mux)
+	}
 }
 
 // RouteInfo describes an API route.
@@ -137,5 +145,13 @@ func GetRoutes() []RouteInfo {
 		{Method: "GET", Path: "/audit/log", Description: "Get audit log by ID", Category: "audit"},
 		{Method: "GET", Path: "/audit/stats", Description: "Get audit log statistics", Category: "audit"},
 		{Method: "POST", Path: "/audit/delete", Description: "Delete old audit logs", Category: "audit"},
+
+		// Invitation Links
+		{Method: "POST", Path: "/invitation/new", Description: "Create a new invitation link", Category: "invitation"},
+		{Method: "POST", Path: "/invitation/accept", Description: "Accept an invitation link", Category: "invitation"},
+		{Method: "GET", Path: "/invitation/info", Description: "Get invitation link information", Category: "invitation"},
+		{Method: "GET", Path: "/invitation/list", Description: "List invitation links", Category: "invitation"},
+		{Method: "POST", Path: "/invitation/deactivate", Description: "Deactivate an invitation link", Category: "invitation"},
+		{Method: "POST", Path: "/invitation/delete", Description: "Delete invitation links", Category: "invitation"},
 	}
 }

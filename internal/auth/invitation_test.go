@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"log/slog"
 	"testing"
 	"time"
 )
@@ -192,7 +193,7 @@ func TestMemoryInvitationLinkStore_List(t *testing.T) {
 func TestInvitationService_CreateAndAccept(t *testing.T) {
 	invStore := NewMemoryInvitationLinkStore()
 	authStore := NewMemoryStore()
-	service := NewInvitationService(invStore, authStore)
+	service := NewInvitationService(invStore, authStore, slog.Default())
 	ctx := context.Background()
 
 	// Create team
@@ -255,7 +256,7 @@ func TestInvitationService_CreateAndAccept(t *testing.T) {
 func TestInvitationService_AcceptInvalidToken(t *testing.T) {
 	invStore := NewMemoryInvitationLinkStore()
 	authStore := NewMemoryStore()
-	service := NewInvitationService(invStore, authStore)
+	service := NewInvitationService(invStore, authStore, slog.Default())
 	ctx := context.Background()
 
 	result, err := service.AcceptInvitation(ctx, &AcceptInvitationRequest{
@@ -279,7 +280,7 @@ func TestInvitationService_AcceptInvalidToken(t *testing.T) {
 func TestInvitationService_AcceptExpired(t *testing.T) {
 	invStore := NewMemoryInvitationLinkStore()
 	authStore := NewMemoryStore()
-	service := NewInvitationService(invStore, authStore)
+	service := NewInvitationService(invStore, authStore, slog.Default())
 	ctx := context.Background()
 
 	// Create expired invitation directly
@@ -309,7 +310,7 @@ func TestInvitationService_AcceptExpired(t *testing.T) {
 func TestInvitationService_DeactivateInvitation(t *testing.T) {
 	invStore := NewMemoryInvitationLinkStore()
 	authStore := NewMemoryStore()
-	service := NewInvitationService(invStore, authStore)
+	service := NewInvitationService(invStore, authStore, slog.Default())
 	ctx := context.Background()
 
 	// Create invitation

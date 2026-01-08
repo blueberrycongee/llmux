@@ -122,6 +122,13 @@ func (c *UserInfoClient) setCache(token string, info *UserInfoResponse) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 
+	// Simple size limit to prevent memory leaks
+	if len(c.cache) >= 1000 {
+		// Clear cache if it gets too big (simple strategy)
+		// In a real production system, we might want LRU
+		c.cache = make(map[string]*userInfoCacheEntry)
+	}
+
 	c.cache[token] = &userInfoCacheEntry{
 		info:      info,
 		expiresAt: time.Now().Add(c.cacheTTL),

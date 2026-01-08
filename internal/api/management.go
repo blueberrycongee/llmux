@@ -15,15 +15,17 @@ import (
 
 // ManagementHandler handles management API endpoints.
 type ManagementHandler struct {
-	store  auth.Store
-	logger *slog.Logger
+	store      auth.Store
+	auditStore auth.AuditLogStore
+	logger     *slog.Logger
 }
 
 // NewManagementHandler creates a new management handler.
-func NewManagementHandler(store auth.Store, logger *slog.Logger) *ManagementHandler {
+func NewManagementHandler(store auth.Store, auditStore auth.AuditLogStore, logger *slog.Logger) *ManagementHandler {
 	return &ManagementHandler{
-		store:  store,
-		logger: logger,
+		store:      store,
+		auditStore: auditStore,
+		logger:     logger,
 	}
 }
 

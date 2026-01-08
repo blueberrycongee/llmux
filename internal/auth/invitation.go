@@ -5,6 +5,8 @@ import (
 	"context"
 	"crypto/rand"
 	"encoding/hex"
+	"log/slog"
+	"sync"
 	"time"
 )
 
@@ -96,13 +98,15 @@ type InvitationLinkFilter struct {
 type InvitationService struct {
 	store     InvitationLinkStore
 	authStore Store
+	logger    *slog.Logger
 }
 
 // NewInvitationService creates a new invitation service.
-func NewInvitationService(store InvitationLinkStore, authStore Store) *InvitationService {
+func NewInvitationService(store InvitationLinkStore, authStore Store, logger *slog.Logger) *InvitationService {
 	return &InvitationService{
 		store:     store,
 		authStore: authStore,
+		logger:    logger,
 	}
 }
 
@@ -242,7 +246,7 @@ func (s *InvitationService) AcceptInvitation(ctx context.Context, req *AcceptInv
 	// Increment use count
 	if err := s.store.IncrementInvitationLinkUses(ctx, link.ID); err != nil {
 		// Log error but don't fail the invitation
-		_ = err
+		s.logger.Error("failed to increment invitation link uses", "error", err, "invitation_id", link.ID)
 	}
 
 	result.Message = "invitation accepted successfully"
@@ -288,6 +292,7 @@ func hashInvitationToken(token string) string {
 // MemoryInvitationLinkStore implements InvitationLinkStore using in-memory storage.
 type MemoryInvitationLinkStore struct {
 	links map[string]*InvitationLink
+	mu    sync.RWMutex
 }
 
 // NewMemoryInvitationLinkStore creates a new in-memory invitation link store.
@@ -299,6 +304,8 @@ func NewMemoryInvitationLinkStore() *MemoryInvitationLinkStore {
 
 // CreateInvitationLink creates a new invitation link.
 func (s *MemoryInvitationLinkStore) CreateInvitationLink(_ context.Context, link *InvitationLink) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	linkCopy := *link
 	s.links[link.ID] = &linkCopy
 	return nil
@@ -306,6 +313,8 @@ func (s *MemoryInvitationLinkStore) CreateInvitationLink(_ context.Context, link
 
 // GetInvitationLink retrieves an invitation link by ID.
 func (s *MemoryInvitationLinkStore) GetInvitationLink(_ context.Context, id string) (*InvitationLink, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	link, ok := s.links[id]
 	if !ok {
 		return nil, nil
@@ -316,6 +325,8 @@ func (s *MemoryInvitationLinkStore) GetInvitationLink(_ context.Context, id stri
 
 // GetInvitationLinkByToken retrieves an invitation link by token.
 func (s *MemoryInvitationLinkStore) GetInvitationLinkByToken(_ context.Context, tokenHash string) (*InvitationLink, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	for _, link := range s.links {
 		if link.Token == tokenHash {
 			linkCopy := *link
@@ -327,6 +338,8 @@ func (s *MemoryInvitationLinkStore) GetInvitationLinkByToken(_ context.Context, 
 
 // UpdateInvitationLink updates an invitation link.
 func (s *MemoryInvitationLinkStore) UpdateInvitationLink(_ context.Context, link *InvitationLink) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	if _, ok := s.links[link.ID]; !ok {
 		return nil
 	}
@@ -337,12 +350,16 @@ func (s *MemoryInvitationLinkStore) UpdateInvitationLink(_ context.Context, link
 
 // DeleteInvitationLink deletes an invitation link.
 func (s *MemoryInvitationLinkStore) DeleteInvitationLink(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	delete(s.links, id)
 	return nil
 }
 
 // ListInvitationLinks lists invitation links with optional filters.
 func (s *MemoryInvitationLinkStore) ListInvitationLinks(_ context.Context, filter InvitationLinkFilter) ([]*InvitationLink, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 	var results []*InvitationLink
 
 	for _, link := range s.links {
@@ -377,6 +394,8 @@ func (s *MemoryInvitationLinkStore) ListInvitationLinks(_ context.Context, filte
 
 // IncrementInvitationLinkUses increments the use count of an invitation link.
 func (s *MemoryInvitationLinkStore) IncrementInvitationLinkUses(_ context.Context, id string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 	link, ok := s.links[id]
 	if !ok {
 		return nil

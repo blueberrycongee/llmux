@@ -3,6 +3,8 @@ package auth
 
 import (
 	"time"
+
+	"github.com/google/uuid"
 )
 
 // AuditAction represents the type of action being audited.
@@ -319,8 +321,7 @@ func (al *AuditLogger) LogLoginAttempt(
 
 // generateAuditID generates a unique ID for audit logs.
 func generateAuditID() string {
-	// Use timestamp-based ID for natural ordering
-	return time.Now().UTC().Format("20060102150405.000000")
+	return uuid.New().String()
 }
 
 // calculateDiff computes the difference between two maps.
