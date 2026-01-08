@@ -15,6 +15,7 @@ type MemoryStore struct {
 	organizations   map[string]*Organization
 	teams           map[string]*Team
 	teamMemberships map[string]*TeamMembership
+	orgMemberships  map[string]*OrganizationMembership
 	users           map[string]*User
 	endUsers        map[string]*EndUser
 	usageLogs       []*UsageLog
@@ -29,6 +30,7 @@ func NewMemoryStore() *MemoryStore {
 		organizations:   make(map[string]*Organization),
 		teams:           make(map[string]*Team),
 		teamMemberships: make(map[string]*TeamMembership),
+		orgMemberships:  make(map[string]*OrganizationMembership),
 		users:           make(map[string]*User),
 		endUsers:        make(map[string]*EndUser),
 		usageLogs:       make([]*UsageLog, 0),
@@ -612,6 +614,105 @@ func (s *MemoryStore) ListTeamMembers(_ context.Context, teamID string) ([]*Team
 	var result []*TeamMembership
 	for _, m := range s.teamMemberships {
 		if m.TeamID == teamID {
+			mCopy := *m
+			result = append(result, &mCopy)
+		}
+	}
+	return result, nil
+}
+
+func (s *MemoryStore) UpdateTeamMembership(_ context.Context, membership *TeamMembership) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	mCopy := *membership
+	s.teamMemberships[membershipKey(membership.UserID, membership.TeamID)] = &mCopy
+	return nil
+}
+
+func (s *MemoryStore) ListUserTeamMemberships(_ context.Context, userID string) ([]*TeamMembership, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*TeamMembership
+	for _, m := range s.teamMemberships {
+		if m.UserID == userID {
+			mCopy := *m
+			result = append(result, &mCopy)
+		}
+	}
+	return result, nil
+}
+
+// Organization membership operations
+
+func orgMembershipKey(userID, orgID string) string {
+	return userID + ":" + orgID
+}
+
+func (s *MemoryStore) GetOrganizationMembership(_ context.Context, userID, orgID string) (*OrganizationMembership, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	m, ok := s.orgMemberships[orgMembershipKey(userID, orgID)]
+	if !ok {
+		return nil, nil
+	}
+	mCopy := *m
+	return &mCopy, nil
+}
+
+func (s *MemoryStore) CreateOrganizationMembership(_ context.Context, membership *OrganizationMembership) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	mCopy := *membership
+	s.orgMemberships[orgMembershipKey(membership.UserID, membership.OrganizationID)] = &mCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateOrganizationMembership(_ context.Context, membership *OrganizationMembership) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	mCopy := *membership
+	s.orgMemberships[orgMembershipKey(membership.UserID, membership.OrganizationID)] = &mCopy
+	return nil
+}
+
+func (s *MemoryStore) UpdateOrganizationMembershipSpent(_ context.Context, userID, orgID string, amount float64) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if m, ok := s.orgMemberships[orgMembershipKey(userID, orgID)]; ok {
+		m.Spend += amount
+	}
+	return nil
+}
+
+func (s *MemoryStore) DeleteOrganizationMembership(_ context.Context, userID, orgID string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.orgMemberships, orgMembershipKey(userID, orgID))
+	return nil
+}
+
+func (s *MemoryStore) ListOrganizationMembers(_ context.Context, orgID string) ([]*OrganizationMembership, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*OrganizationMembership
+	for _, m := range s.orgMemberships {
+		if m.OrganizationID == orgID {
+			mCopy := *m
+			result = append(result, &mCopy)
+		}
+	}
+	return result, nil
+}
+
+func (s *MemoryStore) ListUserOrganizationMemberships(_ context.Context, userID string) ([]*OrganizationMembership, error) {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	var result []*OrganizationMembership
+	for _, m := range s.orgMemberships {
+		if m.UserID == userID {
 			mCopy := *m
 			result = append(result, &mCopy)
 		}

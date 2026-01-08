@@ -335,12 +335,48 @@ func (o *Organization) IsOverBudget() bool {
 }
 
 // TeamMembership tracks a user's membership and spend within a team.
+// Aligned with LiteLLM's LiteLLM_TeamMembership model.
 type TeamMembership struct {
-	UserID   string  `json:"user_id"`
-	TeamID   string  `json:"team_id"`
-	Spend    float64 `json:"spend"`
-	BudgetID *string `json:"budget_id,omitempty"`
-	Budget   *Budget `json:"budget,omitempty"`
+	UserID   string     `json:"user_id"`
+	TeamID   string     `json:"team_id"`
+	Role     string     `json:"role,omitempty"` // Role within the team (admin, member, viewer)
+	Spend    float64    `json:"spend"`
+	BudgetID *string    `json:"budget_id,omitempty"`
+	Budget   *Budget    `json:"budget,omitempty"`
+	JoinedAt *time.Time `json:"joined_at,omitempty"`
+}
+
+// IsOverBudget checks if the team member has exceeded their budget.
+func (tm *TeamMembership) IsOverBudget() bool {
+	if tm.Budget == nil || tm.Budget.MaxBudget == nil || *tm.Budget.MaxBudget <= 0 {
+		return false
+	}
+	return tm.Spend >= *tm.Budget.MaxBudget
+}
+
+// OrganizationMembership tracks a user's membership within an organization.
+// Aligned with LiteLLM's LiteLLM_OrganizationMembership model.
+type OrganizationMembership struct {
+	UserID         string     `json:"user_id"`
+	OrganizationID string     `json:"organization_id"`
+	UserRole       string     `json:"user_role,omitempty"` // Role within the organization (org_admin, member)
+	Spend          float64    `json:"spend"`
+	BudgetID       *string    `json:"budget_id,omitempty"`
+	Budget         *Budget    `json:"budget,omitempty"`
+	JoinedAt       *time.Time `json:"joined_at,omitempty"`
+}
+
+// IsOverBudget checks if the organization member has exceeded their budget.
+func (om *OrganizationMembership) IsOverBudget() bool {
+	if om.Budget == nil || om.Budget.MaxBudget == nil || *om.Budget.MaxBudget <= 0 {
+		return false
+	}
+	return om.Spend >= *om.Budget.MaxBudget
+}
+
+// IsOrgAdmin checks if the member has organization admin privileges.
+func (om *OrganizationMembership) IsOrgAdmin() bool {
+	return om.UserRole == string(UserRoleOrgAdmin)
 }
 
 // EndUser represents an end-user passed via the 'user' parameter.

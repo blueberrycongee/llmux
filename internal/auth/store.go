@@ -61,9 +61,22 @@ type Store interface {
 	// ========================================================================
 	GetTeamMembership(ctx context.Context, userID, teamID string) (*TeamMembership, error)
 	CreateTeamMembership(ctx context.Context, membership *TeamMembership) error
+	UpdateTeamMembership(ctx context.Context, membership *TeamMembership) error
 	UpdateTeamMembershipSpent(ctx context.Context, userID, teamID string, amount float64) error
 	DeleteTeamMembership(ctx context.Context, userID, teamID string) error
 	ListTeamMembers(ctx context.Context, teamID string) ([]*TeamMembership, error)
+	ListUserTeamMemberships(ctx context.Context, userID string) ([]*TeamMembership, error)
+
+	// ========================================================================
+	// Organization Membership Operations
+	// ========================================================================
+	GetOrganizationMembership(ctx context.Context, userID, orgID string) (*OrganizationMembership, error)
+	CreateOrganizationMembership(ctx context.Context, membership *OrganizationMembership) error
+	UpdateOrganizationMembership(ctx context.Context, membership *OrganizationMembership) error
+	UpdateOrganizationMembershipSpent(ctx context.Context, userID, orgID string, amount float64) error
+	DeleteOrganizationMembership(ctx context.Context, userID, orgID string) error
+	ListOrganizationMembers(ctx context.Context, orgID string) ([]*OrganizationMembership, error)
+	ListUserOrganizationMemberships(ctx context.Context, userID string) ([]*OrganizationMembership, error)
 
 	// ========================================================================
 	// User Operations (Internal Users)
