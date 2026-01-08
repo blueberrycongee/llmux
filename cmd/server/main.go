@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
@@ -16,9 +17,13 @@ import (
 
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/api"
+	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
+	"github.com/blueberrycongee/llmux/internal/secret"
+	"github.com/blueberrycongee/llmux/internal/secret/env"
+	"github.com/blueberrycongee/llmux/internal/secret/vault"
 )
 
 func main() {
@@ -39,6 +44,35 @@ func run() error {
 	slog.SetDefault(logger)
 
 	logger.Info("starting LLMux gateway", "version", "0.1.0")
+
+	// Initialize Secret Manager
+	secretManager := secret.NewManager()
+	defer func() {
+		if err := secretManager.Close(); err != nil {
+			logger.Error("failed to close secret manager", "error", err)
+		}
+	}()
+
+	// Register 'env' provider
+	secretManager.Register("env", env.New())
+
+	// Register 'vault' provider if configured
+	vaultAddr := os.Getenv("VAULT_ADDR")
+	vaultRoleID := os.Getenv("VAULT_ROLE_ID")
+	vaultSecretID := os.Getenv("VAULT_SECRET_ID")
+
+	if vaultAddr != "" && vaultRoleID != "" && vaultSecretID != "" {
+		logger.Info("initializing vault secret provider", "addr", vaultAddr)
+		vProvider, err := vault.New(vaultAddr, vaultRoleID, vaultSecretID)
+		if err != nil {
+			return fmt.Errorf("failed to initialize vault provider: %w", err)
+		}
+		// Wrap with cache (TTL 5 minutes)
+		cachedVault := secret.NewCachedProvider(vProvider, 5*time.Minute)
+		secretManager.Register("vault", cachedVault)
+	} else {
+		logger.Info("vault provider disabled (missing VAULT_ADDR/ROLE_ID/SECRET_ID)")
+	}
 
 	// Load configuration
 	cfgManager, err := config.NewManager(*configPath, logger)
@@ -73,7 +107,7 @@ func run() error {
 	}
 
 	// Build llmux.Client options from config
-	opts := buildClientOptions(cfg, logger)
+	opts := buildClientOptions(cfg, logger, secretManager)
 
 	// Create llmux.Client
 	client, err := llmux.New(opts...)
@@ -103,6 +137,22 @@ func run() error {
 
 	// Apply middleware
 	var httpHandler http.Handler = mux
+
+	// OIDC Middleware
+	if cfg.Auth.Enabled {
+		oidcCfg := auth.OIDCConfig{
+			IssuerURL:    cfg.Auth.OIDC.IssuerURL,
+			ClientID:     cfg.Auth.OIDC.ClientID,
+			ClientSecret: cfg.Auth.OIDC.ClientSecret,
+		}
+		oidcMiddleware, err := auth.OIDCMiddleware(oidcCfg)
+		if err != nil {
+			return fmt.Errorf("failed to initialize OIDC middleware: %w", err)
+		}
+		httpHandler = oidcMiddleware(httpHandler)
+		logger.Info("OIDC authentication enabled", "issuer", cfg.Auth.OIDC.IssuerURL)
+	}
+
 	httpHandler = metrics.Middleware(httpHandler)
 	httpHandler = observability.RequestIDMiddleware(httpHandler)
 
@@ -156,7 +206,7 @@ func run() error {
 }
 
 // buildClientOptions converts config.Config to llmux.Option slice.
-func buildClientOptions(cfg *config.Config, logger *slog.Logger) []llmux.Option {
+func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *secret.Manager) []llmux.Option {
 	// Pre-allocate with estimated capacity
 	opts := make([]llmux.Option, 0, len(cfg.Providers)+6)
 
@@ -165,13 +215,23 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger) []llmux.Option 
 
 	// Add providers from config
 	for _, provCfg := range cfg.Providers {
-		opts = append(opts, llmux.WithProvider(llmux.ProviderConfig{
+		pCfg := llmux.ProviderConfig{
 			Name:    provCfg.Name,
 			Type:    provCfg.Type,
 			APIKey:  provCfg.APIKey,
 			BaseURL: provCfg.BaseURL,
 			Models:  provCfg.Models,
-		}))
+		}
+
+		// Check if APIKey is a secret URI (contains "://")
+		if strings.Contains(provCfg.APIKey, "://") {
+			pCfg.TokenSource = &SecretTokenSource{
+				mgr:  secretManager,
+				path: provCfg.APIKey,
+			}
+		}
+
+		opts = append(opts, llmux.WithProvider(pCfg))
 	}
 
 	// Set routing strategy
@@ -215,4 +275,16 @@ func mapRoutingStrategy(strategy string) llmux.Strategy {
 	default:
 		return llmux.StrategyShuffle
 	}
+}
+
+// SecretTokenSource adapts secret.Manager to provider.TokenSource interface.
+type SecretTokenSource struct {
+	mgr  *secret.Manager
+	path string
+}
+
+// Token retrieves the secret value using the secret manager.
+func (s *SecretTokenSource) Token() (string, error) {
+	// Use background context as TokenSource interface doesn't support context
+	return s.mgr.Get(context.Background(), s.path)
 }

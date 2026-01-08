@@ -65,11 +65,19 @@ type Deployment struct {
 	Metadata      map[string]string `json:"metadata,omitempty"`
 }
 
+// TokenSource defines the interface for retrieving access tokens.
+// It allows for dynamic token retrieval (e.g. OIDC, IAM) vs static API keys.
+type TokenSource interface {
+	// Token returns a valid access token or error.
+	Token() (string, error)
+}
+
 // Config contains provider-specific configuration.
 type Config struct {
 	Name          string
 	Type          string
 	APIKey        string
+	TokenSource   TokenSource
 	BaseURL       string
 	Models        []string
 	MaxConcurrent int

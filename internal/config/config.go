@@ -83,9 +83,18 @@ type RedisCacheConfig struct {
 }
 
 // AuthConfig contains authentication settings.
+// AuthConfig contains authentication settings.
 type AuthConfig struct {
-	Enabled   bool     `yaml:"enabled"`
-	SkipPaths []string `yaml:"skip_paths"` // Paths to skip authentication
+	Enabled   bool       `yaml:"enabled"`
+	SkipPaths []string   `yaml:"skip_paths"` // Paths to skip authentication
+	OIDC      OIDCConfig `yaml:"oidc"`       // OIDC configuration
+}
+
+// OIDCConfig contains OIDC provider settings.
+type OIDCConfig struct {
+	IssuerURL    string `yaml:"issuer_url"`
+	ClientID     string `yaml:"client_id"`
+	ClientSecret string `yaml:"client_secret"`
 }
 
 // DatabaseConfig contains PostgreSQL connection settings.

@@ -91,7 +91,8 @@ func New(opts ...Option) (*Client, error) {
 	c.registerBuiltinFactories()
 
 	// Initialize providers from config
-	for _, pcfg := range cfg.Providers {
+	for i := range cfg.Providers {
+		pcfg := cfg.Providers[i]
 		if err := c.addProviderFromConfig(pcfg); err != nil {
 			return nil, fmt.Errorf("add provider %s: %w", pcfg.Name, err)
 		}
