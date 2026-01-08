@@ -12,6 +12,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/blueberrycongee/llmux/internal/api"
+	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/provider"
@@ -28,6 +29,7 @@ type TestServer struct {
 	logger   *slog.Logger
 	registry *provider.Registry
 	router   router.Router
+	store    auth.Store
 }
 
 // ServerOption configures the test server.
@@ -44,6 +46,7 @@ type serverOptions struct {
 	authEnabled     bool
 	timeout         time.Duration
 	providers       []ProviderConfig // Multiple providers for fallback testing
+	oidcConfig      *config.OIDCConfig
 }
 
 // ProviderConfig defines a provider for testing.
@@ -111,6 +114,14 @@ func WithTimeout(timeout time.Duration) ServerOption {
 	}
 }
 
+// WithOIDC configures OIDC authentication.
+func WithOIDC(oidcConfig *config.OIDCConfig) ServerOption {
+	return func(o *serverOptions) {
+		o.authEnabled = true
+		o.oidcConfig = oidcConfig
+	}
+}
+
 // NewTestServer creates a new test server with the given options.
 func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	options := &serverOptions{
@@ -139,6 +150,9 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	}
 	if options.redisURL != "" {
 		cfg.Cache.Redis.Addr = options.redisURL
+	}
+	if options.oidcConfig != nil {
+		cfg.Auth.OIDC = *options.oidcConfig
 	}
 
 	// Initialize provider registry
@@ -212,8 +226,18 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		}
 	}
 
+	// Initialize store
+	store := auth.NewMemoryStore()
+	auditStore := auth.NewMemoryAuditLogStore()
+	invitationStore := auth.NewMemoryInvitationLinkStore()
+
+	// Initialize services
+	invitationService := auth.NewInvitationService(invitationStore, store, logger)
+
 	// Create handler
 	handler := api.NewHandler(registry, simpleRouter, logger, nil)
+	mgmtHandler := api.NewManagementHandler(store, auditStore, logger)
+	invitationHandler := api.NewInvitationHandler(invitationService, invitationStore, logger)
 
 	// Setup routes
 	mux := http.NewServeMux()
@@ -223,9 +247,33 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	mux.HandleFunc("GET /v1/models", handler.ListModels)
 	mux.Handle("GET /metrics", promhttp.Handler())
 
+	// Register management routes
+	mgmtHandler.RegisterRoutes(mux)
+	invitationHandler.RegisterInvitationRoutes(mux)
+
 	// Apply middleware
 	var httpHandler http.Handler = mux
 	httpHandler = metrics.Middleware(httpHandler)
+
+	// Apply OIDC authentication middleware if configured
+	if options.oidcConfig != nil && options.oidcConfig.IssuerURL != "" {
+		oidcCfg := auth.OIDCConfig{
+			IssuerURL:        options.oidcConfig.IssuerURL,
+			ClientID:         options.oidcConfig.ClientID,
+			ClientSecret:     options.oidcConfig.ClientSecret,
+			RoleClaim:        options.oidcConfig.ClaimMapping.RoleClaim,
+			RolesMap:         options.oidcConfig.ClaimMapping.Roles,
+			UseRoleHierarchy: options.oidcConfig.ClaimMapping.UseRoleHierarchy,
+			UserIDUpsert:     options.oidcConfig.UserIDUpsert,
+			TeamIDUpsert:     options.oidcConfig.TeamIDUpsert,
+		}
+
+		oidcMiddleware, err := auth.OIDCMiddleware(oidcCfg)
+		if err != nil {
+			return nil, fmt.Errorf("create OIDC middleware: %w", err)
+		}
+		httpHandler = oidcMiddleware(httpHandler)
+	}
 
 	// Create listener
 	addr := fmt.Sprintf("127.0.0.1:%d", options.port)
@@ -250,6 +298,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		logger:   logger,
 		registry: registry,
 		router:   simpleRouter,
+		store:    store,
 	}, nil
 }
 
@@ -297,6 +346,11 @@ func (s *TestServer) Registry() *provider.Registry {
 // Router returns the router.
 func (s *TestServer) Router() router.Router {
 	return s.router
+}
+
+// Store returns the auth store.
+func (s *TestServer) Store() auth.Store {
+	return s.store
 }
 
 func (s *TestServer) waitForReady(timeout time.Duration) error {
