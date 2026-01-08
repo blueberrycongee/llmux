@@ -108,17 +108,54 @@ type AuthConfig struct {
 }
 
 // OIDCConfig contains OIDC provider settings.
+// This configuration aligns with LiteLLM's advanced SSO features.
 type OIDCConfig struct {
 	IssuerURL    string       `yaml:"issuer_url"`
 	ClientID     string       `yaml:"client_id"`
 	ClientSecret string       `yaml:"client_secret"`
 	ClaimMapping ClaimMapping `yaml:"claim_mapping"`
+
+	// User provisioning settings
+	UserIDUpsert           bool   `yaml:"user_id_upsert"`            // Auto-create users on SSO login
+	TeamIDUpsert           bool   `yaml:"team_id_upsert"`            // Auto-create teams on SSO login
+	UserAllowedEmailDomain string `yaml:"user_allowed_email_domain"` // Restrict to specific email domain
+
+	// OIDC UserInfo endpoint settings
+	OIDCUserInfoEnabled  bool  `yaml:"oidc_userinfo_enabled"`   // Enable fetching additional claims from userinfo endpoint
+	OIDCUserInfoCacheTTL int64 `yaml:"oidc_userinfo_cache_ttl"` // Cache TTL in seconds (default: 300)
 }
 
-// ClaimMapping defines rules for mapping OIDC claims to LLMux roles.
+// ClaimMapping defines rules for mapping OIDC claims to LLMux roles, teams, and organizations.
+// Supports LiteLLM-compatible hierarchical role priority.
 type ClaimMapping struct {
-	RoleClaim string            `yaml:"role_claim"` // e.g. "groups"
-	Roles     map[string]string `yaml:"roles"`      // e.g. "admin-group": "llmux-admin"
+	// Role mapping
+	RoleClaim string            `yaml:"role_claim"` // JWT claim for role extraction (e.g. "groups", "roles")
+	Roles     map[string]string `yaml:"roles"`      // Claim value to role mapping (e.g. "admin-group": "proxy_admin")
+
+	// Role hierarchy for priority-based role assignment
+	// When multiple roles match, the highest priority role is assigned.
+	// Order: proxy_admin > proxy_admin_viewer > org_admin > internal_user > internal_user_viewer
+	UseRoleHierarchy bool `yaml:"use_role_hierarchy"`
+
+	// Team mapping from JWT claims
+	TeamIDJWTField  string            `yaml:"team_id_jwt_field"`  // Single team ID field (e.g. "team_id")
+	TeamIDsJWTField string            `yaml:"team_ids_jwt_field"` // Multiple team IDs field (e.g. "team_ids")
+	TeamAliasMap    map[string]string `yaml:"team_alias_map"`     // JWT team alias to internal team ID mapping
+
+	// Organization mapping from JWT claims
+	OrgIDJWTField string            `yaml:"org_id_jwt_field"` // Organization ID field (e.g. "org_id")
+	OrgAliasMap   map[string]string `yaml:"org_alias_map"`    // JWT org alias to internal org ID mapping
+
+	// User ID mapping
+	UserIDJWTField    string `yaml:"user_id_jwt_field"`    // Custom user ID field (default: "sub")
+	UserEmailJWTField string `yaml:"user_email_jwt_field"` // Email field (default: "email")
+
+	// End user tracking (for downstream customer identification)
+	EndUserIDJWTField string `yaml:"end_user_id_jwt_field"` // End user ID field for tracking
+
+	// Default values
+	DefaultRole   string `yaml:"default_role"`    // Default role if no mapping matches
+	DefaultTeamID string `yaml:"default_team_id"` // Default team if no team claim found
 }
 
 // DatabaseConfig contains PostgreSQL connection settings.

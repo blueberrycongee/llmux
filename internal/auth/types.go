@@ -133,13 +133,24 @@ type User struct {
 }
 
 // UserRole defines the role of a user in the system.
+// Aligned with LiteLLM's role hierarchy.
 type UserRole string
 
 const (
-	UserRoleProxyAdmin   UserRole = "proxy_admin"
-	UserRoleOrgAdmin     UserRole = "org_admin"
-	UserRoleInternalUser UserRole = "internal_user"
-	UserRoleTeam         UserRole = "team"
+	// Admin Roles
+	UserRoleProxyAdmin       UserRole = "proxy_admin"        // Admin over the platform
+	UserRoleProxyAdminViewer UserRole = "proxy_admin_viewer" // View-only admin access
+
+	// Organization Roles
+	UserRoleOrgAdmin UserRole = "org_admin" // Admin over a specific organization
+
+	// Internal User Roles
+	UserRoleInternalUser       UserRole = "internal_user"        // Can login, view/create/delete their own keys
+	UserRoleInternalUserViewer UserRole = "internal_user_viewer" // Can login, view their own keys only
+
+	// Team and Customer Roles
+	UserRoleTeam     UserRole = "team"     // Used for JWT auth
+	UserRoleCustomer UserRole = "customer" // External users - customers
 )
 
 // UsageLog records API usage for billing and analytics.
@@ -174,11 +185,15 @@ type Metadata map[string]any
 
 // AuthContext holds authentication information for a request.
 type AuthContext struct {
-	APIKey    *APIKey
-	Team      *Team
-	User      *User
-	RequestID string
-	UserRole  UserRole
+	APIKey     *APIKey
+	Team       *Team
+	User       *User
+	RequestID  string
+	UserRole   UserRole
+	EndUserID  string   // End user ID for downstream customer tracking
+	SSOUserID  string   // SSO provider user ID for identity linking
+	JWTTeamIDs []string // Team IDs extracted from JWT claims
+	JWTOrgID   string   // Organization ID extracted from JWT claims
 }
 
 // CanAccessModel checks if the API key is allowed to use the specified model.
