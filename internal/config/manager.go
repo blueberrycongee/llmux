@@ -56,7 +56,7 @@ func (m *Manager) Watch(ctx context.Context) error {
 	m.watcher = watcher
 
 	if err := watcher.Add(m.path); err != nil {
-		watcher.Close()
+		_ = watcher.Close()
 		return err
 	}
 
@@ -75,7 +75,7 @@ func (m *Manager) watchLoop(ctx context.Context) {
 			if debounceTimer != nil {
 				debounceTimer.Stop()
 			}
-			m.watcher.Close()
+			_ = m.watcher.Close()
 			return
 
 		case event, ok := <-m.watcher.Events:

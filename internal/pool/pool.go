@@ -1,3 +1,5 @@
+// Package pool provides object pooling for request and response types
+// to reduce memory allocations and improve performance.
 package pool
 
 import (

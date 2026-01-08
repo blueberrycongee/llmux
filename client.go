@@ -297,7 +297,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
-		resp.Body.Close()
+		_ = resp.Body.Close()
 		c.router.ReportRequestEnd(deployment)
 		llmErr := prov.MapError(resp.StatusCode, body)
 		c.router.ReportFailure(deployment, llmErr)
@@ -400,7 +400,7 @@ func (c *Client) GetProviders() []string {
 // Close releases all resources held by the client.
 func (c *Client) Close() error {
 	if c.cache != nil {
-		c.cache.Close()
+		_ = c.cache.Close()
 	}
 	c.httpClient.CloseIdleConnections()
 	if c.pipeline != nil {
@@ -499,7 +499,7 @@ func (c *Client) executeOnce(
 		c.router.ReportFailure(deployment, err)
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	latency := time.Since(start)
 

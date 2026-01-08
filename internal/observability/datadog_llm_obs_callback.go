@@ -457,7 +457,9 @@ func (d *DDLLMObsCallback) enqueue(span DDLLMObsSpan) {
 	d.mu.Unlock()
 
 	if shouldFlush {
-		go d.flush()
+		go func() {
+			_ = d.flush()
+		}()
 	}
 }
 
@@ -471,7 +473,10 @@ func (d *DDLLMObsCallback) periodicFlush() {
 	for {
 		select {
 		case <-ticker.C:
-			d.flush()
+			if err := d.flush(); err != nil {
+				// Log error but continue flushing
+				_ = err
+			}
 		case <-d.stopCh:
 			return
 		}
@@ -526,7 +531,7 @@ func (d *DDLLMObsCallback) sendBatch(spans []DDLLMObsSpan) error {
 	if err != nil {
 		return fmt.Errorf("failed to send spans: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)

@@ -89,7 +89,7 @@ func (s *Server) handleChatCompletions(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "failed to read request", http.StatusBadRequest)
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	var req ChatCompletionRequest
 	if err := json.Unmarshal(body, &req); err != nil {
@@ -172,13 +172,13 @@ func (s *Server) handleStreamingResponse(w http.ResponseWriter, req ChatCompleti
 		}
 
 		jsonData, _ := json.Marshal(data)
-		fmt.Fprintf(w, "data: %s\n\n", jsonData)
+		_, _ = fmt.Fprintf(w, "data: %s\n\n", jsonData)
 		flusher.Flush()
 
 		time.Sleep(10 * time.Millisecond)
 	}
 
-	fmt.Fprintf(w, "data: [DONE]\n\n")
+	_, _ = fmt.Fprintf(w, "data: [DONE]\n\n")
 	flusher.Flush()
 }
 

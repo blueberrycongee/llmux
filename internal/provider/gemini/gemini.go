@@ -329,7 +329,9 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]geminiCont
 			var parts []geminiPart
 			for _, c := range contentArr {
 				if c["type"] == "text" {
-					parts = append(parts, geminiPart{Text: c["text"].(string)})
+					if text, ok := c["text"].(string); ok {
+						parts = append(parts, geminiPart{Text: text})
+					}
 				}
 				// TODO: Handle image content
 			}
@@ -438,7 +440,10 @@ func (p *Provider) transformResponse(resp *geminiResponse) *types.ChatResponse {
 				textContent += part.Text
 			}
 			if part.FunctionCall != nil {
-				argsJSON, _ := json.Marshal(part.FunctionCall.Args)
+				argsJSON, err := json.Marshal(part.FunctionCall.Args)
+				if err != nil {
+					argsJSON = []byte("{}")
+				}
 				toolCalls = append(toolCalls, types.ToolCall{
 					ID:   fmt.Sprintf("call_%d", len(toolCalls)),
 					Type: "function",

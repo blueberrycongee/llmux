@@ -38,7 +38,12 @@ var bufferPool = sync.Pool{
 
 // getBuffer retrieves a buffer from the pool.
 func getBuffer() *[]byte {
-	return bufferPool.Get().(*[]byte)
+	buf, ok := bufferPool.Get().(*[]byte)
+	if !ok {
+		newBuf := make([]byte, DefaultBufferSize)
+		return &newBuf
+	}
+	return buf
 }
 
 // putBuffer returns a buffer to the pool.
@@ -93,7 +98,7 @@ func NewForwarder(cfg ForwarderConfig) (*Forwarder, error) {
 // Forward streams data from upstream to downstream with transformation.
 // It returns when the stream completes, an error occurs, or the client disconnects.
 func (f *Forwarder) Forward() error {
-	defer f.upstream.Close()
+	defer func() { _ = f.upstream.Close() }()
 
 	// Set SSE headers
 	f.downstream.Header().Set("Content-Type", "text/event-stream")
@@ -177,15 +182,15 @@ func (f *Forwarder) writeChunk(chunk *types.StreamChunk) error {
 
 func (f *Forwarder) writeLine(line []byte) {
 	if line == nil {
-		f.downstream.Write([]byte("\n"))
+		_, _ = f.downstream.Write([]byte("\n"))
 		return
 	}
-	f.downstream.Write(line)
-	f.downstream.Write([]byte("\n"))
+	_, _ = f.downstream.Write(line)
+	_, _ = f.downstream.Write([]byte("\n"))
 }
 
 // Close cancels the forwarding and releases resources.
 func (f *Forwarder) Close() {
 	f.cancel()
-	f.upstream.Close()
+	_ = f.upstream.Close()
 }

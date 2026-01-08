@@ -78,7 +78,8 @@ func New(cfg Config) (*Cache, error) {
 	var client goredis.UniversalClient
 
 	// Determine which type of client to create
-	if len(cfg.ClusterAddrs) > 0 {
+	switch {
+	case len(cfg.ClusterAddrs) > 0:
 		// Redis Cluster
 		client = goredis.NewClusterClient(&goredis.ClusterOptions{
 			Addrs:        cfg.ClusterAddrs,
@@ -90,7 +91,7 @@ func New(cfg Config) (*Cache, error) {
 			MinIdleConns: cfg.MinIdleConns,
 			MaxRetries:   cfg.MaxRetries,
 		})
-	} else if len(cfg.SentinelAddrs) > 0 {
+	case len(cfg.SentinelAddrs) > 0:
 		// Redis Sentinel
 		client = goredis.NewFailoverClient(&goredis.FailoverOptions{
 			MasterName:    cfg.SentinelMaster,
@@ -104,7 +105,7 @@ func New(cfg Config) (*Cache, error) {
 			MinIdleConns:  cfg.MinIdleConns,
 			MaxRetries:    cfg.MaxRetries,
 		})
-	} else {
+	default:
 		// Single node
 		client = goredis.NewClient(&goredis.Options{
 			Addr:         cfg.Addr,

@@ -313,10 +313,12 @@ func (p *Provider) transformMessages(messages []types.ChatMessage) ([]anthropicM
 			var blocks []contentBlock
 			for _, c := range contentArr {
 				if c["type"] == "text" {
-					blocks = append(blocks, contentBlock{
-						Type: "text",
-						Text: c["text"].(string),
-					})
+					if text, ok := c["text"].(string); ok {
+						blocks = append(blocks, contentBlock{
+							Type: "text",
+							Text: text,
+						})
+					}
 				}
 				// TODO: Handle image content blocks
 			}
@@ -428,7 +430,10 @@ func (p *Provider) transformResponse(resp *anthropicResponse) *types.ChatRespons
 		case "text":
 			textContent += block.Text
 		case "tool_use":
-			inputJSON, _ := json.Marshal(block.Input)
+			inputJSON, err := json.Marshal(block.Input)
+			if err != nil {
+				inputJSON = []byte("{}")
+			}
 			toolCalls = append(toolCalls, types.ToolCall{
 				ID:   block.ID,
 				Type: "function",
@@ -512,7 +517,10 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 		return nil, nil // Skip unparseable events
 	}
 
-	eventType, _ := event["type"].(string)
+	eventType, ok := event["type"].(string)
+	if !ok {
+		return nil, nil
+	}
 
 	switch eventType {
 	case "content_block_delta":
@@ -521,7 +529,10 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 			return nil, nil
 		}
 		if delta["type"] == "text_delta" {
-			text, _ := delta["text"].(string)
+			text, ok := delta["text"].(string)
+			if !ok {
+				return nil, nil
+			}
 			return &types.StreamChunk{
 				Object: "chat.completion.chunk",
 				Choices: []types.StreamChoice{{
@@ -538,8 +549,8 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 		if !ok {
 			return nil, nil
 		}
-		id, _ := msg["id"].(string)
-		model, _ := msg["model"].(string)
+		id, _ := msg["id"].(string)       //nolint:errcheck // zero value is acceptable
+		model, _ := msg["model"].(string) //nolint:errcheck // zero value is acceptable
 		return &types.StreamChunk{
 			ID:     id,
 			Object: "chat.completion.chunk",
@@ -557,16 +568,17 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 		if !ok {
 			return nil, nil
 		}
-		stopReason, _ := delta["stop_reason"].(string)
-		if stopReason != "" {
-			return &types.StreamChunk{
-				Object: "chat.completion.chunk",
-				Choices: []types.StreamChoice{{
-					Index:        0,
-					FinishReason: mapStopReason(stopReason),
-				}},
-			}, nil
+		stopReason, ok := delta["stop_reason"].(string)
+		if !ok || stopReason == "" {
+			return nil, nil
 		}
+		return &types.StreamChunk{
+			Object: "chat.completion.chunk",
+			Choices: []types.StreamChoice{{
+				Index:        0,
+				FinishReason: mapStopReason(stopReason),
+			}},
+		}, nil
 
 	case "message_stop":
 		return nil, nil

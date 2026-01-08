@@ -126,11 +126,12 @@ func (r *Runner) Run(ctx context.Context) (*Result, error) {
 	}
 
 	// Send requests
+sendLoop:
 	for i := 0; i < r.config.Requests; i++ {
 		select {
 		case requests <- struct{}{}:
 		case <-ctx.Done():
-			break
+			break sendLoop
 		}
 	}
 	close(requests)
@@ -171,7 +172,7 @@ func (r *Runner) sendRequest(ctx context.Context, body []byte) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	// Read response body to completion
 	_, err = io.Copy(io.Discard, resp.Body)

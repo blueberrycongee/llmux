@@ -1,6 +1,6 @@
 // Package api provides HTTP handlers for the LLM gateway API.
 // Management endpoints for API keys, teams, users, and organizations.
-package api
+package api //nolint:revive // package name is intentional
 
 import (
 	"log/slog"

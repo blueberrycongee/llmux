@@ -66,16 +66,17 @@ func (r *LowestLatencyRouter) PickWithContext(ctx context.Context, reqCtx *Reque
 		stats := r.stats[d.ID]
 		var latency float64
 
-		if stats == nil {
+		switch {
+		case stats == nil:
 			// No stats yet, use 0 latency (prioritize untested deployments)
 			latency = 0
-		} else if reqCtx.IsStreaming && len(stats.TTFTHistory) > 0 {
+		case reqCtx.IsStreaming && len(stats.TTFTHistory) > 0:
 			// Use TTFT for streaming requests
 			latency = calculateAverageLatency(stats.TTFTHistory)
-		} else if len(stats.LatencyHistory) > 0 {
+		case len(stats.LatencyHistory) > 0:
 			// Use regular latency
 			latency = calculateAverageLatency(stats.LatencyHistory)
-		} else {
+		default:
 			latency = 0
 		}
 

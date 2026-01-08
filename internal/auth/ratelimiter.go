@@ -71,13 +71,13 @@ func (trl *TenantRateLimiter) Wait(ctx context.Context, tenantID string) error {
 }
 
 // AllowWithCustomRate checks if a request is allowed using a custom rate.
-func (trl *TenantRateLimiter) AllowWithCustomRate(tenantID string, rpm int, burst int) bool {
+func (trl *TenantRateLimiter) AllowWithCustomRate(tenantID string, rpm, burst int) bool {
 	limiter := trl.getLimiter(tenantID, rpm, burst)
 	return limiter.Allow()
 }
 
 // getLimiter returns or creates a rate limiter for the tenant.
-func (trl *TenantRateLimiter) getLimiter(tenantID string, rpm int, burst int) *rate.Limiter {
+func (trl *TenantRateLimiter) getLimiter(tenantID string, rpm, burst int) *rate.Limiter {
 	trl.mu.RLock()
 	limiter, exists := trl.limiters[tenantID]
 	trl.mu.RUnlock()
@@ -117,7 +117,7 @@ func (trl *TenantRateLimiter) getLimiter(tenantID string, rpm int, burst int) *r
 }
 
 // SetRate updates the rate limit for a specific tenant.
-func (trl *TenantRateLimiter) SetRate(tenantID string, rpm int, burst int) {
+func (trl *TenantRateLimiter) SetRate(tenantID string, rpm, burst int) {
 	trl.mu.Lock()
 	defer trl.mu.Unlock()
 
@@ -186,7 +186,7 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
+				_, _ = w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
 				return
 			}
 			next.ServeHTTP(w, r)
@@ -212,7 +212,7 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(`{"error":{"message":"team rate limit exceeded","type":"rate_limit_error"}}`))
+				_, _ = w.Write([]byte(`{"error":{"message":"team rate limit exceeded","type":"rate_limit_error"}}`))
 				return
 			}
 		}
@@ -223,14 +223,14 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
 				w.WriteHeader(http.StatusTooManyRequests)
-				w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
+				_, _ = w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
 				return
 			}
 		} else if !trl.Allow(tenantID) {
 			w.Header().Set("Content-Type", "application/json")
 			w.Header().Set("Retry-After", "60")
 			w.WriteHeader(http.StatusTooManyRequests)
-			w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
+			_, _ = w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
 			return
 		}
 

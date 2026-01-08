@@ -1,6 +1,6 @@
 // Package api provides HTTP handlers for the LLM gateway API.
 // This file contains the ClientHandler which wraps llmux.Client for Gateway mode.
-package api
+package api //nolint:revive // package name is intentional
 
 import (
 	"io"
@@ -56,7 +56,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "failed to read request body"))
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	// Check if body exceeded limit
 	if int64(len(body)) > h.maxBodySize {
@@ -126,7 +126,7 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 		}
 		return
 	}
-	defer stream.Close()
+	defer func() { _ = stream.Close() }()
 
 	// Set SSE headers
 	w.Header().Set("Content-Type", "text/event-stream")

@@ -150,7 +150,10 @@ func (h *Handler) generateKey(req *types.ChatRequest, ctrl *CacheControl) (strin
 	// Serialize tools if present
 	var tools []byte
 	if len(req.Tools) > 0 {
-		tools, _ = json.Marshal(req.Tools)
+		tools, err = json.Marshal(req.Tools)
+		if err != nil {
+			return "", err
+		}
 	}
 
 	// Build key params

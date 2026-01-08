@@ -1,6 +1,6 @@
 // Package errors defines unified error types for LLM gateway operations.
 // All provider-specific errors are mapped to these standard error types.
-package errors
+package errors //nolint:revive // package name is intentional
 
 import (
 	"fmt"

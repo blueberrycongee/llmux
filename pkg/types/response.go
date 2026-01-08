@@ -1,4 +1,4 @@
-package types
+package types //nolint:revive // package name is intentional
 
 // ChatResponse represents an OpenAI-compatible chat completion response.
 // All provider responses are transformed into this unified format.

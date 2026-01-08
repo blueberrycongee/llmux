@@ -45,7 +45,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("failed to load configuration: %w", err)
 	}
-	defer cfgManager.Close()
+	defer func() { _ = cfgManager.Close() }()
 
 	cfg := cfgManager.Get()
 
@@ -80,7 +80,7 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("failed to create llmux client: %w", err)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Initialize API handler using ClientHandler (wraps llmux.Client)
 	handler := api.NewClientHandler(client, logger, nil)

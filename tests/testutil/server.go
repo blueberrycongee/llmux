@@ -89,7 +89,7 @@ func WithPort(port int) ServerOption {
 }
 
 // WithCache enables caching with the specified type.
-func WithCache(cacheType string, redisURL string) ServerOption {
+func WithCache(cacheType, redisURL string) ServerOption {
 	return func(o *serverOptions) {
 		o.cacheEnabled = true
 		o.cacheType = cacheType
@@ -146,7 +146,9 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	registry.RegisterFactory("openai", openai.New)
 
 	// Initialize router with no cooldown for testing
-	simpleRouter := router.NewSimpleRouter(0) // No cooldown in tests
+	simpleRouter := router.NewSimpleShuffleRouter(router.RouterConfig{
+		CooldownPeriod: 0,
+	}) // No cooldown in tests
 
 	// Handle multiple providers for fallback testing
 	if len(options.providers) > 0 {
@@ -227,7 +229,8 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 
 	// Create listener
 	addr := fmt.Sprintf("127.0.0.1:%d", options.port)
-	listener, err := net.Listen("tcp", addr)
+	lc := net.ListenConfig{}
+	listener, err := lc.Listen(context.Background(), "tcp", addr)
 	if err != nil {
 		return nil, fmt.Errorf("listen: %w", err)
 	}

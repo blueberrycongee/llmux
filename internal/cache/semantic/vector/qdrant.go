@@ -101,7 +101,7 @@ func (q *QdrantStore) EnsureCollection(ctx context.Context) error {
 	if err != nil {
 		return fmt.Errorf("create collection request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -124,7 +124,7 @@ func (q *QdrantStore) collectionExists(ctx context.Context) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return false, fmt.Errorf("check collection exists: status=%d", resp.StatusCode)
@@ -179,7 +179,7 @@ func (q *QdrantStore) Search(ctx context.Context, vector []float64, opts SearchO
 	if err != nil {
 		return nil, fmt.Errorf("search request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -270,7 +270,7 @@ func (q *QdrantStore) InsertBatch(ctx context.Context, entries []Entry) error {
 	if err != nil {
 		return fmt.Errorf("upsert request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -303,7 +303,7 @@ func (q *QdrantStore) Delete(ctx context.Context, id string) error {
 	if err != nil {
 		return fmt.Errorf("delete request: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -327,7 +327,7 @@ func (q *QdrantStore) Ping(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("qdrant ping failed: status=%d", resp.StatusCode)

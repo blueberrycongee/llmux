@@ -21,7 +21,7 @@ const (
 
 // GenerateAPIKey creates a new random API key with the format: llmux_<random>
 // Returns the full key (to show user once) and the hash (to store).
-func GenerateAPIKey() (fullKey string, hash string, err error) {
+func GenerateAPIKey() (fullKey, hash string, err error) {
 	// Generate random bytes
 	randomBytes := make([]byte, KeyLength)
 	if _, err := rand.Read(randomBytes); err != nil {

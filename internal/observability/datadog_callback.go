@@ -196,7 +196,10 @@ func (d *DatadogCallback) LogFallbackEvent(ctx context.Context, originalModel, f
 		message["error"] = err.Error()
 	}
 
-	msgBytes, _ := json.Marshal(message)
+	msgBytes, err := json.Marshal(message)
+	if err != nil {
+		msgBytes = []byte(`{"error":"failed to marshal message"}`)
+	}
 	ddPayload := DatadogPayload{
 		DDSource:  d.config.Source,
 		DDTags:    d.buildTags(nil),
@@ -236,7 +239,10 @@ func (d *DatadogCallback) Shutdown(ctx context.Context) error {
 func (d *DatadogCallback) createPayload(payload *StandardLoggingPayload, status DatadogStatus) DatadogPayload {
 	// Create message content
 	message := d.buildMessage(payload)
-	msgBytes, _ := json.Marshal(message)
+	msgBytes, err := json.Marshal(message)
+	if err != nil {
+		msgBytes = []byte(`{"error":"failed to marshal message"}`)
+	}
 
 	return DatadogPayload{
 		DDSource:  d.config.Source,
@@ -359,7 +365,9 @@ func (d *DatadogCallback) enqueue(payload DatadogPayload) {
 	d.mu.Unlock()
 
 	if shouldFlush {
-		go d.flush()
+		go func() {
+			_ = d.flush()
+		}()
 	}
 }
 
@@ -373,7 +381,10 @@ func (d *DatadogCallback) periodicFlush() {
 	for {
 		select {
 		case <-ticker.C:
-			d.flush()
+			if err := d.flush(); err != nil {
+				// Log error but continue flushing
+				_ = err
+			}
 		case <-d.stopCh:
 			return
 		}
@@ -432,7 +443,7 @@ func (d *DatadogCallback) sendBatch(logs []DatadogPayload) error {
 	if err != nil {
 		return fmt.Errorf("failed to send logs: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusAccepted {
 		return fmt.Errorf("unexpected status code: %d", resp.StatusCode)

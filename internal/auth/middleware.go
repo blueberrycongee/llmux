@@ -148,7 +148,7 @@ func (m *Middleware) writeUnauthorized(w http.ResponseWriter, message string) {
 func (m *Middleware) writeError(w http.ResponseWriter, status int, message string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
-	w.Write([]byte(`{"error":{"message":"` + message + `","type":"authentication_error"}}`))
+	_, _ = w.Write([]byte(`{"error":{"message":"` + message + `","type":"authentication_error"}}`))
 }
 
 // ModelAccessMiddleware checks if the authenticated key can access the requested model.

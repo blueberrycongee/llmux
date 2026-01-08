@@ -76,7 +76,8 @@ func NewRedisCache(cfg RedisCacheConfig) (*RedisCache, error) {
 	var client redis.UniversalClient
 
 	// Determine which type of client to create
-	if len(cfg.ClusterAddrs) > 0 {
+	switch {
+	case len(cfg.ClusterAddrs) > 0:
 		// Redis Cluster
 		client = redis.NewClusterClient(&redis.ClusterOptions{
 			Addrs:        cfg.ClusterAddrs,
@@ -88,7 +89,7 @@ func NewRedisCache(cfg RedisCacheConfig) (*RedisCache, error) {
 			MinIdleConns: cfg.MinIdleConns,
 			MaxRetries:   cfg.MaxRetries,
 		})
-	} else if len(cfg.SentinelAddrs) > 0 {
+	case len(cfg.SentinelAddrs) > 0:
 		// Redis Sentinel
 		client = redis.NewFailoverClient(&redis.FailoverOptions{
 			MasterName:    cfg.SentinelMaster,
@@ -102,7 +103,7 @@ func NewRedisCache(cfg RedisCacheConfig) (*RedisCache, error) {
 			MinIdleConns:  cfg.MinIdleConns,
 			MaxRetries:    cfg.MaxRetries,
 		})
-	} else {
+	default:
 		// Single node
 		client = redis.NewClient(&redis.Options{
 			Addr:         cfg.Addr,

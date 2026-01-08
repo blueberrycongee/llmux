@@ -86,7 +86,7 @@ func main() {
 		logger.Error("failed to create client", "error", err)
 		os.Exit(1)
 	}
-	defer client.Close()
+	defer func() { _ = client.Close() }()
 
 	// Make a request - plugins will automatically handle:
 	// 1. Rate limiting check (RateLimitPlugin)

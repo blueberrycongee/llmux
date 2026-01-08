@@ -9,7 +9,7 @@ import (
 
 // Logger wraps slog.Logger with redaction and request ID support.
 type Logger struct {
-	*slog.Logger
+	logger   *slog.Logger
 	redactor *Redactor
 }
 
@@ -36,7 +36,7 @@ func NewLogger(cfg LoggerConfig, redactor *Redactor) *Logger {
 	}
 
 	return &Logger{
-		Logger:   slog.New(handler),
+		logger:   slog.New(handler),
 		redactor: redactor,
 	}
 }
@@ -48,7 +48,7 @@ func (l *Logger) WithRequestID(ctx context.Context) *Logger {
 		return l
 	}
 	return &Logger{
-		Logger:   l.Logger.With("request_id", requestID),
+		logger:   l.logger.With("request_id", requestID),
 		redactor: l.redactor,
 	}
 }
@@ -56,7 +56,7 @@ func (l *Logger) WithRequestID(ctx context.Context) *Logger {
 // WithFields returns a logger with additional fields.
 func (l *Logger) WithFields(args ...any) *Logger {
 	return &Logger{
-		Logger:   l.Logger.With(args...),
+		logger:   l.logger.With(args...),
 		redactor: l.redactor,
 	}
 }
@@ -67,7 +67,7 @@ func (l *Logger) RedactedInfo(msg string, args ...any) {
 		msg = l.redactor.Redact(msg)
 		args = l.redactArgs(args)
 	}
-	l.Logger.Info(msg, args...)
+	l.logger.Info(msg, args...)
 }
 
 // RedactedError logs at ERROR level with redacted message.
@@ -76,7 +76,7 @@ func (l *Logger) RedactedError(msg string, args ...any) {
 		msg = l.redactor.Redact(msg)
 		args = l.redactArgs(args)
 	}
-	l.Logger.Error(msg, args...)
+	l.logger.Error(msg, args...)
 }
 
 // RedactedDebug logs at DEBUG level with redacted message.
@@ -85,7 +85,7 @@ func (l *Logger) RedactedDebug(msg string, args ...any) {
 		msg = l.redactor.Redact(msg)
 		args = l.redactArgs(args)
 	}
-	l.Logger.Debug(msg, args...)
+	l.logger.Debug(msg, args...)
 }
 
 // RedactedWarn logs at WARN level with redacted message.
@@ -94,7 +94,7 @@ func (l *Logger) RedactedWarn(msg string, args ...any) {
 		msg = l.redactor.Redact(msg)
 		args = l.redactArgs(args)
 	}
-	l.Logger.Warn(msg, args...)
+	l.logger.Warn(msg, args...)
 }
 
 func (l *Logger) redactArgs(args []any) []any {
@@ -118,5 +118,33 @@ func (l *Logger) redactArgs(args []any) []any {
 
 // Slog returns the underlying slog.Logger for compatibility.
 func (l *Logger) Slog() *slog.Logger {
-	return l.Logger
+	return l.logger
+}
+
+// Info logs at INFO level.
+func (l *Logger) Info(msg string, args ...any) {
+	l.logger.Info(msg, args...)
+}
+
+// Error logs at ERROR level.
+func (l *Logger) Error(msg string, args ...any) {
+	l.logger.Error(msg, args...)
+}
+
+// Debug logs at DEBUG level.
+func (l *Logger) Debug(msg string, args ...any) {
+	l.logger.Debug(msg, args...)
+}
+
+// Warn logs at WARN level.
+func (l *Logger) Warn(msg string, args ...any) {
+	l.logger.Warn(msg, args...)
+}
+
+// With returns a logger with additional fields.
+func (l *Logger) With(args ...any) *Logger {
+	return &Logger{
+		logger:   l.logger.With(args...),
+		redactor: l.redactor,
+	}
 }

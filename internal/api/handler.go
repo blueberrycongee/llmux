@@ -1,6 +1,6 @@
 // Package api provides HTTP handlers for the LLM gateway API.
 // It implements OpenAI-compatible endpoints for chat completions.
-package api
+package api //nolint:revive // package name is intentional
 
 import (
 	"context"
@@ -14,7 +14,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/provider"
-	"github.com/blueberrycongee/llmux/internal/router"
+	llmrouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/internal/streaming"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 )
@@ -33,14 +33,14 @@ type HandlerConfig struct {
 // Handler handles HTTP requests for the LLM gateway.
 type Handler struct {
 	registry    *provider.Registry
-	router      router.Router
+	llmRouter   llmrouter.Router
 	logger      *slog.Logger
 	httpClient  *http.Client
 	maxBodySize int64
 }
 
 // NewHandler creates a new API handler with a shared HTTP client.
-func NewHandler(registry *provider.Registry, router router.Router, logger *slog.Logger, cfg *HandlerConfig) *Handler {
+func NewHandler(registry *provider.Registry, r llmrouter.Router, logger *slog.Logger, cfg *HandlerConfig) *Handler {
 	maxBodySize := int64(DefaultMaxBodySize)
 	if cfg != nil && cfg.MaxBodySize > 0 {
 		maxBodySize = cfg.MaxBodySize
@@ -55,7 +55,7 @@ func NewHandler(registry *provider.Registry, router router.Router, logger *slog.
 
 	return &Handler{
 		registry:    registry,
-		router:      router,
+		llmRouter:   r,
 		logger:      logger,
 		maxBodySize: maxBodySize,
 		httpClient: &http.Client{
@@ -76,7 +76,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "failed to read request body"))
 		return
 	}
-	defer r.Body.Close()
+	defer func() { _ = r.Body.Close() }()
 
 	// Check if body exceeded limit
 	if int64(len(body)) > h.maxBodySize {
@@ -103,7 +103,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Route to deployment
-	deployment, err := h.router.Pick(r.Context(), req.Model)
+	deployment, err := h.llmRouter.Pick(r.Context(), req.Model)
 	if err != nil {
 		h.logger.Error("no deployment available", "model", req.Model, "error", err)
 		h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "no available deployment"))
@@ -134,12 +134,12 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	// Execute request using shared client
 	resp, err := h.httpClient.Do(upstreamReq)
 	if err != nil {
-		h.router.ReportFailure(deployment, err)
+		h.llmRouter.ReportFailure(deployment, err)
 		metrics.RecordError(prov.Name(), "connection_error")
 		h.writeError(w, llmerrors.NewServiceUnavailableError(prov.Name(), req.Model, "upstream request failed"))
 		return
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	latency := time.Since(start)
 
@@ -147,7 +147,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(resp.Body)
 		llmErr := prov.MapError(resp.StatusCode, respBody)
-		h.router.ReportFailure(deployment, llmErr)
+		h.llmRouter.ReportFailure(deployment, llmErr)
 		metrics.RecordRequest(prov.Name(), req.Model, resp.StatusCode, latency)
 		h.writeError(w, llmErr)
 		return
@@ -162,14 +162,14 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	// Parse non-streaming response
 	chatResp, err := prov.ParseResponse(resp)
 	if err != nil {
-		h.router.ReportFailure(deployment, err)
+		h.llmRouter.ReportFailure(deployment, err)
 		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to parse response"))
 		return
 	}
 	defer pool.PutChatResponse(chatResp)
 
 	// Record success metrics
-	h.router.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
+	h.llmRouter.ReportSuccess(deployment, &llmrouter.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), req.Model, http.StatusOK, latency)
 	if chatResp.Usage != nil {
 		metrics.RecordTokens(prov.Name(), req.Model, chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens)
@@ -177,7 +177,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 
 	// Write response
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(chatResp)
+	_ = json.NewEncoder(w).Encode(chatResp)
 }
 
 func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, resp *http.Response, prov provider.Provider, deployment *provider.Deployment, model string, start time.Time) {
@@ -209,7 +209,7 @@ func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, r
 
 	// Record metrics
 	latency := time.Since(start)
-	h.router.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
+	h.llmRouter.ReportSuccess(deployment, &llmrouter.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), model, http.StatusOK, latency)
 }
 
@@ -242,21 +242,21 @@ func (h *Handler) writeError(w http.ResponseWriter, err error) {
 			Type:    llmErr.Type,
 		},
 	}
-	json.NewEncoder(w).Encode(resp)
+	_ = json.NewEncoder(w).Encode(resp)
 }
 
 // HealthCheck handles GET /health/live and /health/ready endpoints.
 func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
+	_ = json.NewEncoder(w).Encode(map[string]string{"status": "ok"})
 }
 
 // ListModels handles GET /v1/models endpoint.
 func (h *Handler) ListModels(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement model listing from all providers
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"object": "list",
 		"data":   []any{},
 	})

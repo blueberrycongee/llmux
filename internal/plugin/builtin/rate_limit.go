@@ -137,13 +137,18 @@ func (p *RateLimitPlugin) getLimiter(key string) *tokenBucket {
 
 	// Per-key limiter
 	if limiter, ok := p.perKeyLimiters.Load(key); ok {
-		return limiter.(*tokenBucket)
+		if limiterTyped, ok := limiter.(*tokenBucket); ok {
+			return limiterTyped
+		}
 	}
 
 	// Create new limiter for this key
 	newLimiter := newTokenBucket(p.rate, p.burst)
 	actual, _ := p.perKeyLimiters.LoadOrStore(key, newLimiter)
-	return actual.(*tokenBucket)
+	if actualTyped, ok := actual.(*tokenBucket); ok {
+		return actualTyped
+	}
+	return newLimiter
 }
 
 // tokenBucket implements a simple token bucket rate limiter.

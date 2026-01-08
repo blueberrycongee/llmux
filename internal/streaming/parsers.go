@@ -72,7 +72,10 @@ func (p *AnthropicParser) ParseChunk(data []byte) (*types.StreamChunk, error) {
 		return nil, nil // Skip unparseable events
 	}
 
-	eventType, _ := event["type"].(string)
+	eventType, ok := event["type"].(string)
+	if !ok {
+		return nil, nil
+	}
 	return p.handleEvent(eventType, event)
 }
 
@@ -97,8 +100,12 @@ func (p *AnthropicParser) handleMessageStart(event map[string]any) (*types.Strea
 		return nil, nil
 	}
 
-	p.currentID, _ = msg["id"].(string)
-	p.currentModel, _ = msg["model"].(string)
+	if id, ok := msg["id"].(string); ok {
+		p.currentID = id
+	}
+	if model, ok := msg["model"].(string); ok {
+		p.currentModel = model
+	}
 
 	return &types.StreamChunk{
 		ID:     p.currentID,
@@ -121,7 +128,10 @@ func (p *AnthropicParser) handleContentDelta(event map[string]any) (*types.Strea
 		return nil, nil
 	}
 
-	text, _ := delta["text"].(string)
+	text, ok := delta["text"].(string)
+	if !ok {
+		return nil, nil
+	}
 	return &types.StreamChunk{
 		ID:     p.currentID,
 		Object: "chat.completion.chunk",
@@ -139,8 +149,8 @@ func (p *AnthropicParser) handleMessageDelta(event map[string]any) (*types.Strea
 		return nil, nil
 	}
 
-	stopReason, _ := delta["stop_reason"].(string)
-	if stopReason == "" {
+	stopReason, ok := delta["stop_reason"].(string)
+	if !ok || stopReason == "" {
 		return nil, nil
 	}
 

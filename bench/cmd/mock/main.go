@@ -37,7 +37,7 @@ func main() {
 		signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
 		<-sigCh
 		log.Println("Shutting down mock server...")
-		httpServer.Close()
+		_ = httpServer.Close()
 	}()
 
 	log.Printf("Mock LLM Server starting on %s", addr)

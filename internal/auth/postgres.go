@@ -249,7 +249,7 @@ func (s *PostgresStore) ListAPIKeys(ctx context.Context, teamID *string, limit, 
 	if err != nil {
 		return nil, fmt.Errorf("query api keys: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var keys []*APIKey
 	for rows.Next() {
@@ -388,7 +388,7 @@ func (s *PostgresStore) ListTeams(ctx context.Context, limit, offset int) ([]*Te
 	if err != nil {
 		return nil, fmt.Errorf("query teams: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
 	var teams []*Team
 	for rows.Next() {

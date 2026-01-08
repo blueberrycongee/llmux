@@ -408,7 +408,10 @@ func (p *Provider) transformResponse(resp *anthropicResponse) *types.ChatRespons
 		case "text":
 			textContent += block.Text
 		case "tool_use":
-			inputJSON, _ := json.Marshal(block.Input)
+			inputJSON, err := json.Marshal(block.Input)
+			if err != nil {
+				inputJSON = []byte("{}")
+			}
 			toolCalls = append(toolCalls, types.ToolCall{
 				ID:   block.ID,
 				Type: "function",

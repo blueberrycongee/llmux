@@ -181,9 +181,11 @@ func (p *MetricsPlugin) PostHook(ctx *plugin.Context, resp *types.ChatResponse, 
 	}
 
 	// Check for cache hit
-	if cacheHit, ok := ctx.Get("cache_hit"); ok && cacheHit.(bool) {
-		p.CacheHits.Add(1)
-		rm.CacheHit = true
+	if cacheHit, ok := ctx.Get("cache_hit"); ok {
+		if cacheHitBool, ok := cacheHit.(bool); ok && cacheHitBool {
+			p.CacheHits.Add(1)
+			rm.CacheHit = true
+		}
 	}
 
 	// Track latency
@@ -205,20 +207,30 @@ func (p *MetricsPlugin) Cleanup() error {
 
 func (p *MetricsPlugin) getModelMetrics(model string) *ModelMetrics {
 	if mm, ok := p.modelMetrics.Load(model); ok {
-		return mm.(*ModelMetrics)
+		if mmTyped, ok := mm.(*ModelMetrics); ok {
+			return mmTyped
+		}
 	}
 	newMM := &ModelMetrics{}
 	actual, _ := p.modelMetrics.LoadOrStore(model, newMM)
-	return actual.(*ModelMetrics)
+	if actualTyped, ok := actual.(*ModelMetrics); ok {
+		return actualTyped
+	}
+	return newMM
 }
 
 func (p *MetricsPlugin) getProviderMetrics(provider string) *ProviderMetrics {
 	if pm, ok := p.providerMetrics.Load(provider); ok {
-		return pm.(*ProviderMetrics)
+		if pmTyped, ok := pm.(*ProviderMetrics); ok {
+			return pmTyped
+		}
 	}
 	newPM := &ProviderMetrics{}
 	actual, _ := p.providerMetrics.LoadOrStore(provider, newPM)
-	return actual.(*ProviderMetrics)
+	if actualTyped, ok := actual.(*ProviderMetrics); ok {
+		return actualTyped
+	}
+	return newPM
 }
 
 // Snapshot returns a snapshot of current metrics.
@@ -289,8 +301,14 @@ func (p *MetricsPlugin) GetSnapshot() MetricsSnapshot {
 
 	// Collect model stats
 	p.modelMetrics.Range(func(key, value any) bool {
-		model := key.(string)
-		mm := value.(*ModelMetrics)
+		model, ok := key.(string)
+		if !ok {
+			return true
+		}
+		mm, ok := value.(*ModelMetrics)
+		if !ok {
+			return true
+		}
 		reqs := mm.Requests.Load()
 		stats := ModelStats{
 			Requests:    reqs,
@@ -307,8 +325,14 @@ func (p *MetricsPlugin) GetSnapshot() MetricsSnapshot {
 
 	// Collect provider stats
 	p.providerMetrics.Range(func(key, value any) bool {
-		provider := key.(string)
-		pm := value.(*ProviderMetrics)
+		provider, ok := key.(string)
+		if !ok {
+			return true
+		}
+		pm, ok := value.(*ProviderMetrics)
+		if !ok {
+			return true
+		}
 		reqs := pm.Requests.Load()
 		stats := ProviderStats{
 			Requests:  reqs,

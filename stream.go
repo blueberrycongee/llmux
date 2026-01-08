@@ -121,7 +121,7 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 	// Check for scanner errors
 	if err := s.scanner.Err(); err != nil {
 		s.router.ReportFailure(s.deployment, err)
-		s.close()
+		_ = s.close()
 		return nil, err
 	}
 
@@ -164,6 +164,6 @@ func (s *StreamReader) finish() {
 			Latency:          latency,
 			TimeToFirstToken: s.ttft,
 		})
-		s.close()
+		_ = s.close()
 	}
 }

@@ -134,8 +134,10 @@ func (p *CachePlugin) PostHook(ctx *plugin.Context, resp *types.ChatResponse, er
 	}
 
 	// Don't cache if it was a cache hit
-	if hit, ok := ctx.Get("cache_hit"); ok && hit.(bool) {
-		return resp, err, nil
+	if hit, ok := ctx.Get("cache_hit"); ok {
+		if hitBool, ok := hit.(bool); ok && hitBool {
+			return resp, err, nil
+		}
 	}
 
 	// Get cache key from context
@@ -143,12 +145,15 @@ func (p *CachePlugin) PostHook(ctx *plugin.Context, resp *types.ChatResponse, er
 	if !ok {
 		return resp, err, nil
 	}
-	key := keyVal.(string)
+	key, ok := keyVal.(string)
+	if !ok {
+		return resp, err, nil
+	}
 
 	// Store in cache asynchronously
 	go func() {
-		if err := p.backend.Set(key, resp, p.ttl); err != nil {
-			p.logger.Warn("failed to cache response", "key", key, "error", err)
+		if setErr := p.backend.Set(key, resp, p.ttl); setErr != nil {
+			p.logger.Warn("failed to cache response", "key", key, "error", setErr)
 		} else {
 			p.logger.Debug("response cached", "key", key)
 		}
@@ -242,7 +247,10 @@ func (c *MemoryCacheBackend) Get(key string) (*types.ChatResponse, error) {
 		return nil, nil
 	}
 
-	item := val.(memoryCacheItem)
+	item, ok := val.(memoryCacheItem)
+	if !ok {
+		return nil, nil
+	}
 	if time.Now().After(item.expiresAt) {
 		c.items.Delete(key)
 		return nil, nil
@@ -300,8 +308,8 @@ func (c *MemoryCacheBackend) cleanupLoop() {
 		case <-ticker.C:
 			now := time.Now()
 			c.items.Range(func(key, value any) bool {
-				item := value.(memoryCacheItem)
-				if now.After(item.expiresAt) {
+				item, ok := value.(memoryCacheItem)
+				if ok && now.After(item.expiresAt) {
 					c.items.Delete(key)
 				}
 				return true

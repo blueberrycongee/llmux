@@ -21,7 +21,7 @@ func (h *HTTPHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 	clients := h.manager.GetClients()
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"clients": clients,
 		"count":   len(clients),
 	})
@@ -42,7 +42,7 @@ func (h *HTTPHandler) GetClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(client)
+	_ = json.NewEncoder(w).Encode(client)
 }
 
 // AddClient handles POST /mcp/clients
@@ -60,7 +60,7 @@ func (h *HTTPHandler) AddClient(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusCreated)
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status": "created",
 		"id":     cfg.ID,
 	})
@@ -96,7 +96,7 @@ func (h *HTTPHandler) ReconnectClient(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]string{
+	_ = json.NewEncoder(w).Encode(map[string]string{
 		"status": "reconnected",
 		"id":     id,
 	})
@@ -113,7 +113,7 @@ func (h *HTTPHandler) ListTools(w http.ResponseWriter, r *http.Request) {
 	}
 
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{
+	_ = json.NewEncoder(w).Encode(map[string]any{
 		"tools": toolNames,
 		"count": len(tools),
 	})

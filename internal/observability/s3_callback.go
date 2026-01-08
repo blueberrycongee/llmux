@@ -251,7 +251,9 @@ func (s *S3Callback) enqueue(entry S3LogEntry) {
 	s.logQueue = append(s.logQueue, entry)
 
 	if len(s.logQueue) >= s.config.BatchSize {
-		go s.flush(context.Background())
+		go func() {
+			_ = s.flush(context.Background())
+		}()
 	}
 }
 
@@ -265,7 +267,10 @@ func (s *S3Callback) flushLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			s.flush(context.Background())
+			if err := s.flush(context.Background()); err != nil {
+				// Log error but continue flushing
+				_ = err
+			}
 		case <-s.stopCh:
 			return
 		}

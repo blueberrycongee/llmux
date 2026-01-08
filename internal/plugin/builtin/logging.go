@@ -159,8 +159,10 @@ func (p *LoggingPlugin) PostHook(ctx *plugin.Context, resp *types.ChatResponse, 
 	}
 
 	// Check for cache hit
-	if cacheHit, ok := ctx.Get("cache_hit"); ok && cacheHit.(bool) {
-		p.logger.Debug("response served from cache", "request_id", ctx.RequestID)
+	if cacheHit, ok := ctx.Get("cache_hit"); ok {
+		if cacheHitBool, ok := cacheHit.(bool); ok && cacheHitBool {
+			p.logger.Debug("response served from cache", "request_id", ctx.RequestID)
+		}
 	}
 
 	return resp, err, nil

@@ -1,6 +1,6 @@
 // Package types defines core data structures for LLM API requests and responses.
 // All types are designed to be compatible with OpenAI's Chat Completion API format.
-package types
+package types //nolint:revive // package name is intentional
 
 import "github.com/goccy/go-json"
 

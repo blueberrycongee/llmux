@@ -388,7 +388,10 @@ func (p *Provider) transformResponse(resp *bedrockResponse) *types.ChatResponse 
 			textContent += block.Text
 		}
 		if block.ToolUse != nil {
-			inputJSON, _ := json.Marshal(block.ToolUse.Input)
+			inputJSON, err := json.Marshal(block.ToolUse.Input)
+			if err != nil {
+				inputJSON = []byte("{}")
+			}
 			toolCalls = append(toolCalls, types.ToolCall{
 				ID:   block.ToolUse.ToolUseID,
 				Type: "function",
@@ -468,7 +471,10 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 
 	// Handle message stop
 	if stop, ok := event["messageStop"].(map[string]any); ok {
-		stopReason, _ := stop["stopReason"].(string)
+		stopReason, ok := stop["stopReason"].(string)
+		if !ok {
+			stopReason = ""
+		}
 		return &types.StreamChunk{
 			Object: "chat.completion.chunk",
 			Choices: []types.StreamChoice{{

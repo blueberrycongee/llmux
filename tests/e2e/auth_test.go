@@ -53,9 +53,10 @@ func TestAuth_ValidAPIKey(t *testing.T) {
 
 	// If auth is properly implemented, should succeed with valid key
 	// If auth is not implemented yet, this documents expected behavior
-	if httpResp.StatusCode == http.StatusOK {
+	switch httpResp.StatusCode {
+	case http.StatusOK:
 		testutil.AssertChatResponse(t, resp)
-	} else if httpResp.StatusCode == http.StatusUnauthorized {
+	case http.StatusUnauthorized:
 		t.Log("Auth is enabled but key validation not implemented yet")
 	}
 }

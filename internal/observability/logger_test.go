@@ -22,7 +22,7 @@ func TestNewLogger(t *testing.T) {
 	if logger == nil {
 		t.Fatal("expected non-nil logger")
 	}
-	if logger.Logger == nil {
+	if logger.Slog() == nil {
 		t.Error("expected non-nil underlying logger")
 	}
 	if logger.redactor == nil {

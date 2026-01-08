@@ -29,7 +29,10 @@ func convertMCPTool(mcpTool *mcp.Tool) types.Tool {
 		params["required"] = mcpTool.InputSchema.Required
 	}
 
-	paramsJSON, _ := json.Marshal(params)
+	paramsJSON, err := json.Marshal(params)
+	if err != nil {
+		paramsJSON = []byte(`{"type":"object","properties":{}}`)
+	}
 
 	return types.Tool{
 		Type: "function",
@@ -112,7 +115,10 @@ func extractTextFromResponse(resp *mcp.CallToolResult, toolName string) string {
 
 // CreateToolMessage creates a tool response message from execution result.
 func CreateToolMessage(result ToolExecutionResult) types.ChatMessage {
-	contentJSON, _ := json.Marshal(result.Content)
+	contentJSON, err := json.Marshal(result.Content)
+	if err != nil {
+		contentJSON = []byte(`"error marshaling content"`)
+	}
 
 	return types.ChatMessage{
 		Role:       "tool",

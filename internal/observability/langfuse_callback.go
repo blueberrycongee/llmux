@@ -376,7 +376,9 @@ func (l *LangfuseCallback) enqueue(event langfuseEvent) {
 
 	// Flush if batch size reached
 	if len(l.eventQueue) >= l.config.BatchSize {
-		go l.flush()
+		go func() {
+			_ = l.flush()
+		}()
 	}
 }
 
@@ -390,7 +392,10 @@ func (l *LangfuseCallback) flushLoop() {
 	for {
 		select {
 		case <-ticker.C:
-			l.flush()
+			if err := l.flush(); err != nil {
+				// Log error but continue flushing
+				_ = err
+			}
 		case <-l.stopCh:
 			return
 		}
@@ -439,7 +444,7 @@ func (l *LangfuseCallback) flush() error {
 	if err != nil {
 		return fmt.Errorf("langfuse: failed to send batch: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode >= 400 {
 		return fmt.Errorf("langfuse: batch ingestion failed with status %d", resp.StatusCode)

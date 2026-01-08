@@ -168,7 +168,13 @@ func (p *Pipeline) PluginCount() int {
 
 // GetContext acquires a context from the pool.
 func (p *Pipeline) GetContext(ctx context.Context, requestID string) *Context {
-	pluginCtx := p.ctxPool.Get().(*Context)
+	poolCtx := p.ctxPool.Get()
+	pluginCtx, ok := poolCtx.(*Context)
+	if !ok {
+		pluginCtx = &Context{
+			values: make(map[string]any),
+		}
+	}
 	pluginCtx.Context = ctx
 	pluginCtx.RequestID = requestID
 	pluginCtx.StartTime = time.Now()

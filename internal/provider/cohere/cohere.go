@@ -428,7 +428,10 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 		return nil, nil
 	}
 
-	eventType, _ := event["type"].(string)
+	eventType, ok := event["type"].(string)
+	if !ok {
+		return nil, nil
+	}
 
 	switch eventType {
 	case "content-delta":
@@ -444,7 +447,10 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 		if !ok {
 			return nil, nil
 		}
-		text, _ := content["text"].(string)
+		text, ok := content["text"].(string)
+		if !ok {
+			return nil, nil
+		}
 
 		return &types.StreamChunk{
 			Object: "chat.completion.chunk",
@@ -457,7 +463,7 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 		}, nil
 
 	case "message-start":
-		id, _ := event["id"].(string)
+		id, _ := event["id"].(string) //nolint:errcheck // zero value is acceptable
 		return &types.StreamChunk{
 			ID:     id,
 			Object: "chat.completion.chunk",
@@ -474,7 +480,10 @@ func (p *Provider) ParseStreamChunk(data []byte) (*types.StreamChunk, error) {
 		if !ok {
 			return nil, nil
 		}
-		finishReason, _ := delta["finish_reason"].(string)
+		finishReason, ok := delta["finish_reason"].(string)
+		if !ok {
+			finishReason = ""
+		}
 		return &types.StreamChunk{
 			Object: "chat.completion.chunk",
 			Choices: []types.StreamChoice{{

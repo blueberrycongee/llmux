@@ -8,12 +8,14 @@ import (
 )
 
 // SimpleRouter is a backward-compatible wrapper around SimpleShuffleRouter.
+//
 // Deprecated: Use NewSimpleShuffleRouter or New(config) instead.
 type SimpleRouter struct {
 	*SimpleShuffleRouter
 }
 
 // NewSimpleRouter creates a new simple router with the given cooldown period.
+//
 // Deprecated: Use NewSimpleShuffleRouter or New(config) instead.
 func NewSimpleRouter(cooldownPeriod time.Duration) *SimpleRouter {
 	config := RouterConfig{

@@ -1,4 +1,4 @@
-package errors
+package errors //nolint:revive // package name is intentional
 
 import (
 	"net/http"
