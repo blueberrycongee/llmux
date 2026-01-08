@@ -133,8 +133,64 @@ func run() error {
 	}
 	defer func() { _ = client.Close() }()
 
+	// ========================================================================
+	// ENTERPRISE FEATURE INTEGRATION (P0 Fix)
+	// Initialize auth stores, management handlers, and SSO sync
+	// ========================================================================
+
+	// Initialize auth Store (Memory or Postgres based on config)
+	var authStore auth.Store
+	var auditStore auth.AuditLogStore
+
+	// NOTE: PostgresStore does not fully implement Store interface yet.
+	// Using MemoryStore for now. Full PostgreSQL implementation is a TODO.
+	if cfg.Database.Enabled {
+		logger.Warn("database.enabled is true but PostgresStore is not fully implemented; using MemoryStore")
+	}
+
+	// Use in-memory store for development/testing
+	authStore = auth.NewMemoryStore()
+	auditStore = auth.NewMemoryAuditLogStore()
+	logger.Info("using in-memory auth store (for development only)")
+
+	// Ensure store is closed on shutdown
+	defer func() {
+		if authStore != nil {
+			if err := authStore.Close(); err != nil {
+				logger.Error("failed to close auth store", "error", err)
+			}
+		}
+	}()
+
+	// Create AuditLogger
+	auditLogger := auth.NewAuditLogger(auditStore, true)
+	_ = auditLogger // Will be used by management handlers
+
+	// Initialize UserTeamSyncer for SSO user-team synchronization
+	var syncer *auth.UserTeamSyncer
+	if cfg.Auth.Enabled && cfg.Auth.OIDC.UserTeamSync.Enabled {
+		syncCfg := auth.UserTeamSyncConfig{
+			Enabled:                 cfg.Auth.OIDC.UserTeamSync.Enabled,
+			AutoCreateUsers:         cfg.Auth.OIDC.UserTeamSync.AutoCreateUsers,
+			AutoCreateTeams:         cfg.Auth.OIDC.UserTeamSync.AutoCreateTeams,
+			RemoveFromUnlistedTeams: cfg.Auth.OIDC.UserTeamSync.RemoveFromUnlistedTeams,
+			SyncUserRole:            cfg.Auth.OIDC.UserTeamSync.SyncUserRole,
+			DefaultRole:             cfg.Auth.OIDC.UserTeamSync.DefaultRole,
+			DefaultOrganizationID:   cfg.Auth.OIDC.UserTeamSync.DefaultOrganizationID,
+		}
+		syncer = auth.NewUserTeamSyncer(authStore, syncCfg, logger)
+		logger.Info("user-team sync enabled", "auto_create_users", syncCfg.AutoCreateUsers)
+	}
+
 	// Initialize API handler using ClientHandler (wraps llmux.Client)
-	handler := api.NewClientHandler(client, logger, nil)
+	// Now with Store integration for usage logging and budget tracking
+	handlerCfg := &api.ClientHandlerConfig{
+		Store: authStore,
+	}
+	handler := api.NewClientHandler(client, logger, handlerCfg)
+
+	// Initialize ManagementHandler for enterprise API endpoints
+	mgmtHandler := api.NewManagementHandler(authStore, auditStore, logger)
 
 	// Setup HTTP routes
 	mux := http.NewServeMux()
@@ -147,16 +203,37 @@ func run() error {
 	mux.HandleFunc("POST /v1/chat/completions", handler.ChatCompletions)
 	mux.HandleFunc("GET /v1/models", handler.ListModels)
 
+	// ========================================================================
+	// MANAGEMENT ENDPOINTS REGISTRATION (P0 Fix - Critical Missing Feature)
+	// Register all management routes (Key, Team, User, Organization, Audit, etc.)
+	// ========================================================================
+	mgmtHandler.RegisterRoutes(mux)
+	logger.Info("management endpoints registered",
+		"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"})
+
 	// Metrics endpoint
 	if cfg.Metrics.Enabled {
 		mux.Handle("GET "+cfg.Metrics.Path, promhttp.Handler())
 	}
 
-	// Apply middleware
+	// Apply middleware stack
 	var httpHandler http.Handler = mux
 
-	// OIDC Middleware
+	// API Key Authentication Middleware (enterprise feature)
+	// This validates API keys and performs budget checks BEFORE requests
 	if cfg.Auth.Enabled {
+		authMiddleware := auth.NewMiddleware(&auth.MiddlewareConfig{
+			Store:     authStore,
+			Logger:    logger,
+			SkipPaths: cfg.Auth.SkipPaths,
+			Enabled:   true,
+		})
+		httpHandler = authMiddleware.Authenticate(httpHandler)
+		logger.Info("API key authentication middleware enabled")
+	}
+
+	// OIDC Middleware (SSO authentication with sync integration)
+	if cfg.Auth.Enabled && cfg.Auth.OIDC.IssuerURL != "" {
 		oidcCfg := auth.OIDCConfig{
 			IssuerURL:    cfg.Auth.OIDC.IssuerURL,
 			ClientID:     cfg.Auth.OIDC.ClientID,
@@ -164,12 +241,14 @@ func run() error {
 			RoleClaim:    cfg.Auth.OIDC.ClaimMapping.RoleClaim,
 			RolesMap:     cfg.Auth.OIDC.ClaimMapping.Roles,
 		}
-		oidcMiddleware, err := auth.OIDCMiddleware(oidcCfg)
+		// Use OIDCMiddlewareWithSync instead of OIDCMiddleware
+		// This injects the syncer to enable automatic user-team sync from JWT claims
+		oidcMiddleware, err := auth.OIDCMiddlewareWithSync(oidcCfg, syncer)
 		if err != nil {
 			return fmt.Errorf("failed to initialize OIDC middleware: %w", err)
 		}
 		httpHandler = oidcMiddleware(httpHandler)
-		logger.Info("OIDC authentication enabled", "issuer", cfg.Auth.OIDC.IssuerURL)
+		logger.Info("OIDC authentication enabled", "issuer", cfg.Auth.OIDC.IssuerURL, "sync_enabled", syncer != nil)
 	}
 
 	httpHandler = metrics.Middleware(httpHandler)

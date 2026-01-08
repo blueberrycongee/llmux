@@ -123,6 +123,21 @@ type OIDCConfig struct {
 	// OIDC UserInfo endpoint settings
 	OIDCUserInfoEnabled  bool  `yaml:"oidc_userinfo_enabled"`   // Enable fetching additional claims from userinfo endpoint
 	OIDCUserInfoCacheTTL int64 `yaml:"oidc_userinfo_cache_ttl"` // Cache TTL in seconds (default: 300)
+
+	// User-Team Synchronization settings (LiteLLM sync_user_role_and_teams compatibility)
+	UserTeamSync UserTeamSyncConfig `yaml:"user_team_sync"`
+}
+
+// UserTeamSyncConfig contains configuration for user-team synchronization.
+// This setting enables automatic user and team management based on JWT claims.
+type UserTeamSyncConfig struct {
+	Enabled                 bool   `yaml:"enabled"`                    // Enable automatic sync on SSO login
+	AutoCreateUsers         bool   `yaml:"auto_create_users"`          // Create users if they don't exist
+	AutoCreateTeams         bool   `yaml:"auto_create_teams"`          // Create teams if they don't exist
+	RemoveFromUnlistedTeams bool   `yaml:"remove_from_unlisted_teams"` // Remove user from teams not in JWT
+	SyncUserRole            bool   `yaml:"sync_user_role"`             // Sync user role from JWT
+	DefaultRole             string `yaml:"default_role"`               // Default role for new users
+	DefaultOrganizationID   string `yaml:"default_organization_id"`    // Default organization for new users
 }
 
 // ClaimMapping defines rules for mapping OIDC claims to LLMux roles, teams, and organizations.

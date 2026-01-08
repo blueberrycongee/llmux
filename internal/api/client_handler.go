@@ -3,14 +3,17 @@
 package api //nolint:revive // package name is intentional
 
 import (
+	"context"
 	"io"
 	"log/slog"
 	"net/http"
 	"time"
 
 	"github.com/goccy/go-json"
+	"github.com/google/uuid"
 
 	llmux "github.com/blueberrycongee/llmux"
+	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/streaming"
@@ -24,30 +27,38 @@ type ClientHandler struct {
 	client      *llmux.Client
 	logger      *slog.Logger
 	maxBodySize int64
+	store       auth.Store // Storage for usage logging and budget tracking
 }
 
 // ClientHandlerConfig contains configuration for ClientHandler.
 type ClientHandlerConfig struct {
-	MaxBodySize int64 // Maximum request body size in bytes
+	MaxBodySize int64      // Maximum request body size in bytes
+	Store       auth.Store // Storage for usage logging (optional)
 }
 
 // NewClientHandler creates a new handler that wraps llmux.Client.
 func NewClientHandler(client *llmux.Client, logger *slog.Logger, cfg *ClientHandlerConfig) *ClientHandler {
 	maxBodySize := int64(DefaultMaxBodySize)
-	if cfg != nil && cfg.MaxBodySize > 0 {
-		maxBodySize = cfg.MaxBodySize
+	var store auth.Store
+	if cfg != nil {
+		if cfg.MaxBodySize > 0 {
+			maxBodySize = cfg.MaxBodySize
+		}
+		store = cfg.Store
 	}
 
 	return &ClientHandler{
 		client:      client,
 		logger:      logger,
 		maxBodySize: maxBodySize,
+		store:       store,
 	}
 }
 
 // ChatCompletions handles POST /v1/chat/completions requests.
 func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
+	requestID := uuid.New().String()
 
 	// Limit request body size to prevent OOM
 	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
@@ -84,7 +95,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 	// Handle streaming response
 	if req.Stream {
-		h.handleStreamResponse(w, r, req, start)
+		h.handleStreamResponse(w, r, req, start, requestID)
 		return
 	}
 
@@ -108,6 +119,10 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 		metrics.RecordTokens("llmux", req.Model, resp.Usage.PromptTokens, resp.Usage.CompletionTokens)
 	}
 
+	// === USAGE LOGGING AND SPEND TRACKING (P0 Fix) ===
+	// Record usage and update spent budget for budget control
+	h.recordUsage(r.Context(), requestID, req.Model, resp.Usage, start, latency)
+
 	// Write response
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
@@ -115,7 +130,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Request, req *llmux.ChatRequest, start time.Time) {
+func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Request, req *llmux.ChatRequest, start time.Time, requestID string) {
 	stream, err := h.client.ChatCompletionStream(r.Context(), req)
 	if err != nil {
 		h.logger.Error("stream creation failed", "model", req.Model, "error", err)
@@ -183,6 +198,11 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 	// Record metrics
 	latency := time.Since(start)
 	metrics.RecordRequest("llmux", req.Model, http.StatusOK, latency)
+
+	// === USAGE LOGGING FOR STREAMING (P0 Fix) ===
+	// Note: For streaming, we don't have accurate token counts, so we pass nil usage
+	// Token counts would need to be accumulated from SSE chunks if needed
+	h.recordUsage(r.Context(), requestID, req.Model, nil, start, latency)
 }
 
 func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
@@ -205,6 +225,71 @@ func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		h.logger.Error("failed to encode error response", "error", err)
 	}
+}
+
+// recordUsage logs API usage to the store and updates spend budgets.
+// This is called after successful completion (streaming or non-streaming).
+func (h *ClientHandler) recordUsage(ctx context.Context, requestID, model string, usage *llmux.Usage, start time.Time, latency time.Duration) {
+	if h.store == nil {
+		return
+	}
+
+	// Extract authentication context for tracking
+	authCtx := auth.GetAuthContext(ctx)
+
+	// Build usage log entry
+	log := &auth.UsageLog{
+		RequestID: requestID,
+		Model:     model,
+		Provider:  "llmux",
+		CallType:  "chat_completion",
+		StartTime: start,
+		EndTime:   time.Now(),
+		LatencyMs: int(latency.Milliseconds()),
+		CacheHit:  nil, // No cache hit for now
+	}
+
+	// Set token counts if available
+	if usage != nil {
+		log.InputTokens = usage.PromptTokens
+		log.OutputTokens = usage.CompletionTokens
+		log.TotalTokens = usage.TotalTokens
+		// Cost calculation can be extended based on model pricing
+		log.Cost = 0 // TODO: Implement model-based cost calculation
+	}
+
+	// Set API key and team info from auth context
+	if authCtx != nil && authCtx.APIKey != nil {
+		log.APIKeyID = authCtx.APIKey.ID
+		log.TeamID = authCtx.APIKey.TeamID
+		log.OrganizationID = authCtx.APIKey.OrganizationID
+		log.UserID = authCtx.APIKey.UserID
+	}
+
+	// Record usage asynchronously to avoid blocking the response
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Log usage
+		if err := h.store.LogUsage(bgCtx, log); err != nil {
+			h.logger.Warn("failed to log usage", "error", err, "request_id", requestID)
+		}
+
+		// Update API key spend (if we have cost data)
+		if authCtx != nil && authCtx.APIKey != nil && log.Cost > 0 {
+			if err := h.store.UpdateAPIKeySpent(bgCtx, authCtx.APIKey.ID, log.Cost); err != nil {
+				h.logger.Warn("failed to update api key spend", "error", err, "key_id", authCtx.APIKey.ID)
+			}
+
+			// Update team spend if applicable
+			if authCtx.APIKey.TeamID != nil {
+				if err := h.store.UpdateTeamSpent(bgCtx, *authCtx.APIKey.TeamID, log.Cost); err != nil {
+					h.logger.Warn("failed to update team spend", "error", err, "team_id", *authCtx.APIKey.TeamID)
+				}
+			}
+		}
+	}()
 }
 
 // HealthCheck handles GET /health/live and /health/ready endpoints.

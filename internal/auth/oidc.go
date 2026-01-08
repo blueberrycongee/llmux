@@ -363,3 +363,117 @@ func strPtr(s string) *string {
 	}
 	return &s
 }
+
+// OIDCMiddlewareWithSync creates a new OIDC authentication middleware with user-team synchronization.
+// This middleware extends OIDCMiddleware by invoking UserTeamSyncer.SyncUserTeams after successful
+// JWT verification. If syncer is nil, synchronization is skipped (equivalent to OIDCMiddleware).
+//
+// This function addresses the critical integration gap where SSO sync logic existed but was never invoked.
+func OIDCMiddlewareWithSync(cfg OIDCConfig, syncer *UserTeamSyncer) (func(http.Handler) http.Handler, error) {
+	provider, err := oidc.NewProvider(context.Background(), cfg.IssuerURL)
+	if err != nil {
+		return nil, err
+	}
+
+	verifier := provider.Verifier(&oidc.Config{ClientID: cfg.ClientID})
+
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check if already authenticated
+			if GetAuthContext(r.Context()) != nil {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			authHeader := r.Header.Get("Authorization")
+			if !strings.HasPrefix(authHeader, "Bearer ") {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			rawToken := strings.TrimPrefix(authHeader, "Bearer ")
+
+			// Verify Token
+			idToken, err := verifier.Verify(r.Context(), rawToken)
+			if err != nil {
+				// Not a valid OIDC token, pass to next handler (might be API Key)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Extract raw claims for flexible field access
+			var rawClaims map[string]interface{}
+			if err := idToken.Claims(&rawClaims); err != nil {
+				http.Error(w, "failed to parse claims", http.StatusInternalServerError)
+				return
+			}
+
+			// Extract user info
+			userInfo := extractUserInfo(cfg, rawClaims, idToken.Subject)
+
+			// Validate email domain if restriction is configured
+			if cfg.UserAllowedEmailDomain != "" && userInfo.Email != "" {
+				if !strings.HasSuffix(userInfo.Email, "@"+cfg.UserAllowedEmailDomain) {
+					http.Error(w, fmt.Sprintf("email domain not allowed: expected @%s", cfg.UserAllowedEmailDomain), http.StatusForbidden)
+					return
+				}
+			}
+
+			// Extract role using hierarchical priority if enabled
+			role := extractRole(cfg, rawClaims)
+
+			// Extract team IDs
+			teamIDs := extractTeamIDs(cfg, rawClaims)
+
+			// Extract organization ID
+			orgID := extractOrgID(cfg, rawClaims)
+
+			// Extract end user ID (for downstream tracking)
+			endUserID := extractStringClaim(rawClaims, cfg.EndUserIDJWTField)
+
+			// Build User object
+			user := &User{
+				ID:             userInfo.UserID,
+				Email:          strPtr(userInfo.Email),
+				Role:           role,
+				Teams:          teamIDs,
+				OrganizationID: strPtr(orgID),
+			}
+
+			// Set team ID if available (first team for single-team scenarios)
+			if len(teamIDs) > 0 {
+				user.TeamID = strPtr(teamIDs[0])
+			} else if cfg.DefaultTeamID != "" {
+				user.TeamID = strPtr(cfg.DefaultTeamID)
+			}
+
+			// === SSO SYNC INTEGRATION (P0 Fix) ===
+			// Invoke UserTeamSyncer to synchronize user roles and team memberships
+			if syncer != nil {
+				syncReq := &SyncRequest{
+					UserID:         userInfo.UserID,
+					Email:          strPtr(userInfo.Email),
+					SSOUserID:      idToken.Subject,
+					Role:           role,
+					TeamIDs:        teamIDs,
+					OrganizationID: strPtr(orgID),
+				}
+
+				// Run sync in the request context (non-blocking for the main flow)
+				// Note: We ignore sync errors to avoid blocking authentication for sync issues
+				// Sync warnings are logged internally by the syncer
+				_, _ = syncer.SyncUserTeams(r.Context(), syncReq)
+			}
+
+			// Create AuthContext
+			authCtx := &AuthContext{
+				User:      user,
+				UserRole:  UserRole(role),
+				EndUserID: endUserID,
+			}
+
+			ctx := context.WithValue(r.Context(), AuthContextKey, authCtx)
+			next.ServeHTTP(w, r.WithContext(ctx))
+		})
+	}, nil
+}
