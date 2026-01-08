@@ -50,6 +50,10 @@ func (h *ManagementHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("DELETE /organization/delete", h.DeleteOrganization)
 	mux.HandleFunc("GET /organization/info", h.GetOrganizationInfo)
 	mux.HandleFunc("GET /organization/list", h.ListOrganizations)
+	mux.HandleFunc("POST /organization/member_add", h.AddOrganizationMember)
+	mux.HandleFunc("POST /organization/member_update", h.UpdateOrganizationMember)
+	mux.HandleFunc("POST /organization/member_delete", h.DeleteOrganizationMember)
+	mux.HandleFunc("GET /organization/members", h.ListOrganizationMembers)
 
 	// ========================================================================
 	// Spend Tracking Routes
@@ -112,6 +116,10 @@ func GetRoutes() []RouteInfo {
 		{Method: "DELETE", Path: "/organization/delete", Description: "Delete organizations", Category: "organization"},
 		{Method: "GET", Path: "/organization/info", Description: "Get organization information", Category: "organization"},
 		{Method: "GET", Path: "/organization/list", Description: "List organizations", Category: "organization"},
+		{Method: "POST", Path: "/organization/member_add", Description: "Add members to an organization", Category: "organization"},
+		{Method: "POST", Path: "/organization/member_update", Description: "Update an organization member", Category: "organization"},
+		{Method: "POST", Path: "/organization/member_delete", Description: "Remove members from an organization", Category: "organization"},
+		{Method: "GET", Path: "/organization/members", Description: "List organization members", Category: "organization"},
 
 		// Spend Tracking
 		{Method: "GET", Path: "/spend/logs", Description: "Get spend logs", Category: "spend"},
@@ -123,5 +131,11 @@ func GetRoutes() []RouteInfo {
 		{Method: "GET", Path: "/global/activity", Description: "Get global activity metrics", Category: "analytics"},
 		{Method: "GET", Path: "/global/spend/models", Description: "Get spend by model", Category: "analytics"},
 		{Method: "GET", Path: "/global/spend/provider", Description: "Get spend by provider", Category: "analytics"},
+
+		// Audit Logs
+		{Method: "GET", Path: "/audit/logs", Description: "List audit logs", Category: "audit"},
+		{Method: "GET", Path: "/audit/log", Description: "Get audit log by ID", Category: "audit"},
+		{Method: "GET", Path: "/audit/stats", Description: "Get audit log statistics", Category: "audit"},
+		{Method: "POST", Path: "/audit/delete", Description: "Delete old audit logs", Category: "audit"},
 	}
 }
