@@ -46,6 +46,11 @@ type OIDCConfig struct {
 	// Default values
 	DefaultRole   string // Default role if no mapping matches
 	DefaultTeamID string // Default team if no team claim found
+
+	// UserInfo endpoint configuration (LiteLLM compatibility)
+	UserInfoEnabled  bool   // Enable fetching additional info from UserInfo endpoint
+	UserInfoCacheTTL int    // Cache TTL in seconds (default: 300)
+	UserInfoURL      string // Override UserInfo URL (auto-discovered from issuer if empty)
 }
 
 // roleHierarchy defines the priority order of roles (highest to lowest).
