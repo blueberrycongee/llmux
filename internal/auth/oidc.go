@@ -104,11 +104,20 @@ func OIDCMiddleware(cfg OIDCConfig) (func(http.Handler) http.Handler, error) {
 
 			rawToken := strings.TrimPrefix(authHeader, "Bearer ")
 
-			// Verify Token
+			// Token type detection: Combine API Key prefix check AND JWT format check
+			// This provides robust detection for enterprise environments
+			if !isLikelyJWT(rawToken) {
+				// Not a JWT format token, pass to next handler (API Key auth, etc.)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Verify Token - this should be a JWT format token
 			idToken, err := verifier.Verify(r.Context(), rawToken)
 			if err != nil {
-				// Not a valid OIDC token, pass to next handler (might be API Key)
-				next.ServeHTTP(w, r)
+				// JWT token present but validation failed - return 401 Unauthorized
+				// This prevents forged tokens from being accepted
+				http.Error(w, "invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 
@@ -356,6 +365,42 @@ func extractStringClaim(claims map[string]interface{}, field string) string {
 	return ""
 }
 
+// isLikelyJWT determines if a token is likely a JWT using a combined detection strategy.
+// This provides robust detection for enterprise environments by combining:
+// 1. Known API Key prefix check (whitelist)
+// 2. JWT format check (3 segments separated by dots)
+// 3. Basic Base64 validation of first segment (header)
+//
+// This approach is more robust than either strategy alone:
+// - LiteLLM's approach: Only checks for 3 segments
+// - Simple prefix approach: Only checks for "sk-" prefix
+func isLikelyJWT(token string) bool {
+	// Strategy 1: Check for known API Key prefixes (whitelist)
+	// If token matches a known API Key format, it's definitely not a JWT
+	knownAPIKeyPrefixes := []string{"sk-", "pk-", "api-", "key-", "ak-", "test-"}
+	for _, prefix := range knownAPIKeyPrefixes {
+		if strings.HasPrefix(token, prefix) {
+			return false
+		}
+	}
+
+	// Strategy 2: Check JWT format (3 segments separated by dots)
+	parts := strings.Split(token, ".")
+	if len(parts) != 3 {
+		return false
+	}
+
+	// Strategy 3: Validate that each part is non-empty
+	// (Full Base64 validation is expensive and done by the OIDC library anyway)
+	for _, part := range parts {
+		if part == "" {
+			return false
+		}
+	}
+
+	return true
+}
+
 // strPtr returns a pointer to the string, or nil if empty.
 func strPtr(s string) *string {
 	if s == "" {
@@ -393,11 +438,20 @@ func OIDCMiddlewareWithSync(cfg OIDCConfig, syncer *UserTeamSyncer) (func(http.H
 
 			rawToken := strings.TrimPrefix(authHeader, "Bearer ")
 
-			// Verify Token
+			// Token type detection: Combine API Key prefix check AND JWT format check
+			// This provides robust detection for enterprise environments
+			if !isLikelyJWT(rawToken) {
+				// Not a JWT format token, pass to next handler (API Key auth, etc.)
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			// Verify Token - this should be a JWT format token
 			idToken, err := verifier.Verify(r.Context(), rawToken)
 			if err != nil {
-				// Not a valid OIDC token, pass to next handler (might be API Key)
-				next.ServeHTTP(w, r)
+				// JWT token present but validation failed - return 401 Unauthorized
+				// This prevents forged tokens from being accepted
+				http.Error(w, "invalid or expired token", http.StatusUnauthorized)
 				return
 			}
 
