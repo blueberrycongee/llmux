@@ -13,6 +13,8 @@ type OIDCConfig struct {
 	IssuerURL    string
 	ClientID     string
 	ClientSecret string
+	RoleClaim    string
+	RolesMap     map[string]string
 }
 
 // OIDCMiddleware creates a new OIDC authentication middleware.
@@ -66,11 +68,36 @@ func OIDCMiddleware(cfg OIDCConfig) (func(http.Handler) http.Handler, error) {
 				Role:  string(UserRoleInternalUser),
 			}
 
-			// Simple Role Mapping
-			for _, group := range claims.Groups {
-				if group == "llmux-admin" {
-					user.Role = string(UserRoleProxyAdmin)
-					break
+			// Dynamic Role Mapping
+			user.Role = string(UserRoleInternalUser) // Default role
+
+			// Re-decode claims into map to support arbitrary fields if needed,
+			// or just use the struct if we know the claim is "groups".
+			// For robustness, let's decode into map as well.
+			var rawClaims map[string]interface{}
+			if err := idToken.Claims(&rawClaims); err == nil {
+				// Determine which claim to check
+				targetClaim := cfg.RoleClaim
+				if targetClaim == "" {
+					targetClaim = "groups"
+				}
+
+				if val, ok := rawClaims[targetClaim]; ok {
+					switch v := val.(type) {
+					case string:
+						if role, found := cfg.RolesMap[v]; found {
+							user.Role = role
+						}
+					case []interface{}:
+						for _, g := range v {
+							if groupStr, ok := g.(string); ok {
+								if role, found := cfg.RolesMap[groupStr]; found {
+									user.Role = role
+									break // First match wins
+								}
+							}
+						}
+					}
 				}
 			}
 

@@ -23,6 +23,23 @@ type Config struct {
 	Database  DatabaseConfig   `yaml:"database"`
 	Cache     CacheConfig      `yaml:"cache"`
 	MCP       MCPConfig        `yaml:"mcp"`
+	Vault     VaultConfig      `yaml:"vault"`
+}
+
+// VaultConfig contains HashiCorp Vault settings.
+type VaultConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	Address    string `yaml:"address"`
+	AuthMethod string `yaml:"auth_method"` // "approle", "cert"
+
+	// Auth Params
+	RoleID   string `yaml:"role_id"`
+	SecretID string `yaml:"secret_id"`
+
+	// TLS Config
+	CACert     string `yaml:"ca_cert"`
+	ClientCert string `yaml:"client_cert"`
+	ClientKey  string `yaml:"client_key"`
 }
 
 // MCPConfig contains MCP (Model Context Protocol) settings.
@@ -92,9 +109,16 @@ type AuthConfig struct {
 
 // OIDCConfig contains OIDC provider settings.
 type OIDCConfig struct {
-	IssuerURL    string `yaml:"issuer_url"`
-	ClientID     string `yaml:"client_id"`
-	ClientSecret string `yaml:"client_secret"`
+	IssuerURL    string       `yaml:"issuer_url"`
+	ClientID     string       `yaml:"client_id"`
+	ClientSecret string       `yaml:"client_secret"`
+	ClaimMapping ClaimMapping `yaml:"claim_mapping"`
+}
+
+// ClaimMapping defines rules for mapping OIDC claims to LLMux roles.
+type ClaimMapping struct {
+	RoleClaim string            `yaml:"role_claim"` // e.g. "groups"
+	Roles     map[string]string `yaml:"roles"`      // e.g. "admin-group": "llmux-admin"
 }
 
 // DatabaseConfig contains PostgreSQL connection settings.

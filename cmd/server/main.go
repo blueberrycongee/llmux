@@ -56,24 +56,6 @@ func run() error {
 	// Register 'env' provider
 	secretManager.Register("env", env.New())
 
-	// Register 'vault' provider if configured
-	vaultAddr := os.Getenv("VAULT_ADDR")
-	vaultRoleID := os.Getenv("VAULT_ROLE_ID")
-	vaultSecretID := os.Getenv("VAULT_SECRET_ID")
-
-	if vaultAddr != "" && vaultRoleID != "" && vaultSecretID != "" {
-		logger.Info("initializing vault secret provider", "addr", vaultAddr)
-		vProvider, err := vault.New(vaultAddr, vaultRoleID, vaultSecretID)
-		if err != nil {
-			return fmt.Errorf("failed to initialize vault provider: %w", err)
-		}
-		// Wrap with cache (TTL 5 minutes)
-		cachedVault := secret.NewCachedProvider(vProvider, 5*time.Minute)
-		secretManager.Register("vault", cachedVault)
-	} else {
-		logger.Info("vault provider disabled (missing VAULT_ADDR/ROLE_ID/SECRET_ID)")
-	}
-
 	// Load configuration
 	cfgManager, err := config.NewManager(*configPath, logger)
 	if err != nil {
@@ -82,6 +64,41 @@ func run() error {
 	defer func() { _ = cfgManager.Close() }()
 
 	cfg := cfgManager.Get()
+
+	// Register 'vault' provider if configured
+	var vConfig vault.Config
+	if cfg.Vault.Enabled {
+		vConfig = vault.Config{
+			Address:    cfg.Vault.Address,
+			AuthMethod: cfg.Vault.AuthMethod,
+			RoleID:     cfg.Vault.RoleID,
+			SecretID:   cfg.Vault.SecretID,
+			CACert:     cfg.Vault.CACert,
+			ClientCert: cfg.Vault.ClientCert,
+			ClientKey:  cfg.Vault.ClientKey,
+		}
+	} else if os.Getenv("VAULT_ADDR") != "" {
+		// Backward compatibility: Construct from Env
+		vConfig = vault.Config{
+			Address:    os.Getenv("VAULT_ADDR"),
+			AuthMethod: "approle", // Default for env var legacy
+			RoleID:     os.Getenv("VAULT_ROLE_ID"),
+			SecretID:   os.Getenv("VAULT_SECRET_ID"),
+		}
+	}
+
+	if vConfig.Address != "" {
+		logger.Info("initializing vault secret provider", "addr", vConfig.Address, "auth_method", vConfig.AuthMethod)
+		vProvider, vErr := vault.New(vConfig)
+		if vErr != nil {
+			return fmt.Errorf("failed to initialize vault provider: %w", vErr)
+		}
+		// Wrap with cache (TTL 5 minutes)
+		cachedVault := secret.NewCachedProvider(vProvider, 5*time.Minute)
+		secretManager.Register("vault", cachedVault)
+	} else {
+		logger.Info("vault provider disabled")
+	}
 
 	// Initialize OpenTelemetry tracing
 	tracingCfg := observability.TracingConfig{
@@ -144,6 +161,8 @@ func run() error {
 			IssuerURL:    cfg.Auth.OIDC.IssuerURL,
 			ClientID:     cfg.Auth.OIDC.ClientID,
 			ClientSecret: cfg.Auth.OIDC.ClientSecret,
+			RoleClaim:    cfg.Auth.OIDC.ClaimMapping.RoleClaim,
+			RolesMap:     cfg.Auth.OIDC.ClaimMapping.Roles,
 		}
 		oidcMiddleware, err := auth.OIDCMiddleware(oidcCfg)
 		if err != nil {

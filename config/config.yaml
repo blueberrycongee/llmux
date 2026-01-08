@@ -88,9 +88,17 @@ tracing:
 auth:
   enabled: false            # Set to true to require API key authentication
   skip_paths:               # Paths that don't require authentication
-    - /health/live
     - /health/ready
     - /metrics
+  oidc:
+    issuer_url: ${OIDC_ISSUER_URL}
+    client_id: ${OIDC_CLIENT_ID}
+    client_secret: ${OIDC_CLIENT_SECRET}
+    claim_mapping:
+      role_claim: groups
+      roles:
+        "admin-group": "llmux-admin"
+        "dev-team": "llmux-user"
 
 # PostgreSQL Database (for API keys, teams, usage logging)
 database:
@@ -140,3 +148,15 @@ cache:
     pool_size: 10
     min_idle_conns: 2
     max_retries: 3
+
+# HashiCorp Vault Configuration
+vault:
+  enabled: false
+  address: ${VAULT_ADDR}
+  auth_method: approle # approle, cert
+  role_id: ${VAULT_ROLE_ID}
+  secret_id: ${VAULT_SECRET_ID}
+  # mTLS Configuration
+  # ca_cert: /path/to/ca.pem
+  # client_cert: /path/to/client.pem
+  # client_key: /path/to/client.key
