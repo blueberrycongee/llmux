@@ -39,6 +39,8 @@ linters:
         linters:
           - errcheck
           - gocritic
+          - bodyclose
+          - shadow
       # Exclude bench directory
       - path: bench/
         linters:
@@ -47,6 +49,8 @@ linters:
       - path: tests/
         linters:
           - errcheck
+          - bodyclose
+          - shadow
       # Exclude streaming forwarder
       - path: streaming/forwarder\.go
         linters:

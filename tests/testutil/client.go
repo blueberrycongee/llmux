@@ -38,10 +38,19 @@ func (c *TestClient) WithAPIKey(apiKey string) *TestClient {
 	return c
 }
 
-// WithTimeout sets the client timeout.
-func (c *TestClient) WithTimeout(timeout time.Duration) *TestClient {
-	c.httpClient.Timeout = timeout
-	return c
+// BaseURL returns the client's base URL.
+func (c *TestClient) BaseURL() string {
+	return c.baseURL
+}
+
+// HTTPClient returns the underlying http.Client.
+func (c *TestClient) HTTPClient() *http.Client {
+	return c.httpClient
+}
+
+// APIKey returns the configured API key.
+func (c *TestClient) APIKey() string {
+	return c.apiKey
 }
 
 // ChatCompletionRequest represents a chat completion request.
@@ -275,6 +284,40 @@ func (c *TestClient) GetMetrics(ctx context.Context) (string, error) {
 	}
 
 	return string(body), nil
+}
+
+// PostJSON sends a POST request with JSON body.
+func (c *TestClient) PostJSON(ctx context.Context, path string, body interface{}) (*http.Response, error) {
+	jsonBody, err := json.Marshal(body)
+	if err != nil {
+		return nil, fmt.Errorf("marshal body: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+path, bytes.NewReader(jsonBody))
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	req.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	return c.httpClient.Do(req)
+}
+
+// GetJSON sends a GET request.
+func (c *TestClient) GetJSON(ctx context.Context, path string) (*http.Response, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", c.baseURL+path, http.NoBody)
+	if err != nil {
+		return nil, fmt.Errorf("create request: %w", err)
+	}
+
+	if c.apiKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	return c.httpClient.Do(req)
 }
 
 // StreamReader reads SSE events from a streaming response.
