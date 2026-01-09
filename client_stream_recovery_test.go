@@ -106,13 +106,30 @@ func TestStreamRecovery_MidStreamFailure(t *testing.T) {
 
 	// Manually configure router to ensure deterministic order for the test
 	// We want providerA to be picked first, then providerB.
-	// Since we can't easily force the router's internal state, we rely on the fact that
-	// if A fails, it should try B.
-	// However, standard Pick might be random.
-	// For this test, we can assume the router will try available deployments.
-	// To be safe, we can use a custom strategy or just rely on retries finding the working one.
-	// But to ensure A is hit first, we might need to rely on probability or internal implementation details.
-	// Given the "Smart Stream Recovery" logic, it should try to recover on *any* error.
+	trackingR := newTrackingRouter(client.router)
+	client.router = trackingR
+
+	// Get deployments
+	deployments := trackingR.GetDeployments("gpt-test")
+	if len(deployments) < 2 {
+		t.Fatalf("Expected 2 deployments, got %d", len(deployments))
+	}
+
+	var depA, depB *provider.Deployment
+	for _, d := range deployments {
+		switch d.ProviderName {
+		case "providerA":
+			depA = d
+		case "providerB":
+			depB = d
+		}
+	}
+	if depA == nil || depB == nil {
+		t.Fatalf("Could not find deployments for providerA and providerB")
+	}
+
+	// Force order: A (fails), then B (recovers)
+	trackingR.pickDeployments = []*provider.Deployment{depA, depB}
 
 	ctx := context.Background()
 	req := &ChatRequest{
