@@ -7,16 +7,19 @@ import (
 	"time"
 
 	"golang.org/x/time/rate"
+
+	"github.com/blueberrycongee/llmux/internal/resilience"
 )
 
 // TenantRateLimiter provides per-tenant rate limiting.
 type TenantRateLimiter struct {
-	mu           sync.RWMutex
-	limiters     map[string]*rate.Limiter
-	defaultRate  rate.Limit
-	defaultBurst int
-	cleanupTTL   time.Duration
-	lastAccess   map[string]time.Time
+	mu                 sync.RWMutex
+	limiters           map[string]*rate.Limiter
+	defaultRate        rate.Limit
+	defaultBurst       int
+	cleanupTTL         time.Duration
+	lastAccess         map[string]time.Time
+	distributedLimiter resilience.DistributedLimiter
 }
 
 // TenantRateLimiterConfig contains configuration for the tenant rate limiter.
@@ -50,6 +53,43 @@ func NewTenantRateLimiter(cfg *TenantRateLimiterConfig) *TenantRateLimiter {
 	go trl.cleanupLoop()
 
 	return trl
+}
+
+// SetDistributedLimiter sets the distributed limiter instance.
+func (trl *TenantRateLimiter) SetDistributedLimiter(l resilience.DistributedLimiter) {
+	trl.mu.Lock()
+	defer trl.mu.Unlock()
+	trl.distributedLimiter = l
+}
+
+// Check checks if a request is allowed, using distributed limiter if available,
+// with fallback to local in-memory limiter.
+func (trl *TenantRateLimiter) Check(ctx context.Context, tenantID string, rpm, burst int) (bool, error) {
+	// Try distributed limiter first if available
+	if trl.distributedLimiter != nil {
+		limit := int64(rpm)
+		if limit <= 0 {
+			limit = int64(trl.defaultRate * 60)
+		}
+
+		desc := resilience.Descriptor{
+			Key:    tenantID,
+			Value:  "request",
+			Limit:  limit,
+			Type:   resilience.LimitTypeRequests,
+			Window: time.Minute,
+		}
+
+		results, err := trl.distributedLimiter.CheckAllow(ctx, []resilience.Descriptor{desc})
+		if err == nil && len(results) > 0 {
+			return results[0].Allowed, nil
+		}
+		// If error or no results, fall back to local
+		// TODO: Log error
+	}
+
+	// Local fallback
+	return trl.AllowWithCustomRate(tenantID, rpm, burst), nil
 }
 
 // Allow checks if a request is allowed for the given tenant.
@@ -182,7 +222,8 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 		if authCtx == nil || authCtx.APIKey == nil {
 			// No auth context, use IP-based limiting
 			tenantID := r.RemoteAddr
-			if !trl.Allow(tenantID) {
+			allowed, _ := trl.Check(r.Context(), tenantID, 0, 0)
+			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -208,7 +249,8 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 		if authCtx.Team != nil && authCtx.Team.RPMLimit != nil && *authCtx.Team.RPMLimit > 0 {
 			teamID := "team:" + authCtx.Team.ID
 			teamRPM := int(*authCtx.Team.RPMLimit)
-			if !trl.AllowWithCustomRate(teamID, teamRPM, teamRPM/6) {
+			allowed, _ := trl.Check(r.Context(), teamID, teamRPM, teamRPM/6)
+			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
 				w.WriteHeader(http.StatusTooManyRequests)
@@ -219,19 +261,23 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 
 		// Check API key rate limit
 		if rpm > 0 {
-			if !trl.AllowWithCustomRate(tenantID, rpm, burst) {
+			allowed, _ := trl.Check(r.Context(), tenantID, rpm, burst)
+			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
 				w.WriteHeader(http.StatusTooManyRequests)
 				_, _ = w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
 				return
 			}
-		} else if !trl.Allow(tenantID) {
-			w.Header().Set("Content-Type", "application/json")
-			w.Header().Set("Retry-After", "60")
-			w.WriteHeader(http.StatusTooManyRequests)
-			_, _ = w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
-			return
+		} else {
+			allowed, _ := trl.Check(r.Context(), tenantID, 0, 0)
+			if !allowed {
+				w.Header().Set("Content-Type", "application/json")
+				w.Header().Set("Retry-After", "60")
+				w.WriteHeader(http.StatusTooManyRequests)
+				_, _ = w.Write([]byte(`{"error":{"message":"rate limit exceeded","type":"rate_limit_error"}}`))
+				return
+			}
 		}
 
 		next.ServeHTTP(w, r)
