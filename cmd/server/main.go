@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	"github.com/redis/go-redis/v9"
 
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/api"
@@ -23,6 +24,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
+	"github.com/blueberrycongee/llmux/internal/resilience"
 	"github.com/blueberrycongee/llmux/internal/secret"
 	"github.com/blueberrycongee/llmux/internal/secret/env"
 	"github.com/blueberrycongee/llmux/internal/secret/vault"
@@ -128,8 +130,46 @@ func run() error {
 		logger.Warn("config hot-reload disabled", "error", watchErr)
 	}
 
+	// Initialize Redis Client (if configured)
+	var redisClient *redis.Client
+	var redisLimiter *resilience.RedisLimiter
+
+	// We use Cache.Redis config for connection details
+	// TODO: Separate Redis config for Rate Limiting if needed
+	if cfg.Cache.Redis.Addr != "" {
+		redisClient = redis.NewClient(&redis.Options{
+			Addr:         cfg.Cache.Redis.Addr,
+			Password:     cfg.Cache.Redis.Password,
+			DB:           cfg.Cache.Redis.DB,
+			DialTimeout:  cfg.Cache.Redis.DialTimeout,
+			ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
+			WriteTimeout: cfg.Cache.Redis.WriteTimeout,
+			PoolSize:     cfg.Cache.Redis.PoolSize,
+			MinIdleConns: cfg.Cache.Redis.MinIdleConns,
+		})
+
+		// Ping to verify connection (optional, but good for startup check)
+		pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
+		defer pingCancel()
+
+		if pingErr := redisClient.Ping(pingCtx).Err(); pingErr != nil {
+			logger.Warn("failed to connect to redis", "addr", cfg.Cache.Redis.Addr, "error", pingErr)
+			// We don't fail hard here, just warn and continue without distributed features
+			redisClient = nil
+		} else {
+			logger.Info("connected to redis", "addr", cfg.Cache.Redis.Addr)
+			redisLimiter = resilience.NewRedisLimiter(redisClient)
+		}
+	}
+
 	// Build llmux.Client options from config
 	opts := buildClientOptions(cfg, logger, secretManager)
+
+	// Inject Distributed Rate Limiter if available
+	if redisLimiter != nil {
+		opts = append(opts, llmux.WithRateLimiter(redisLimiter))
+		logger.Info("distributed rate limiter enabled")
+	}
 
 	// Create llmux.Client
 	client, err := llmux.New(opts...)
@@ -263,6 +303,24 @@ func run() error {
 		}
 		httpHandler = oidcMiddleware(httpHandler)
 		logger.Info("OIDC authentication enabled", "issuer", cfg.Auth.OIDC.IssuerURL, "sync_enabled", syncer != nil)
+	}
+
+	// Rate Limiting Middleware
+	// Applied after authentication to support per-user/team limits
+	if cfg.RateLimit.Enabled {
+		trlConfig := &auth.TenantRateLimiterConfig{
+			DefaultRPM:   cfg.RateLimit.RequestsPerMinute,
+			DefaultBurst: cfg.RateLimit.BurstSize,
+		}
+		tenantLimiter := auth.NewTenantRateLimiter(trlConfig)
+
+		// Inject distributed limiter if available
+		if redisLimiter != nil {
+			tenantLimiter.SetDistributedLimiter(redisLimiter)
+		}
+
+		httpHandler = tenantLimiter.RateLimitMiddleware(httpHandler)
+		logger.Info("rate limiting enabled", "rpm", cfg.RateLimit.RequestsPerMinute, "distributed", redisLimiter != nil)
 	}
 
 	httpHandler = metrics.Middleware(httpHandler)
