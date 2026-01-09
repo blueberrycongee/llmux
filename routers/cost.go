@@ -10,9 +10,11 @@ import (
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
-// DefaultCostPerToken is used when no cost is configured for a deployment.
-// Set high to deprioritize deployments without cost configuration.
-const DefaultCostPerToken = 5.0
+// UnknownModelCost is the default cost used when no pricing information is available.
+// It is set to 1.0 USD per token, which is significantly higher than the most expensive
+// models in 2025 (e.g., o1-pro output is ~$0.0006/token).
+// This ensures that unconfigured models are deprioritized by the CostRouter.
+const UnknownModelCost = 1.0
 
 // CostRouter selects the deployment with lowest cost per token.
 // Cost is calculated as: input_cost_per_token + output_cost_per_token
@@ -99,10 +101,10 @@ func (r *CostRouter) PickWithContext(ctx context.Context, reqCtx *router.Request
 		}
 
 		if inputCost == 0 {
-			inputCost = DefaultCostPerToken
+			inputCost = UnknownModelCost
 		}
 		if outputCost == 0 {
-			outputCost = DefaultCostPerToken
+			outputCost = UnknownModelCost
 		}
 
 		totalCost := inputCost + outputCost
