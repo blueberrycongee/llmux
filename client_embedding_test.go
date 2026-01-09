@@ -188,6 +188,7 @@ func TestClient_Embedding_Retry(t *testing.T) {
 	client, err := New(
 		WithProviderInstance("mock-retry", mock, []string{"text-embedding-3-small"}),
 		WithRetry(2, 10*time.Millisecond),
+		WithCooldown(1*time.Millisecond),
 	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
