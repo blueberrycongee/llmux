@@ -3,7 +3,7 @@
 ## 进度 (Progress)
 - [x] Phase 1: 基础架构 (Atomic Step 1) - `pkg/pricing` implemented with tests.
 - [x] Phase 2: 集成 Router (Atomic Step 2) - `routers/cost.go` integrated with `PriceRegistry`.
-- [ ] Phase 3: 配置与扩展 (Atomic Step 3)
+- [x] Phase 3: 配置与扩展 (Atomic Step 3)
 
 
 ## 1. 开发目标 (Development Goal)

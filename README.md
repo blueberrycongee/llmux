@@ -312,6 +312,14 @@ npm run test:e2e
 npm run lint
 ```
 
+## 📚 Documentation
+
+- **[Architecture Overview](.agent/docs/architecture/overview.md)**
+- **[Plugin System](.agent/docs/architecture/plugin_system.md)**
+- **[Developer Guide](.agent/docs/development/codebase_overview.md)**
+- **[CI/CD Guide](.agent/docs/development/ci_guide.md)**
+- **[Testing Guide](.agent/docs/development/testing.md)**
+
 ## 📁 Project Structure
 
 ```
