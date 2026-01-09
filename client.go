@@ -267,45 +267,106 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 	req.Stream = true
 
-	// Route to deployment
-	deployment, err := c.router.Pick(ctx, req.Model)
-	if err != nil {
-		return nil, fmt.Errorf("no available deployment for model %s: %w", req.Model, err)
+	var lastErr error
+	var deployment *provider.Deployment
+
+	// Retry loop
+	for attempt := 0; attempt <= c.config.RetryCount; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff
+			backoff := c.config.RetryBackoff * time.Duration(1<<(attempt-1))
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
+		// Route to deployment
+		// Pick a new deployment if:
+		// 1. It's the first attempt
+		// 2. Fallback is enabled (try to find a healthy node)
+		// 3. We don't have a deployment yet (e.g. previous pick failed)
+		if attempt == 0 || c.config.FallbackEnabled || deployment == nil {
+			newDeployment, err := c.router.Pick(ctx, req.Model)
+			if err != nil {
+				lastErr = fmt.Errorf("no available deployment for model %s: %w", req.Model, err)
+				// If we can't pick a deployment and we don't have one from before, we can't proceed
+				if deployment == nil {
+					continue
+				}
+				// If pick failed but we have a previous deployment and fallback is disabled,
+				// we might technically retry on the old one, but usually Pick failure means
+				// global exhaustion or router issues.
+				// For safety, if Pick fails, we count it as a retry failure.
+				continue
+			}
+			deployment = newDeployment
+		}
+
+		// Get provider
+		c.mu.RLock()
+		prov, ok := c.providers[deployment.ProviderName]
+		c.mu.RUnlock()
+		if !ok {
+			lastErr = fmt.Errorf("provider %s not found", deployment.ProviderName)
+			continue
+		}
+
+		// Build and execute request
+		httpReq, err := prov.BuildRequest(ctx, req)
+		if err != nil {
+			return nil, fmt.Errorf("build request: %w", err)
+		}
+
+		c.router.ReportRequestStart(deployment)
+
+		resp, err := c.httpClient.Do(httpReq)
+		if err != nil {
+			c.router.ReportFailure(deployment, err)
+			c.router.ReportRequestEnd(deployment)
+			lastErr = fmt.Errorf("execute request: %w", err)
+			continue
+		}
+
+		if resp.StatusCode >= 500 {
+			// Server error, retryable
+			body, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			llmErr := prov.MapError(resp.StatusCode, body)
+			c.router.ReportFailure(deployment, llmErr)
+			c.router.ReportRequestEnd(deployment)
+			lastErr = llmErr
+			continue
+		}
+
+		if resp.StatusCode >= 400 {
+			// Client error
+			body, _ := io.ReadAll(resp.Body)
+			_ = resp.Body.Close()
+			llmErr := prov.MapError(resp.StatusCode, body)
+
+			// Check if it's a retryable client error (e.g. 429 Rate Limit)
+			if llmErr, ok := llmErr.(*LLMError); ok && llmErr.Retryable {
+				c.router.ReportFailure(deployment, llmErr)
+				c.router.ReportRequestEnd(deployment)
+				lastErr = llmErr
+				continue
+			}
+
+			// Non-retryable error
+			c.router.ReportFailure(deployment, llmErr)
+			c.router.ReportRequestEnd(deployment)
+			return nil, llmErr
+		}
+
+		return newStreamReader(resp.Body, prov, deployment, c.router), nil
 	}
 
-	// Get provider
-	c.mu.RLock()
-	prov, ok := c.providers[deployment.ProviderName]
-	c.mu.RUnlock()
-	if !ok {
-		return nil, fmt.Errorf("provider %s not found", deployment.ProviderName)
+	if lastErr == nil {
+		lastErr = fmt.Errorf("max retries exceeded")
 	}
-
-	// Build and execute request
-	httpReq, err := prov.BuildRequest(ctx, req)
-	if err != nil {
-		return nil, fmt.Errorf("build request: %w", err)
-	}
-
-	c.router.ReportRequestStart(deployment)
-
-	resp, err := c.httpClient.Do(httpReq)
-	if err != nil {
-		c.router.ReportRequestEnd(deployment)
-		c.router.ReportFailure(deployment, err)
-		return nil, fmt.Errorf("execute request: %w", err)
-	}
-
-	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
-		_ = resp.Body.Close()
-		c.router.ReportRequestEnd(deployment)
-		llmErr := prov.MapError(resp.StatusCode, body)
-		c.router.ReportFailure(deployment, llmErr)
-		return nil, llmErr
-	}
-
-	return newStreamReader(resp.Body, prov, deployment, c.router), nil
+	return nil, lastErr
 }
 
 // Embedding sends an embedding request (future support).
