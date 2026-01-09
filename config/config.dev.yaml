@@ -1,0 +1,51 @@
+# LLMux Gateway - Development Configuration
+# For testing the dashboard with minimal setup
+
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 120s
+  idle_timeout: 60s
+
+# Empty providers list - dashboard will work without LLM providers
+providers:
+  - name: demo-openai
+    type: openai
+    api_key: sk-demo-key-for-testing-only
+    base_url: https://api.openai.com/v1
+    models:
+      - gpt-4o
+      - gpt-4o-mini
+
+routing:
+  strategy: simple-shuffle
+  fallback_enabled: true
+  retry_count: 3
+  cooldown_period: 60s
+
+rate_limit:
+  enabled: false
+
+logging:
+  level: info
+  format: json
+
+metrics:
+  enabled: true
+  path: /metrics
+
+tracing:
+  enabled: false
+
+auth:
+  enabled: false
+  skip_paths:
+    - /health/ready
+    - /health/live
+    - /metrics
+
+database:
+  enabled: false
+
+cache:
+  enabled: false
