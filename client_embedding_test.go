@@ -21,8 +21,6 @@ type mockEmbeddingProvider struct {
 	models            []string
 	baseURL           string
 	supportsEmbedding bool
-	failCount         int
-	failCode          int
 }
 
 func (m *mockEmbeddingProvider) Name() string {
