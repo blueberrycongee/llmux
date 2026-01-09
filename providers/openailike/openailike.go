@@ -38,8 +38,15 @@ type Info struct {
 	// Default: "/chat/completions"
 	ChatEndpoint string
 
+	// EmbeddingEndpoint is the path for embeddings
+	// Default: "/embeddings"
+	EmbeddingEndpoint string
+
 	// SupportsStreaming indicates if the provider supports SSE streaming
 	SupportsStreaming bool
+
+	// SupportsEmbedding indicates if the provider supports embedding requests
+	SupportsEmbedding bool
 
 	// ExtraHeaders are additional headers to include in requests
 	ExtraHeaders map[string]string

@@ -32,6 +32,7 @@ var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
 	SupportsStreaming: true,
+	SupportsEmbedding: false, // OpenRouter is a router/aggregator, not embedding provider
 	ModelPrefixes:     []string{"openai/", "anthropic/", "google/", "meta-llama/", "mistralai/"},
 }
 

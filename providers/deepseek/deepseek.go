@@ -27,6 +27,7 @@ var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
 	SupportsStreaming: true,
+	SupportsEmbedding: false, // DeepSeek primarily supports chat
 	ModelPrefixes:     []string{"deepseek"},
 }
 

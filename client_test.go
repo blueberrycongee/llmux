@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -11,6 +12,7 @@ import (
 	"time"
 
 	"github.com/blueberrycongee/llmux/pkg/router"
+	"github.com/blueberrycongee/llmux/pkg/types"
 	"github.com/blueberrycongee/llmux/routers"
 )
 
@@ -54,6 +56,18 @@ func (m *mockProvider) ParseStreamChunk(data []byte) (*StreamChunk, error) {
 
 func (m *mockProvider) MapError(statusCode int, body []byte) error {
 	return NewInternalError(m.name, "", "error")
+}
+
+func (m *mockProvider) BuildEmbeddingRequest(ctx context.Context, req *types.EmbeddingRequest) (*http.Request, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *mockProvider) SupportEmbedding() bool {
+	return false
+}
+
+func (m *mockProvider) ParseEmbeddingResponse(resp *http.Response) (*types.EmbeddingResponse, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 func TestNew_EmptyConfig(t *testing.T) {
@@ -453,6 +467,18 @@ func (m *httpMockProvider) ParseStreamChunk(data []byte) (*StreamChunk, error) {
 
 func (m *httpMockProvider) MapError(statusCode int, body []byte) error {
 	return NewInternalError(m.name, "", "error")
+}
+
+func (m *httpMockProvider) BuildEmbeddingRequest(ctx context.Context, req *types.EmbeddingRequest) (*http.Request, error) {
+	return nil, fmt.Errorf("not implemented")
+}
+
+func (m *httpMockProvider) SupportEmbedding() bool {
+	return false
+}
+
+func (m *httpMockProvider) ParseEmbeddingResponse(resp *http.Response) (*types.EmbeddingResponse, error) {
+	return nil, fmt.Errorf("not implemented")
 }
 
 // Integration test with mock HTTP server

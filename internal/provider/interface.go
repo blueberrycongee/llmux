@@ -36,6 +36,15 @@ type Provider interface {
 
 	// MapError converts a provider-specific error response into a standardized LLMError.
 	MapError(statusCode int, body []byte) error
+
+	// SupportEmbedding checks if the provider supports embedding requests.
+	SupportEmbedding() bool
+
+	// BuildEmbeddingRequest transforms a unified EmbeddingRequest into a provider-specific HTTP request.
+	BuildEmbeddingRequest(ctx context.Context, req *types.EmbeddingRequest) (*http.Request, error)
+
+	// ParseEmbeddingResponse transforms a provider-specific response into a unified EmbeddingResponse.
+	ParseEmbeddingResponse(resp *http.Response) (*types.EmbeddingResponse, error)
 }
 
 // StreamHandler handles streaming responses from LLM providers.

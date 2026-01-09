@@ -32,6 +32,7 @@ var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
 	SupportsStreaming: true,
+	SupportsEmbedding: false, // Groq does not support embeddings
 	ModelPrefixes:     []string{"llama", "mixtral", "gemma"},
 }
 

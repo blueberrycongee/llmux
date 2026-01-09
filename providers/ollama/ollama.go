@@ -27,6 +27,7 @@ var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
 	SupportsStreaming: true,
+	SupportsEmbedding: true, // Ollama supports embeddings (e.g., nomic-embed-text)
 	ModelPrefixes:     []string{"llama", "mistral", "qwen", "gemma", "phi"},
 }
 

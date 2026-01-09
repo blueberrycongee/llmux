@@ -31,6 +31,7 @@ var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
 	SupportsStreaming: true,
+	SupportsEmbedding: true, // Fireworks supports embeddings (e.g., nomic-embed-text-v1.5)
 	ModelPrefixes:     []string{"accounts/fireworks/models/"},
 }
 

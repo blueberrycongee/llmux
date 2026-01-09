@@ -28,6 +28,7 @@ var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
 	SupportsStreaming: true,
+	SupportsEmbedding: true, // Together AI supports embeddings (e.g., m2-bert-80M-8k-retrieval)
 	ModelPrefixes:     []string{"meta-llama/", "mistralai/", "Qwen/", "codellama/", "deepseek-ai/"},
 }
 

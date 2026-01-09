@@ -15,6 +15,7 @@ var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
 	SupportsStreaming: true,
+	SupportsEmbedding: false, // vLLM is primarily for chat/completion inference
 }
 
 type Provider struct{ *openailike.Provider }
