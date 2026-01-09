@@ -193,9 +193,11 @@ describe('useApiKeys', () => {
                 },
             ],
             total: 1,
+            limit: 50,
+            offset: 0,
         };
 
-        vi.mocked(apiClient.listKeys).mockResolvedValue(mockKeys);
+        vi.mocked(apiClient.listKeys).mockResolvedValue(mockKeys as any);
 
         const { result } = renderHook(() => useApiKeys(), {
             wrapper: createWrapper(),
@@ -211,7 +213,7 @@ describe('useApiKeys', () => {
     });
 
     it('应该支持筛选参数', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0 });
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
 
         renderHook(
             () => useApiKeys({ teamId: 'team-1', limit: 20 }),
@@ -230,7 +232,7 @@ describe('useApiKeys', () => {
     });
 
     it('createKey 应该创建密钥并刷新列表', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0 });
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
         vi.mocked(apiClient.generateKey).mockResolvedValue({
             key: 'sk-full-key',
             key_prefix: 'sk-full',
@@ -252,7 +254,7 @@ describe('useApiKeys', () => {
     });
 
     it('deleteKey 应该删除密钥', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0 });
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
         vi.mocked(apiClient.deleteKeys).mockResolvedValue({ deleted_count: 1 });
 
         const { result } = renderHook(() => useApiKeys(), {
@@ -269,7 +271,7 @@ describe('useApiKeys', () => {
     });
 
     it('blockKey 应该封禁密钥', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0 });
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
         vi.mocked(apiClient.blockKey).mockResolvedValue({ success: true });
 
         const { result } = renderHook(() => useApiKeys(), {
@@ -349,9 +351,11 @@ describe('useTeams', () => {
                 },
             ],
             total: 1,
+            limit: 50,
+            offset: 0,
         };
 
-        vi.mocked(apiClient.listTeams).mockResolvedValue(mockTeams);
+        vi.mocked(apiClient.listTeams).mockResolvedValue(mockTeams as any);
 
         const { result } = renderHook(() => useTeams(), {
             wrapper: createWrapper(),
@@ -366,7 +370,7 @@ describe('useTeams', () => {
     });
 
     it('createTeam 应该创建团队', async () => {
-        vi.mocked(apiClient.listTeams).mockResolvedValue({ data: [], total: 0 });
+        vi.mocked(apiClient.listTeams).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
         vi.mocked(apiClient.createTeam).mockResolvedValue({
             team_id: 'team-new',
             team_alias: 'New Team',
