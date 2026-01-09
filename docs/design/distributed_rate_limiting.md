@@ -2,7 +2,7 @@
 
 ## Progress
 - [ ] **Phase 1: Interface Definition** (In Progress)
-  - [ ] Define `DistributedLimiter` interface and types
+  - [x] Define `DistributedLimiter` interface and types
 - [ ] **Phase 2: Redis Implementation**
   - [ ] Implement Lua script wrapper
   - [ ] Unit tests with `miniredis`
