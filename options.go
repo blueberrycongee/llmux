@@ -4,6 +4,7 @@ import (
 	"log/slog"
 	"time"
 
+	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 )
 
@@ -40,6 +41,9 @@ type ClientConfig struct {
 
 	// Pricing
 	PricingFile string
+
+	// Observability
+	OTelMetricsConfig observability.OTelMetricsConfig
 }
 
 // providerInstance holds a pre-configured provider with its models.
@@ -213,5 +217,12 @@ func WithPluginConfig(config plugin.PipelineConfig) Option {
 func WithPricingFile(path string) Option {
 	return func(c *ClientConfig) {
 		c.PricingFile = path
+	}
+}
+
+// WithOTelMetrics configures OpenTelemetry metrics.
+func WithOTelMetrics(config observability.OTelMetricsConfig) Option {
+	return func(c *ClientConfig) {
+		c.OTelMetricsConfig = config
 	}
 }

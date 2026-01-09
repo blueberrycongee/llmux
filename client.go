@@ -11,6 +11,7 @@ import (
 
 	"github.com/goccy/go-json"
 
+	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/pkg/cache"
 	"github.com/blueberrycongee/llmux/pkg/errors"
@@ -139,6 +140,21 @@ func New(opts ...Option) (*Client, error) {
 	c.pipeline = plugin.NewPipeline(c.logger, pipelineConfig)
 
 	// Register plugins
+	// Initialize Observability Plugin if enabled
+	if cfg.OTelMetricsConfig.Enabled {
+		metrics, err := observability.InitOTelMetrics(context.Background(), cfg.OTelMetricsConfig)
+		if err != nil {
+			c.logger.Warn("failed to initialize OTel metrics", "error", err)
+		} else {
+			redactor := observability.NewRedactor() // Use default redactor
+			obsPlugin := observability.NewObservabilityPlugin(redactor, metrics)
+			if err := c.pipeline.Register(obsPlugin); err != nil {
+				c.logger.Warn("failed to register observability plugin", "error", err)
+			}
+		}
+	}
+
+	// Register user-defined plugins
 	for _, p := range cfg.Plugins {
 		if err := c.pipeline.Register(p); err != nil {
 			return nil, fmt.Errorf("register plugin %s: %w", p.Name(), err)
