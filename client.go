@@ -360,7 +360,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 			return nil, llmErr
 		}
 
-		return newStreamReader(resp.Body, prov, deployment, c.router), nil
+		return newStreamReader(ctx, c, req, resp.Body, prov, deployment, c.router), nil
 	}
 
 	if lastErr == nil {
