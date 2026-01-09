@@ -325,6 +325,7 @@ class LLMuxApiClient {
         team_id?: string;
         organization_id?: string;
         role?: string;
+        search?: string;
         limit?: number;
         offset?: number;
     }): Promise<PaginatedResponse<User>> {

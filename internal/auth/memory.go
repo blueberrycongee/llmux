@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"strings"
 	"sync"
 	"time"
 )
@@ -386,6 +387,22 @@ func (s *MemoryStore) ListUsers(_ context.Context, filter UserFilter) ([]*User, 
 		}
 		if filter.TeamID != nil && (user.TeamID == nil || *user.TeamID != *filter.TeamID) {
 			continue
+		}
+		if filter.OrganizationID != nil && (user.OrganizationID == nil || *user.OrganizationID != *filter.OrganizationID) {
+			continue
+		}
+		if filter.Role != nil && user.Role != string(*filter.Role) {
+			continue
+		}
+		// Search filter: match ID, alias, or email (case-insensitive)
+		if filter.Search != nil && *filter.Search != "" {
+			searchLower := strings.ToLower(*filter.Search)
+			idMatch := strings.Contains(strings.ToLower(user.ID), searchLower)
+			aliasMatch := user.Alias != nil && strings.Contains(strings.ToLower(*user.Alias), searchLower)
+			emailMatch := user.Email != nil && strings.Contains(strings.ToLower(*user.Email), searchLower)
+			if !idMatch && !aliasMatch && !emailMatch {
+				continue
+			}
 		}
 		userCopy := *user
 		result = append(result, &userCopy)

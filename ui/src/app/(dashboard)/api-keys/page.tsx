@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
     Dialog,
     DialogContent,
@@ -13,8 +14,14 @@ import {
     DialogFooter,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
 } from "@/components/ui/dialog";
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select";
 import {
     Plus,
     Copy,
@@ -27,15 +34,19 @@ import {
     Check,
     AlertCircle,
     Search,
+    Filter,
 } from "lucide-react";
 import { useApiKeys } from "@/hooks/use-api-keys";
 import type { APIKey, GenerateKeyRequest } from "@/types/api";
+import { ApiKeySheet } from "@/components/api-keys/api-key-sheet";
+import { StatusBadge, BudgetProgress } from "@/components/shared/common";
 
 // Skeleton component for loading state
 function KeyRowSkeleton() {
     return (
         <div className="flex items-center justify-between p-4 border-b border-border/50 last:border-0">
             <div className="flex items-center gap-4 flex-1">
+                <div className="w-4 h-4 bg-muted animate-pulse rounded" />
                 <div className="w-10 h-10 bg-muted animate-pulse rounded-lg" />
                 <div className="flex-1">
                     <div className="h-4 w-32 bg-muted animate-pulse rounded mb-2" />
@@ -50,68 +61,21 @@ function KeyRowSkeleton() {
     );
 }
 
-// Status badge component
-function StatusBadge({ isActive, blocked }: { isActive: boolean; blocked: boolean }) {
-    if (blocked) {
-        return (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-500/10 text-red-400">
-                <ShieldOff className="w-3 h-3" />
-                Blocked
-            </span>
-        );
-    }
-    if (isActive) {
-        return (
-            <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-500/10 text-green-400">
-                <Shield className="w-3 h-3" />
-                Active
-            </span>
-        );
-    }
-    return (
-        <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-500/10 text-gray-400">
-            Inactive
-        </span>
-    );
-}
-
-// Budget progress component
-function BudgetProgress({ spent, max }: { spent: number; max?: number }) {
-    if (!max) {
-        return <span className="text-sm text-muted-foreground">No limit</span>;
-    }
-    const percentage = Math.min((spent / max) * 100, 100);
-    const isNearLimit = percentage >= 80;
-    const isOverLimit = percentage >= 100;
-
-    return (
-        <div className="w-32">
-            <div className="flex items-center justify-between text-xs mb-1">
-                <span className={isOverLimit ? "text-red-400" : isNearLimit ? "text-yellow-400" : "text-muted-foreground"}>
-                    ${spent.toFixed(2)}
-                </span>
-                <span className="text-muted-foreground">${max.toFixed(2)}</span>
-            </div>
-            <div className="h-1.5 bg-secondary rounded-full overflow-hidden">
-                <div
-                    className={`h-full rounded-full transition-all ${isOverLimit ? "bg-red-500" : isNearLimit ? "bg-yellow-500" : "bg-primary"
-                        }`}
-                    style={{ width: `${percentage}%` }}
-                />
-            </div>
-        </div>
-    );
-}
-
 // Key row component
 function KeyRow({
     apiKey,
+    selected,
+    onSelect,
+    onClick,
     onBlock,
     onUnblock,
     onDelete,
     onRegenerate,
 }: {
     apiKey: APIKey;
+    selected: boolean;
+    onSelect: (checked: boolean) => void;
+    onClick: () => void;
     onBlock: (key: string) => void;
     onUnblock: (key: string) => void;
     onDelete: (key: string) => void;
@@ -120,7 +84,8 @@ function KeyRow({
     const [showMenu, setShowMenu] = useState(false);
     const [copied, setCopied] = useState(false);
 
-    const copyPrefix = async () => {
+    const copyPrefix = async (e: React.MouseEvent) => {
+        e.stopPropagation();
         await navigator.clipboard.writeText(apiKey.key_prefix);
         setCopied(true);
         setTimeout(() => setCopied(false), 2000);
@@ -144,10 +109,17 @@ function KeyRow({
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="flex items-center justify-between p-4 border-b border-border/50 last:border-0 hover:bg-secondary/30 transition-colors group"
+            className={`flex items-center justify-between p-4 border-b border-border/50 last:border-0 hover:bg-secondary/30 transition-colors group cursor-pointer ${selected ? "bg-secondary/20" : ""}`}
+            onClick={onClick}
             data-testid={`key-row-${apiKey.id}`}
         >
             <div className="flex items-center gap-4 flex-1">
+                <div onClick={(e) => e.stopPropagation()}>
+                    <Checkbox
+                        checked={selected}
+                        onCheckedChange={(checked) => onSelect(checked as boolean)}
+                    />
+                </div>
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                     <Key className="w-5 h-5 text-primary" />
                 </div>
@@ -185,7 +157,7 @@ function KeyRow({
             <div className="flex items-center gap-6">
                 <BudgetProgress spent={apiKey.spent_budget} max={apiKey.max_budget} />
 
-                <div className="relative">
+                <div className="relative" onClick={(e) => e.stopPropagation()}>
                     <Button
                         variant="ghost"
                         size="icon"
@@ -430,6 +402,9 @@ function CreateKeyDialog({
 export default function ApiKeysPage() {
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
+    const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
+    const [selectedKeyForDetails, setSelectedKeyForDetails] = useState<APIKey | null>(null);
+    const [filterType, setFilterType] = useState<"all" | "active" | "blocked">("all");
 
     const {
         keys,
@@ -444,16 +419,55 @@ export default function ApiKeysPage() {
         regenerateKey,
     } = useApiKeys();
 
-    // Filter keys by search query
-    const filteredKeys = keys.filter(
-        (key) =>
+    // Filter keys
+    const filteredKeys = keys.filter((key) => {
+        const matchesSearch =
             key.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            key.key_prefix.toLowerCase().includes(searchQuery.toLowerCase())
-    );
+            key.key_prefix.toLowerCase().includes(searchQuery.toLowerCase());
+
+        const matchesFilter =
+            filterType === "all" ||
+            (filterType === "active" && key.is_active && !key.blocked) ||
+            (filterType === "blocked" && key.blocked);
+
+        return matchesSearch && matchesFilter;
+    });
 
     const handleCreateKey = async (data: GenerateKeyRequest) => {
         const result = await createKey(data);
         return { key: result.key };
+    };
+
+    const handleSelectAll = (checked: boolean) => {
+        if (checked) {
+            setSelectedKeys(new Set(filteredKeys.map((k) => k.id)));
+        } else {
+            setSelectedKeys(new Set());
+        }
+    };
+
+    const handleSelectKey = (keyId: string, checked: boolean) => {
+        const newSelected = new Set(selectedKeys);
+        if (checked) {
+            newSelected.add(keyId);
+        } else {
+            newSelected.delete(keyId);
+        }
+        setSelectedKeys(newSelected);
+    };
+
+    const handleBatchBlock = async () => {
+        if (confirm(`Are you sure you want to block ${selectedKeys.size} keys?`)) {
+            await Promise.all(Array.from(selectedKeys).map((id) => blockKey(id)));
+            setSelectedKeys(new Set());
+        }
+    };
+
+    const handleBatchDelete = async () => {
+        if (confirm(`Are you sure you want to delete ${selectedKeys.size} keys? This cannot be undone.`)) {
+            await Promise.all(Array.from(selectedKeys).map((id) => deleteKey(id)));
+            setSelectedKeys(new Set());
+        }
     };
 
     return (
@@ -485,7 +499,7 @@ export default function ApiKeysPage() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.1 }}
-                className="flex items-center gap-4"
+                className="flex flex-col sm:flex-row items-start sm:items-center gap-4"
             >
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -497,10 +511,58 @@ export default function ApiKeysPage() {
                         data-testid="search-input"
                     />
                 </div>
-                <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
-                    <RefreshCw className="w-4 h-4" />
-                </Button>
+                <div className="flex items-center gap-2">
+                    <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
+                        <SelectTrigger className="w-32">
+                            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
+                            <SelectValue placeholder="Filter" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Keys</SelectItem>
+                            <SelectItem value="active">Active</SelectItem>
+                            <SelectItem value="blocked">Blocked</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+                        <RefreshCw className="w-4 h-4" />
+                    </Button>
+                </div>
             </motion.div>
+
+            {/* Batch Actions */}
+            <AnimatePresence>
+                {selectedKeys.size > 0 && (
+                    <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: "auto" }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="flex items-center gap-4 p-2 bg-secondary/30 rounded-lg border border-border/50"
+                    >
+                        <span className="text-sm font-medium px-2">
+                            {selectedKeys.size} selected
+                        </span>
+                        <div className="h-4 w-px bg-border" />
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleBatchBlock}
+                            className="text-yellow-400 hover:text-yellow-500"
+                        >
+                            <ShieldOff className="w-4 h-4 mr-2" />
+                            Block Selected
+                        </Button>
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={handleBatchDelete}
+                            className="text-red-400 hover:text-red-500"
+                        >
+                            <Trash2 className="w-4 h-4 mr-2" />
+                            Delete Selected
+                        </Button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
 
             {/* Error State */}
             {error && (
@@ -525,13 +587,19 @@ export default function ApiKeysPage() {
                 transition={{ delay: 0.2 }}
             >
                 <Card className="glass-card">
-                    <CardHeader className="flex flex-row items-center justify-between pb-2">
-                        <CardTitle>
-                            Active Keys{" "}
-                            {!isLoading && (
-                                <span className="text-muted-foreground font-normal">({total})</span>
-                            )}
-                        </CardTitle>
+                    <CardHeader className="flex flex-row items-center justify-between pb-2 border-b border-border/50">
+                        <div className="flex items-center gap-4">
+                            <Checkbox
+                                checked={filteredKeys.length > 0 && selectedKeys.size === filteredKeys.length}
+                                onCheckedChange={handleSelectAll}
+                            />
+                            <CardTitle>
+                                Active Keys{" "}
+                                {!isLoading && (
+                                    <span className="text-muted-foreground font-normal">({total})</span>
+                                )}
+                            </CardTitle>
+                        </div>
                     </CardHeader>
                     <CardContent className="p-0">
                         {isLoading ? (
@@ -557,6 +625,9 @@ export default function ApiKeysPage() {
                                     <KeyRow
                                         key={key.id}
                                         apiKey={key}
+                                        selected={selectedKeys.has(key.id)}
+                                        onSelect={(checked) => handleSelectKey(key.id, checked)}
+                                        onClick={() => setSelectedKeyForDetails(key)}
                                         onBlock={blockKey}
                                         onUnblock={unblockKey}
                                         onDelete={deleteKey}
@@ -574,6 +645,14 @@ export default function ApiKeysPage() {
                 open={createDialogOpen}
                 onOpenChange={setCreateDialogOpen}
                 onCreate={handleCreateKey}
+            />
+
+            {/* Key Details Sheet */}
+            <ApiKeySheet
+                apiKey={selectedKeyForDetails}
+                open={!!selectedKeyForDetails}
+                onOpenChange={(open) => !open && setSelectedKeyForDetails(null)}
+                onUpdate={refresh}
             />
         </div>
     );

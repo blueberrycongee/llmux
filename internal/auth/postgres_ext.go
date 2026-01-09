@@ -335,6 +335,13 @@ func (s *PostgresStore) ListUsers(ctx context.Context, filter UserFilter) ([]*Us
 		args = append(args, string(*filter.Role))
 		argIdx++
 	}
+	if filter.Search != nil && *filter.Search != "" {
+		searchPattern := "%" + *filter.Search + "%"
+		query += fmt.Sprintf(" AND (id ILIKE $%d OR user_alias ILIKE $%d OR user_email ILIKE $%d)", argIdx, argIdx, argIdx)
+		countQuery += fmt.Sprintf(" AND (id ILIKE $%d OR user_alias ILIKE $%d OR user_email ILIKE $%d)", argIdx, argIdx, argIdx)
+		args = append(args, searchPattern)
+		argIdx++
+	}
 
 	// Get total count
 	var total int64

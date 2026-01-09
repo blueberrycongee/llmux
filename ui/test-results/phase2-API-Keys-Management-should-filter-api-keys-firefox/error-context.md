@@ -1,0 +1,130 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - heading "LLMux" [level=1] [ref=e5]
+        - button [ref=e6] [cursor=pointer]:
+          - generic [ref=e7]:
+            - img
+      - navigation [ref=e8]:
+        - link "Overview" [ref=e9] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e10]:
+            - img [ref=e11]
+            - generic [ref=e16]: Overview
+        - link "API Keys" [ref=e17] [cursor=pointer]:
+          - /url: /api-keys/
+          - generic [ref=e18]:
+            - img [ref=e19]
+            - generic [ref=e23]: API Keys
+        - link "Teams" [ref=e24] [cursor=pointer]:
+          - /url: /teams/
+          - generic [ref=e25]:
+            - img [ref=e26]
+            - generic [ref=e31]: Teams
+        - link "Organizations" [ref=e32] [cursor=pointer]:
+          - /url: /organizations/
+          - generic [ref=e33]:
+            - img [ref=e34]
+            - generic [ref=e40]: Organizations
+        - link "Users" [ref=e41] [cursor=pointer]:
+          - /url: /users/
+          - generic [ref=e42]:
+            - img [ref=e43]
+            - generic [ref=e45]: Users
+        - link "Audit Logs" [ref=e46] [cursor=pointer]:
+          - /url: /audit-logs/
+          - generic [ref=e47]:
+            - img [ref=e48]
+            - generic [ref=e54]: Audit Logs
+        - link "Settings" [ref=e55] [cursor=pointer]:
+          - /url: /settings/
+          - generic [ref=e56]:
+            - img [ref=e57]
+            - generic [ref=e60]: Settings
+      - generic [ref=e61]:
+        - button "Toggle theme" [ref=e62] [cursor=pointer]:
+          - img
+          - generic [ref=e63]: Toggle theme
+        - button "Sign out" [ref=e64] [cursor=pointer]:
+          - img
+          - generic [ref=e65]: Sign out
+    - main [ref=e66]:
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - generic [ref=e70]:
+            - heading "API Keys" [level=1] [ref=e71]
+            - paragraph [ref=e72]: Manage your API keys for accessing LLM models.
+          - button "Create New Key" [ref=e73] [cursor=pointer]:
+            - img
+            - text: Create New Key
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - img [ref=e76]
+            - textbox "Search keys..." [ref=e79]
+          - generic [ref=e80]:
+            - combobox [ref=e81] [cursor=pointer]:
+              - img [ref=e82]
+              - generic: All Keys
+              - img [ref=e84]
+            - button "Refresh" [ref=e86] [cursor=pointer]:
+              - img
+        - generic [ref=e88]:
+          - generic [ref=e90]:
+            - checkbox [ref=e91] [cursor=pointer]
+            - generic [ref=e92]:
+              - text: Active Keys
+              - generic [ref=e93]: (2)
+          - generic [ref=e94]:
+            - generic [ref=e95] [cursor=pointer]:
+              - generic [ref=e96]:
+                - checkbox [ref=e98]
+                - img [ref=e100]
+                - generic [ref=e104]:
+                  - generic [ref=e105]:
+                    - heading "Prod Key" [level=3] [ref=e106]
+                    - generic [ref=e107]:
+                      - img [ref=e108]
+                      - generic [ref=e110]: Active
+                  - generic [ref=e111]:
+                    - button "sk-1234..." [ref=e112]:
+                      - text: sk-1234...
+                      - img [ref=e113]
+                    - generic [ref=e116]: Created Today
+              - generic [ref=e117]:
+                - generic [ref=e119]:
+                  - generic [ref=e120]: Budget
+                  - generic [ref=e121]: $10.00 / $100.00
+                - button [ref=e125]:
+                  - img
+            - generic [ref=e126] [cursor=pointer]:
+              - generic [ref=e127]:
+                - checkbox [ref=e129]
+                - img [ref=e131]
+                - generic [ref=e135]:
+                  - generic [ref=e136]:
+                    - heading "Dev Key" [level=3] [ref=e137]
+                    - generic [ref=e138]:
+                      - img [ref=e139]
+                      - generic [ref=e143]: Blocked
+                  - generic [ref=e144]:
+                    - button "sk-5678..." [ref=e145]:
+                      - text: sk-5678...
+                      - img [ref=e146]
+                    - generic [ref=e149]: Created Today
+              - generic [ref=e150]:
+                - generic [ref=e152]:
+                  - generic [ref=e153]: Budget
+                  - generic [ref=e154]: $0.00 / $50.00
+                - button [ref=e157]:
+                  - img
+  - alert [ref=e158]
+  - generic [ref=e161] [cursor=pointer]:
+    - img [ref=e162]
+    - generic [ref=e166]: 1 error
+    - button "Hide Errors" [ref=e167]:
+      - img [ref=e168]
+```

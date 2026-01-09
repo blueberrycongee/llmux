@@ -13,15 +13,14 @@ import {
   Users,
   Zap,
   DollarSign,
-  ArrowUpRight,
-  ArrowDownRight,
   CheckCircle,
   RefreshCw,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { useModelSpend } from "@/hooks/use-model-spend";
-import { useState } from "react";
+import { useState, useMemo } from "react";
+import { ClientOnly } from "@/components/client-only";
 
 const AreaChart = dynamic(
   () => import("@tremor/react").then((mod) => mod.AreaChart),
@@ -138,7 +137,9 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => vo
 
 export default function DashboardPage() {
   const [dateRange, setDateRange] = useState<DateRange>("30d");
-  const { startDate, endDate } = getDateRange(dateRange);
+
+  // Use useMemo for stable date calculation (P3 fix: makes render function pure)
+  const { startDate, endDate } = useMemo(() => getDateRange(dateRange), [dateRange]);
 
   const {
     dailyData,
@@ -253,6 +254,9 @@ export default function DashboardPage() {
     );
   }
 
+  // Note: Removed isMounted check here. Charts are already wrapped in ClientOnly
+  // components, so there's no need to block the entire page render.
+
   return (
     <div className="space-y-8">
       {/* Header */}
@@ -280,8 +284,8 @@ export default function DashboardPage() {
               data-testid={`date-range-${range}`}
               onClick={() => setDateRange(range)}
               className={`px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${dateRange === range
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground"
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:text-foreground"
                 }`}
             >
               {range === "7d" ? "7 Days" : range === "30d" ? "30 Days" : "90 Days"}
@@ -359,19 +363,21 @@ export default function DashboardPage() {
               {isLoading ? (
                 <ChartSkeleton className="h-80" />
               ) : chartData.length > 0 ? (
-                <AreaChart
-                  className="h-80"
-                  data={chartData}
-                  index="date"
-                  categories={["Requests", "Tokens"]}
-                  colors={["blue", "purple"]}
-                  showLegend={true}
-                  showGridLines={false}
-                  showXAxis={true}
-                  showYAxis={true}
-                  startEndOnly={true}
-                  curveType="natural"
-                />
+                <ClientOnly fallback={<ChartSkeleton className="h-80" />}>
+                  <AreaChart
+                    className="h-80"
+                    data={chartData}
+                    index="date"
+                    categories={["Requests", "Tokens"]}
+                    colors={["blue", "purple"]}
+                    showLegend={true}
+                    showGridLines={false}
+                    showXAxis={true}
+                    showYAxis={true}
+                    startEndOnly={true}
+                    curveType="natural"
+                  />
+                </ClientOnly>
               ) : (
                 <div className="h-80 flex items-center justify-center text-muted-foreground">
                   No data available for the selected period
@@ -403,15 +409,17 @@ export default function DashboardPage() {
                 </>
               ) : modelChartData.length > 0 ? (
                 <>
-                  <DonutChart
-                    className="h-48"
-                    data={modelChartData}
-                    category="value"
-                    index="name"
-                    colors={["blue", "purple", "green", "orange", "pink"]}
-                    showLabel={true}
-                    showAnimation={true}
-                  />
+                  <ClientOnly fallback={<ChartSkeleton className="h-48" />}>
+                    <DonutChart
+                      className="h-48"
+                      data={modelChartData}
+                      category="value"
+                      index="name"
+                      colors={["blue", "purple", "green", "orange", "pink"]}
+                      showLabel={true}
+                      showAnimation={true}
+                    />
+                  </ClientOnly>
                   <div className="mt-4 space-y-2">
                     {modelPercentages.map((model) => (
                       <div

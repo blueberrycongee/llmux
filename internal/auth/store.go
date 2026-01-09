@@ -147,6 +147,7 @@ type UserFilter struct {
 	TeamID         *string
 	OrganizationID *string
 	Role           *UserRole
+	Search         *string // Search by alias, email, or ID
 	IsActive       *bool
 	Limit          int
 	Offset         int

@@ -231,6 +231,7 @@ func (h *ManagementHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	teamID := r.URL.Query().Get("team_id")
 	orgID := r.URL.Query().Get("organization_id")
 	role := r.URL.Query().Get("role")
+	search := r.URL.Query().Get("search")
 	limit, err := strconv.Atoi(r.URL.Query().Get("limit"))
 	if err != nil || limit <= 0 {
 		limit = 50
@@ -253,6 +254,9 @@ func (h *ManagementHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	if role != "" {
 		r := auth.UserRole(role)
 		filter.Role = &r
+	}
+	if search != "" {
+		filter.Search = &search
 	}
 
 	users, total, err := h.store.ListUsers(r.Context(), filter)

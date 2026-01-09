@@ -80,3 +80,10 @@
     @apply shadow-[0_0_15px_-3px_rgba(255,255,255,0.1)];
   }
 }
+
+/* Shimmer animation for skeleton loading */
+@keyframes shimmer {
+  100% {
+    transform: translateX(100%);
+  }
+}

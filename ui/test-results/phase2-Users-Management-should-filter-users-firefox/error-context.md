@@ -1,0 +1,150 @@
+# Page snapshot
+
+```yaml
+- generic [active] [ref=e1]:
+  - generic [ref=e2]:
+    - complementary [ref=e3]:
+      - generic [ref=e4]:
+        - heading "LLMux" [level=1] [ref=e5]
+        - button [ref=e6] [cursor=pointer]:
+          - generic [ref=e7]:
+            - img
+      - navigation [ref=e8]:
+        - link "Overview" [ref=e9] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e10]:
+            - img [ref=e11]
+            - generic [ref=e16]: Overview
+        - link "API Keys" [ref=e17] [cursor=pointer]:
+          - /url: /api-keys/
+          - generic [ref=e18]:
+            - img [ref=e19]
+            - generic [ref=e23]: API Keys
+        - link "Teams" [ref=e24] [cursor=pointer]:
+          - /url: /teams/
+          - generic [ref=e25]:
+            - img [ref=e26]
+            - generic [ref=e31]: Teams
+        - link "Organizations" [ref=e32] [cursor=pointer]:
+          - /url: /organizations/
+          - generic [ref=e33]:
+            - img [ref=e34]
+            - generic [ref=e40]: Organizations
+        - link "Users" [ref=e41] [cursor=pointer]:
+          - /url: /users/
+          - generic [ref=e42]:
+            - img [ref=e43]
+            - generic [ref=e45]: Users
+        - link "Audit Logs" [ref=e46] [cursor=pointer]:
+          - /url: /audit-logs/
+          - generic [ref=e47]:
+            - img [ref=e48]
+            - generic [ref=e54]: Audit Logs
+        - link "Settings" [ref=e55] [cursor=pointer]:
+          - /url: /settings/
+          - generic [ref=e56]:
+            - img [ref=e57]
+            - generic [ref=e60]: Settings
+      - generic [ref=e61]:
+        - button "Toggle theme" [ref=e62] [cursor=pointer]:
+          - img
+          - generic [ref=e63]: Toggle theme
+        - button "Sign out" [ref=e64] [cursor=pointer]:
+          - img
+          - generic [ref=e65]: Sign out
+    - main [ref=e66]:
+      - generic [ref=e68]:
+        - generic [ref=e69]:
+          - generic [ref=e70]:
+            - heading "Users" [level=1] [ref=e71]
+            - paragraph [ref=e72]: Manage system users and their permissions.
+          - button "Create User" [ref=e73] [cursor=pointer]:
+            - img
+            - text: Create User
+        - generic [ref=e74]:
+          - generic [ref=e75]:
+            - img [ref=e76]
+            - textbox "Search users..." [ref=e79]
+          - generic [ref=e80]:
+            - combobox [ref=e81] [cursor=pointer]:
+              - img [ref=e82]
+              - generic: All Roles
+              - img [ref=e84]
+            - button "Refresh" [ref=e86] [cursor=pointer]:
+              - img
+        - generic [ref=e87]:
+          - table [ref=e91]:
+            - rowgroup [ref=e92]:
+              - row "User Email Role Teams Budget Status" [ref=e93]:
+                - columnheader "User" [ref=e94]
+                - columnheader "Email" [ref=e95]
+                - columnheader "Role" [ref=e96]
+                - columnheader "Teams" [ref=e97]
+                - columnheader "Budget" [ref=e98]
+                - columnheader "Status" [ref=e99]
+                - columnheader [ref=e100]
+            - rowgroup [ref=e101]:
+              - row "Alice user-1... alice@example.com admin No teams Inactive" [ref=e102]:
+                - cell "Alice user-1..." [ref=e103]:
+                  - generic [ref=e104]:
+                    - img [ref=e106]
+                    - generic [ref=e111]:
+                      - generic [ref=e112]: Alice
+                      - generic [ref=e113]: user-1...
+                - cell "alice@example.com" [ref=e114]:
+                  - generic [ref=e115]:
+                    - img [ref=e116]
+                    - generic [ref=e119]: alice@example.com
+                - cell "admin" [ref=e120]:
+                  - generic [ref=e121]: admin
+                - cell "No teams" [ref=e122]:
+                  - generic [ref=e124]: No teams
+                - cell [ref=e125]
+                - cell "Inactive" [ref=e129]:
+                  - generic [ref=e130]:
+                    - img [ref=e131]
+                    - generic [ref=e134]: Inactive
+                - cell [ref=e135]:
+                  - generic [ref=e136]:
+                    - link [ref=e137] [cursor=pointer]:
+                      - /url: /users/user-1/
+                      - button [ref=e138]:
+                        - img
+                    - button [ref=e140] [cursor=pointer]:
+                      - img
+              - row "Bob user-2... bob@example.com user No teams Inactive" [ref=e141]:
+                - cell "Bob user-2..." [ref=e142]:
+                  - generic [ref=e143]:
+                    - img [ref=e145]
+                    - generic [ref=e150]:
+                      - generic [ref=e151]: Bob
+                      - generic [ref=e152]: user-2...
+                - cell "bob@example.com" [ref=e153]:
+                  - generic [ref=e154]:
+                    - img [ref=e155]
+                    - generic [ref=e158]: bob@example.com
+                - cell "user" [ref=e159]:
+                  - generic [ref=e160]: user
+                - cell "No teams" [ref=e161]:
+                  - generic [ref=e163]: No teams
+                - cell [ref=e164]
+                - cell "Inactive" [ref=e168]:
+                  - generic [ref=e169]:
+                    - img [ref=e170]
+                    - generic [ref=e173]: Inactive
+                - cell [ref=e174]:
+                  - generic [ref=e175]:
+                    - link [ref=e176] [cursor=pointer]:
+                      - /url: /users/user-2/
+                      - button [ref=e177]:
+                        - img
+                    - button [ref=e179] [cursor=pointer]:
+                      - img
+          - generic [ref=e181]: Showing 2 of 2 users
+  - alert [ref=e182]
+  - generic [ref=e185] [cursor=pointer]:
+    - img [ref=e186]
+    - generic [ref=e190]: 1 error
+    - button "Hide Errors" [ref=e191]:
+      - img [ref=e192]
+```
