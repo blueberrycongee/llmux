@@ -13,6 +13,7 @@ import (
 
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/pkg/cache"
+	"github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/pkg/types"
@@ -369,9 +370,134 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	return nil, lastErr
 }
 
-// Embedding sends an embedding request (future support).
-func (c *Client) Embedding(ctx context.Context, req *EmbeddingRequest) (*EmbeddingResponse, error) {
-	return nil, fmt.Errorf("embedding not yet implemented")
+// Embedding sends an embedding request.
+// It handles routing, retries, and fallback automatically.
+func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*types.EmbeddingResponse, error) {
+	if req == nil {
+		return nil, fmt.Errorf("request is nil")
+	}
+	if req.Model == "" {
+		return nil, fmt.Errorf("model is required")
+	}
+	if err := req.Validate(); err != nil {
+		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+
+	var lastErr error
+	var deployment *provider.Deployment
+
+	// Retry loop
+	for attempt := 0; attempt <= c.config.RetryCount; attempt++ {
+		if attempt > 0 {
+			// Exponential backoff
+			backoff := c.config.RetryBackoff * time.Duration(1<<(attempt-1))
+			select {
+			case <-ctx.Done():
+				return nil, ctx.Err()
+			case <-time.After(backoff):
+			}
+		}
+
+		// Route to deployment
+		if attempt == 0 || c.config.FallbackEnabled || deployment == nil {
+			newDeployment, err := c.router.Pick(ctx, req.Model)
+			if err != nil {
+				lastErr = fmt.Errorf("no available deployment for model %s: %w", req.Model, err)
+				if deployment == nil {
+					continue
+				}
+				continue
+			}
+			deployment = newDeployment
+		}
+
+		// Get provider
+		c.mu.RLock()
+		prov, ok := c.providers[deployment.ProviderName]
+		c.mu.RUnlock()
+		if !ok {
+			lastErr = fmt.Errorf("provider %s not found", deployment.ProviderName)
+			continue
+		}
+
+		// Check if provider supports embedding
+		if !prov.SupportEmbedding() {
+			lastErr = fmt.Errorf("provider %s does not support embeddings", deployment.ProviderName)
+			continue
+		}
+
+		// Execute request
+		resp, err := c.executeEmbeddingOnce(ctx, prov, deployment, req)
+		if err == nil {
+			return resp, nil
+		}
+
+		lastErr = err
+
+		// Check if error is retryable
+		if llmErr, ok := err.(*errors.LLMError); ok && !llmErr.Retryable {
+			return nil, err
+		}
+
+		// Also check provider-level error mapping if it returns a different error type
+		// For now, we assume executeEmbeddingOnce returns standardized errors or wrapped errors
+	}
+
+	if lastErr == nil {
+		lastErr = fmt.Errorf("max retries exceeded")
+	}
+	return nil, lastErr
+}
+
+func (c *Client) executeEmbeddingOnce(
+	ctx context.Context,
+	prov provider.Provider,
+	deployment *provider.Deployment,
+	req *types.EmbeddingRequest,
+) (*types.EmbeddingResponse, error) {
+	start := time.Now()
+
+	httpReq, err := prov.BuildEmbeddingRequest(ctx, req)
+	if err != nil {
+		return nil, fmt.Errorf("build request: %w", err)
+	}
+
+	c.router.ReportRequestStart(deployment)
+	defer c.router.ReportRequestEnd(deployment)
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		c.router.ReportFailure(deployment, err)
+		return nil, fmt.Errorf("execute request: %w", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	latency := time.Since(start)
+
+	if resp.StatusCode >= 400 {
+		body, _ := io.ReadAll(resp.Body)
+		llmErr := prov.MapError(resp.StatusCode, body)
+		c.router.ReportFailure(deployment, llmErr)
+		return nil, llmErr
+	}
+
+	embResp, err := prov.ParseEmbeddingResponse(resp)
+	if err != nil {
+		c.router.ReportFailure(deployment, err)
+		return nil, fmt.Errorf("parse response: %w", err)
+	}
+
+	// Report success metrics
+	metrics := &router.ResponseMetrics{
+		Latency: latency,
+	}
+	if embResp.Usage.TotalTokens > 0 {
+		metrics.TotalTokens = embResp.Usage.TotalTokens
+		metrics.InputTokens = embResp.Usage.PromptTokens
+	}
+	c.router.ReportSuccess(deployment, metrics)
+
+	return embResp, nil
 }
 
 // ListModels returns all available models from registered providers.
@@ -515,7 +641,7 @@ func (c *Client) executeWithRetry(
 		lastErr = err
 
 		// Check if error is retryable
-		if llmErr, ok := err.(*LLMError); ok && !llmErr.Retryable {
+		if llmErr, ok := err.(*errors.LLMError); ok && !llmErr.Retryable {
 			return nil, err
 		}
 
