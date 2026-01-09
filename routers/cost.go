@@ -4,6 +4,7 @@ import (
 	"context"
 	"sort"
 
+	"github.com/blueberrycongee/llmux/pkg/pricing"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
@@ -19,6 +20,7 @@ const DefaultCostPerToken = 5.0
 // deployments with different pricing (e.g., different regions, providers).
 type CostRouter struct {
 	*BaseRouter
+	registry *pricing.Registry
 }
 
 // NewCostRouter creates a new cost router with default config.
@@ -27,6 +29,7 @@ func NewCostRouter(cooldownPeriod ...interface{}) *CostRouter {
 	config.Strategy = router.StrategyLowestCost
 	return &CostRouter{
 		BaseRouter: NewBaseRouter(config),
+		registry:   pricing.NewRegistry(),
 	}
 }
 
@@ -35,6 +38,7 @@ func NewCostRouterWithConfig(config router.Config) *CostRouter {
 	config.Strategy = router.StrategyLowestCost
 	return &CostRouter{
 		BaseRouter: NewBaseRouter(config),
+		registry:   pricing.NewRegistry(),
 	}
 }
 
@@ -78,6 +82,14 @@ func (r *CostRouter) PickWithContext(ctx context.Context, reqCtx *router.Request
 	for _, d := range healthy {
 		inputCost := d.Config.InputCostPerToken
 		outputCost := d.Config.OutputCostPerToken
+
+		// If cost is not configured, try to fetch from registry
+		if inputCost == 0 && outputCost == 0 {
+			if price, ok := r.registry.GetPrice(d.ModelName, d.ProviderName); ok {
+				inputCost = price.InputCostPerToken
+				outputCost = price.OutputCostPerToken
+			}
+		}
 
 		if inputCost == 0 {
 			inputCost = DefaultCostPerToken

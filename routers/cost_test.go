@@ -1,0 +1,57 @@
+package routers
+
+import (
+	"context"
+	"testing"
+
+	"github.com/blueberrycongee/llmux/pkg/provider"
+	"github.com/blueberrycongee/llmux/pkg/router"
+	"github.com/stretchr/testify/assert"
+)
+
+func TestCostRouter_Pick_WithRegistry(t *testing.T) {
+	// This test verifies that the CostRouter uses the PriceRegistry to fetch prices
+	// when they are not explicitly configured.
+
+	r := NewCostRouter()
+
+	// Deployment A: OpenAI gpt-4o. No explicit cost.
+	// Should fetch from registry: Input 0.000005, Output 0.000015 -> Total 0.000020
+	depA := &provider.Deployment{
+		ID:           "dep-a",
+		ModelName:    "gpt-4o",
+		ProviderName: "openai",
+	}
+	r.AddDeployment(depA)
+
+	// Deployment B: Custom provider. Explicit cost set to 1.0.
+	// 1.0 is much higher than 0.000020, but lower than the default 5.0.
+	depB := &provider.Deployment{
+		ID:           "dep-b",
+		ModelName:    "gpt-4o",
+		ProviderName: "custom",
+	}
+	configB := router.DeploymentConfig{
+		InputCostPerToken:  0.5,
+		OutputCostPerToken: 0.5,
+	}
+	r.AddDeploymentWithConfig(depB, configB)
+
+	// Current behavior (without registry):
+	// depA: defaults to 5.0 + 5.0 = 10.0
+	// depB: 0.5 + 0.5 = 1.0
+	// Router picks depB.
+
+	// Desired behavior (with registry):
+	// depA: 0.000005 + 0.000015 = 0.000020
+	// depB: 1.0
+	// Router picks depA.
+
+	ctx := context.Background()
+	picked, err := r.Pick(ctx, "gpt-4o")
+	assert.NoError(t, err)
+
+	// We expect depA to be picked because it's cheaper in reality.
+	// If the registry is not working, depB will be picked (1.0 < 10.0).
+	assert.Equal(t, depA.ID, picked.ID, "Should pick depA (real cost ~0.00002) over depB (manual cost 1.0)")
+}
