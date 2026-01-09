@@ -16,6 +16,17 @@ const (
 	DefaultBaseURL = "https://api.fireworks.ai/inference/v1"
 )
 
+// DefaultModels lists commonly available Fireworks AI models.
+var DefaultModels = []string{
+	"accounts/fireworks/models/llama-v3p1-70b-instruct",
+	"accounts/fireworks/models/llama-v3p1-8b-instruct",
+	"accounts/fireworks/models/llama-v3p1-405b-instruct",
+	"accounts/fireworks/models/mixtral-8x7b-instruct",
+	"accounts/fireworks/models/qwen2p5-72b-instruct",
+	"accounts/fireworks/models/firefunction-v2",
+	"accounts/fireworks/models/fw-function-call-34b-v0",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

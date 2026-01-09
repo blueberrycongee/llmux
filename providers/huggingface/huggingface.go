@@ -11,6 +11,15 @@ const (
 	DefaultBaseURL = "https://api-inference.huggingface.co/v1"
 )
 
+// DefaultModels lists commonly available Hugging Face models.
+var DefaultModels = []string{
+	"meta-llama/Meta-Llama-3.1-70B-Instruct",
+	"meta-llama/Meta-Llama-3.1-8B-Instruct",
+	"mistralai/Mixtral-8x7B-Instruct-v0.1",
+	"microsoft/Phi-3-mini-4k-instruct",
+	"Qwen/Qwen2.5-72B-Instruct",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

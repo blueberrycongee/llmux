@@ -16,8 +16,8 @@ import (
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/provider"
-	"github.com/blueberrycongee/llmux/internal/provider/openai"
 	"github.com/blueberrycongee/llmux/internal/router"
+	"github.com/blueberrycongee/llmux/providers/openai"
 )
 
 // TestServer manages a LLMux server instance for testing.
@@ -157,7 +157,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 
 	// Initialize provider registry
 	registry := provider.NewRegistry()
-	registry.RegisterFactory("openai", openai.New)
+	registry.RegisterFactory("openai", provider.AdaptFactory(openai.NewFromConfig))
 
 	// Initialize router with no cooldown for testing
 	simpleRouter := router.NewSimpleShuffleRouter(router.RouterConfig{

@@ -11,6 +11,17 @@ const (
 	DefaultBaseURL = "https://api.siliconflow.cn/v1"
 )
 
+// DefaultModels lists commonly available SiliconFlow models.
+var DefaultModels = []string{
+	"Qwen/Qwen2.5-72B-Instruct",
+	"Qwen/Qwen2.5-32B-Instruct",
+	"Qwen/Qwen2.5-Coder-32B-Instruct",
+	"deepseek-ai/DeepSeek-V3",
+	"deepseek-ai/DeepSeek-R1",
+	"Pro/Qwen/Qwen2.5-7B-Instruct",
+	"meta-llama/Meta-Llama-3.1-70B-Instruct",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

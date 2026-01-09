@@ -17,6 +17,7 @@ import (
 	llmrouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/internal/streaming"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
+	pkgprovider "github.com/blueberrycongee/llmux/pkg/provider"
 )
 
 const (
@@ -140,6 +141,11 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer func() { _ = resp.Body.Close() }()
+
+	// Apply response transformer if present
+	if transformer, ok := upstreamReq.Context().Value(pkgprovider.ResponseTransformerKey).(pkgprovider.ResponseTransformer); ok {
+		resp.Body = transformer(resp.Body)
+	}
 
 	latency := time.Since(start)
 

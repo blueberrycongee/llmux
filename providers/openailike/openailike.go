@@ -50,11 +50,12 @@ type Info struct {
 
 // Provider implements a generic OpenAI-compatible LLM provider adapter.
 type Provider struct {
-	info    Info
-	apiKey  string
-	baseURL string
-	models  []string
-	headers map[string]string
+	info        Info
+	apiKey      string
+	tokenSource provider.TokenSource
+	baseURL     string
+	models      []string
+	headers     map[string]string
 }
 
 // New creates a new OpenAI-like provider instance.
@@ -72,11 +73,15 @@ func New(info Info, opts ...Option) *Provider {
 
 // NewFromConfig creates a provider from a Config struct.
 func NewFromConfig(info Info, cfg provider.Config) (provider.Provider, error) {
-	p := New(info,
+	opts := []Option{
 		WithAPIKey(cfg.APIKey),
 		WithBaseURL(cfg.BaseURL),
 		WithModels(cfg.Models...),
-	)
+	}
+	if cfg.TokenSource != nil {
+		opts = append(opts, WithTokenSource(cfg.TokenSource))
+	}
+	p := New(info, opts...)
 	for k, v := range cfg.Headers {
 		p.headers[k] = v
 	}
@@ -131,6 +136,12 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 	// Set headers
 	httpReq.Header.Set("Content-Type", "application/json")
 
+	// Get token from TokenSource or fallback to apiKey
+	token, err := provider.GetToken(p.tokenSource, p.apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("get token: %w", err)
+	}
+
 	// Set API key header
 	apiKeyHeader := p.info.APIKeyHeader
 	if apiKeyHeader == "" {
@@ -140,7 +151,7 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 	if apiKeyPrefix == "" && apiKeyHeader == "Authorization" {
 		apiKeyPrefix = "Bearer "
 	}
-	httpReq.Header.Set(apiKeyHeader, apiKeyPrefix+p.apiKey)
+	httpReq.Header.Set(apiKeyHeader, apiKeyPrefix+token)
 
 	// Add extra headers from info
 	for k, v := range p.info.ExtraHeaders {

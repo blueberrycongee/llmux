@@ -42,11 +42,12 @@ var DefaultModels = []string{
 
 // Provider implements the Anthropic Claude API adapter.
 type Provider struct {
-	apiKey     string
-	baseURL    string
-	apiVersion string
-	models     []string
-	headers    map[string]string
+	apiKey      string
+	tokenSource provider.TokenSource
+	baseURL     string
+	apiVersion  string
+	models      []string
+	headers     map[string]string
 }
 
 // New creates a new Anthropic provider with the given options.
@@ -64,11 +65,15 @@ func New(opts ...Option) *Provider {
 
 // NewFromConfig creates a provider from a Config struct.
 func NewFromConfig(cfg provider.Config) (provider.Provider, error) {
-	p := New(
+	opts := []Option{
 		WithAPIKey(cfg.APIKey),
 		WithBaseURL(cfg.BaseURL),
 		WithModels(cfg.Models...),
-	)
+	}
+	if cfg.TokenSource != nil {
+		opts = append(opts, WithTokenSource(cfg.TokenSource))
+	}
+	p := New(opts...)
 	for k, v := range cfg.Headers {
 		p.headers[k] = v
 	}
@@ -183,8 +188,14 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
+	// Get token from TokenSource or fallback to apiKey
+	token, err := provider.GetToken(p.tokenSource, p.apiKey)
+	if err != nil {
+		return nil, fmt.Errorf("get token: %w", err)
+	}
+
 	httpReq.Header.Set("Content-Type", "application/json")
-	httpReq.Header.Set("x-api-key", p.apiKey)
+	httpReq.Header.Set("x-api-key", token)
 	httpReq.Header.Set("anthropic-version", p.apiVersion)
 
 	for k, v := range p.headers {

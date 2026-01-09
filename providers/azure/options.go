@@ -1,9 +1,15 @@
 package azure
 
+import "github.com/blueberrycongee/llmux/pkg/provider"
+
 type Option func(*Provider)
 
 func WithAPIKey(key string) Option {
 	return func(p *Provider) { p.apiKey = key }
+}
+
+func WithTokenSource(ts provider.TokenSource) Option {
+	return func(p *Provider) { p.tokenSource = ts }
 }
 
 func WithBaseURL(url string) Option {

@@ -4,114 +4,114 @@ package providers
 
 import (
 	"github.com/blueberrycongee/llmux/internal/provider"
-	"github.com/blueberrycongee/llmux/internal/provider/ai21"
-	"github.com/blueberrycongee/llmux/internal/provider/anthropic"
-	"github.com/blueberrycongee/llmux/internal/provider/anyscale"
-	"github.com/blueberrycongee/llmux/internal/provider/azure"
-	"github.com/blueberrycongee/llmux/internal/provider/baichuan"
-	"github.com/blueberrycongee/llmux/internal/provider/bedrock"
-	"github.com/blueberrycongee/llmux/internal/provider/cerebras"
-	"github.com/blueberrycongee/llmux/internal/provider/cloudflare"
-	"github.com/blueberrycongee/llmux/internal/provider/cohere"
-	"github.com/blueberrycongee/llmux/internal/provider/databricks"
-	"github.com/blueberrycongee/llmux/internal/provider/deepinfra"
-	"github.com/blueberrycongee/llmux/internal/provider/deepseek"
-	"github.com/blueberrycongee/llmux/internal/provider/fireworks"
-	"github.com/blueberrycongee/llmux/internal/provider/gemini"
-	"github.com/blueberrycongee/llmux/internal/provider/github"
-	"github.com/blueberrycongee/llmux/internal/provider/groq"
-	"github.com/blueberrycongee/llmux/internal/provider/huggingface"
-	"github.com/blueberrycongee/llmux/internal/provider/hunyuan"
-	"github.com/blueberrycongee/llmux/internal/provider/hyperbolic"
-	"github.com/blueberrycongee/llmux/internal/provider/lambda"
-	"github.com/blueberrycongee/llmux/internal/provider/lmstudio"
-	"github.com/blueberrycongee/llmux/internal/provider/minimax"
-	"github.com/blueberrycongee/llmux/internal/provider/mistral"
-	"github.com/blueberrycongee/llmux/internal/provider/moonshot"
-	"github.com/blueberrycongee/llmux/internal/provider/novita"
-	"github.com/blueberrycongee/llmux/internal/provider/nvidia"
-	"github.com/blueberrycongee/llmux/internal/provider/ollama"
-	"github.com/blueberrycongee/llmux/internal/provider/openai"
-	"github.com/blueberrycongee/llmux/internal/provider/openrouter"
-	"github.com/blueberrycongee/llmux/internal/provider/perplexity"
-	"github.com/blueberrycongee/llmux/internal/provider/qwen"
-	"github.com/blueberrycongee/llmux/internal/provider/replicate"
-	"github.com/blueberrycongee/llmux/internal/provider/sambanova"
-	"github.com/blueberrycongee/llmux/internal/provider/siliconflow"
-	"github.com/blueberrycongee/llmux/internal/provider/snowflake"
-	"github.com/blueberrycongee/llmux/internal/provider/stepfun"
-	"github.com/blueberrycongee/llmux/internal/provider/together"
-	"github.com/blueberrycongee/llmux/internal/provider/vertexai"
-	"github.com/blueberrycongee/llmux/internal/provider/vllm"
-	"github.com/blueberrycongee/llmux/internal/provider/volcengine"
-	"github.com/blueberrycongee/llmux/internal/provider/watsonx"
-	"github.com/blueberrycongee/llmux/internal/provider/xai"
-	"github.com/blueberrycongee/llmux/internal/provider/yi"
-	"github.com/blueberrycongee/llmux/internal/provider/zhipu"
+	"github.com/blueberrycongee/llmux/providers/ai21"
+	"github.com/blueberrycongee/llmux/providers/anthropic"
+	"github.com/blueberrycongee/llmux/providers/anyscale"
+	"github.com/blueberrycongee/llmux/providers/azure"
+	"github.com/blueberrycongee/llmux/providers/baichuan"
+	"github.com/blueberrycongee/llmux/providers/bedrock"
+	"github.com/blueberrycongee/llmux/providers/cerebras"
+	"github.com/blueberrycongee/llmux/providers/cloudflare"
+	"github.com/blueberrycongee/llmux/providers/cohere"
+	"github.com/blueberrycongee/llmux/providers/databricks"
+	"github.com/blueberrycongee/llmux/providers/deepinfra"
+	"github.com/blueberrycongee/llmux/providers/deepseek"
+	"github.com/blueberrycongee/llmux/providers/fireworks"
+	"github.com/blueberrycongee/llmux/providers/gemini"
+	"github.com/blueberrycongee/llmux/providers/github"
+	"github.com/blueberrycongee/llmux/providers/groq"
+	"github.com/blueberrycongee/llmux/providers/huggingface"
+	"github.com/blueberrycongee/llmux/providers/hunyuan"
+	"github.com/blueberrycongee/llmux/providers/hyperbolic"
+	"github.com/blueberrycongee/llmux/providers/lambda"
+	"github.com/blueberrycongee/llmux/providers/lmstudio"
+	"github.com/blueberrycongee/llmux/providers/minimax"
+	"github.com/blueberrycongee/llmux/providers/mistral"
+	"github.com/blueberrycongee/llmux/providers/moonshot"
+	"github.com/blueberrycongee/llmux/providers/novita"
+	"github.com/blueberrycongee/llmux/providers/nvidia"
+	"github.com/blueberrycongee/llmux/providers/ollama"
+	"github.com/blueberrycongee/llmux/providers/openai"
+	"github.com/blueberrycongee/llmux/providers/openrouter"
+	"github.com/blueberrycongee/llmux/providers/perplexity"
+	"github.com/blueberrycongee/llmux/providers/qwen"
+	"github.com/blueberrycongee/llmux/providers/replicate"
+	"github.com/blueberrycongee/llmux/providers/sambanova"
+	"github.com/blueberrycongee/llmux/providers/siliconflow"
+	"github.com/blueberrycongee/llmux/providers/snowflake"
+	"github.com/blueberrycongee/llmux/providers/stepfun"
+	"github.com/blueberrycongee/llmux/providers/together"
+	"github.com/blueberrycongee/llmux/providers/vertexai"
+	"github.com/blueberrycongee/llmux/providers/vllm"
+	"github.com/blueberrycongee/llmux/providers/volcengine"
+	"github.com/blueberrycongee/llmux/providers/watsonx"
+	"github.com/blueberrycongee/llmux/providers/xai"
+	"github.com/blueberrycongee/llmux/providers/yi"
+	"github.com/blueberrycongee/llmux/providers/zhipu"
 )
 
 // ProviderFactories maps provider type names to their factory functions.
 // This allows dynamic provider creation based on configuration.
 var ProviderFactories = map[string]provider.ProviderFactory{
 	// === Tier 1: Major Commercial Providers ===
-	"openai":    openai.New,
-	"anthropic": anthropic.New,
-	"gemini":    gemini.New,
-	"azure":     azure.New,
-	"bedrock":   bedrock.New,
-	"cohere":    cohere.New,
-	"mistral":   mistral.New,
+	"openai":    provider.AdaptFactory(openai.NewFromConfig),
+	"anthropic": provider.AdaptFactory(anthropic.NewFromConfig),
+	"gemini":    provider.AdaptFactory(gemini.NewFromConfig),
+	"azure":     provider.AdaptFactory(azure.NewFromConfig),
+	"bedrock":   provider.AdaptFactory(bedrock.NewFromConfig),
+	"cohere":    provider.AdaptFactory(cohere.NewFromConfig),
+	"mistral":   provider.AdaptFactory(mistral.NewFromConfig),
 
 	// === Tier 2: Fast Inference Providers ===
-	"groq":      groq.New,
-	"cerebras":  cerebras.New,
-	"sambanova": sambanova.New,
-	"fireworks": fireworks.New,
-	"together":  together.New,
+	"groq":      provider.AdaptFactory(groq.NewFromConfig),
+	"cerebras":  provider.AdaptFactory(cerebras.NewFromConfig),
+	"sambanova": provider.AdaptFactory(sambanova.NewFromConfig),
+	"fireworks": provider.AdaptFactory(fireworks.NewFromConfig),
+	"together":  provider.AdaptFactory(together.NewFromConfig),
 
 	// === Tier 3: Model Aggregators ===
-	"openrouter":  openrouter.New,
-	"deepinfra":   deepinfra.New,
-	"huggingface": huggingface.New,
-	"anyscale":    anyscale.New,
-	"replicate":   replicate.New,
+	"openrouter":  provider.AdaptFactory(openrouter.NewFromConfig),
+	"deepinfra":   provider.AdaptFactory(deepinfra.NewFromConfig),
+	"huggingface": provider.AdaptFactory(huggingface.NewFromConfig),
+	"anyscale":    provider.AdaptFactory(anyscale.NewFromConfig),
+	"replicate":   provider.AdaptFactory(replicate.NewFromConfig),
 
 	// === Tier 4: Specialized Providers ===
-	"deepseek":   deepseek.New,
-	"perplexity": perplexity.New,
-	"xai":        xai.New,
-	"ai21":       ai21.New,
-	"nvidia":     nvidia.New,
+	"deepseek":   provider.AdaptFactory(deepseek.NewFromConfig),
+	"perplexity": provider.AdaptFactory(perplexity.NewFromConfig),
+	"xai":        provider.AdaptFactory(xai.NewFromConfig),
+	"ai21":       provider.AdaptFactory(ai21.NewFromConfig),
+	"nvidia":     provider.AdaptFactory(nvidia.NewFromConfig),
 
 	// === Tier 5: Chinese Providers ===
-	"qwen":        qwen.New,
-	"zhipu":       zhipu.New,
-	"moonshot":    moonshot.New,
-	"baichuan":    baichuan.New,
-	"minimax":     minimax.New,
-	"yi":          yi.New,
-	"volcengine":  volcengine.New,
-	"hunyuan":     hunyuan.New,
-	"stepfun":     stepfun.New,
-	"siliconflow": siliconflow.New,
+	"qwen":        provider.AdaptFactory(qwen.NewFromConfig),
+	"zhipu":       provider.AdaptFactory(zhipu.NewFromConfig),
+	"moonshot":    provider.AdaptFactory(moonshot.NewFromConfig),
+	"baichuan":    provider.AdaptFactory(baichuan.NewFromConfig),
+	"minimax":     provider.AdaptFactory(minimax.NewFromConfig),
+	"yi":          provider.AdaptFactory(yi.NewFromConfig),
+	"volcengine":  provider.AdaptFactory(volcengine.NewFromConfig),
+	"hunyuan":     provider.AdaptFactory(hunyuan.NewFromConfig),
+	"stepfun":     provider.AdaptFactory(stepfun.NewFromConfig),
+	"siliconflow": provider.AdaptFactory(siliconflow.NewFromConfig),
 
 	// === Tier 6: GPU Cloud Providers ===
-	"lambda":     lambda.New,
-	"hyperbolic": hyperbolic.New,
-	"novita":     novita.New,
+	"lambda":     provider.AdaptFactory(lambda.NewFromConfig),
+	"hyperbolic": provider.AdaptFactory(hyperbolic.NewFromConfig),
+	"novita":     provider.AdaptFactory(novita.NewFromConfig),
 
 	// === Tier 7: Local/Self-hosted Providers ===
-	"ollama":   ollama.New,
-	"lmstudio": lmstudio.New,
-	"vllm":     vllm.New,
+	"ollama":   provider.AdaptFactory(ollama.NewFromConfig),
+	"lmstudio": provider.AdaptFactory(lmstudio.NewFromConfig),
+	"vllm":     provider.AdaptFactory(vllm.NewFromConfig),
 
 	// === Tier 8: Cloud/Enterprise Providers ===
-	"vertexai":   vertexai.New,
-	"github":     github.New,
-	"cloudflare": cloudflare.New,
-	"databricks": databricks.New,
-	"snowflake":  snowflake.New,
-	"watsonx":    watsonx.New,
+	"vertexai":   provider.AdaptFactory(vertexai.NewFromConfig),
+	"github":     provider.AdaptFactory(github.NewFromConfig),
+	"cloudflare": provider.AdaptFactory(cloudflare.NewFromConfig),
+	"databricks": provider.AdaptFactory(databricks.NewFromConfig),
+	"snowflake":  provider.AdaptFactory(snowflake.NewFromConfig),
+	"watsonx":    provider.AdaptFactory(watsonx.NewFromConfig),
 }
 
 // ProviderInfo describes a provider's capabilities and configuration.

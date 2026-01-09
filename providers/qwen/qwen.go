@@ -11,6 +11,21 @@ const (
 	DefaultBaseURL = "https://dashscope.aliyuncs.com/compatible-mode/v1"
 )
 
+// DefaultModels lists available Qwen models.
+var DefaultModels = []string{
+	"qwen-turbo",
+	"qwen-plus",
+	"qwen-max",
+	"qwen-max-longcontext",
+	"qwen-vl-plus",
+	"qwen-vl-max",
+	"qwen2.5-72b-instruct",
+	"qwen2.5-32b-instruct",
+	"qwen2.5-14b-instruct",
+	"qwen2.5-7b-instruct",
+	"qwen2.5-coder-32b-instruct",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

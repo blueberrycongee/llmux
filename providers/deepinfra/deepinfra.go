@@ -11,6 +11,17 @@ const (
 	DefaultBaseURL = "https://api.deepinfra.com/v1/openai"
 )
 
+// DefaultModels lists commonly available DeepInfra models.
+var DefaultModels = []string{
+	"meta-llama/Meta-Llama-3.1-70B-Instruct",
+	"meta-llama/Meta-Llama-3.1-8B-Instruct",
+	"mistralai/Mixtral-8x7B-Instruct-v0.1",
+	"mistralai/Mistral-7B-Instruct-v0.3",
+	"Qwen/Qwen2.5-72B-Instruct",
+	"microsoft/WizardLM-2-8x22B",
+	"01-ai/Yi-34B-Chat",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

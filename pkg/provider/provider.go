@@ -5,6 +5,7 @@ package provider
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"time"
 
@@ -72,6 +73,30 @@ type TokenSource interface {
 	Token() (string, error)
 }
 
+// StaticTokenSource implements TokenSource with a static API key.
+type StaticTokenSource struct {
+	token string
+}
+
+// NewStaticTokenSource creates a new static token source.
+func NewStaticTokenSource(token string) *StaticTokenSource {
+	return &StaticTokenSource{token: token}
+}
+
+// Token returns the static token.
+func (s *StaticTokenSource) Token() (string, error) {
+	return s.token, nil
+}
+
+// GetToken is a helper that returns the token from TokenSource if available,
+// otherwise falls back to the static APIKey.
+func GetToken(ts TokenSource, apiKey string) (string, error) {
+	if ts != nil {
+		return ts.Token()
+	}
+	return apiKey, nil
+}
+
 // Config contains provider-specific configuration.
 type Config struct {
 	Name          string
@@ -87,3 +112,14 @@ type Config struct {
 
 // Factory creates provider instances from configuration.
 type Factory func(cfg Config) (Provider, error)
+
+// ResponseTransformer transforms the response body.
+// This is used to adapt non-standard streaming formats (like AWS EventStream)
+// into SSE-compatible streams that the gateway can process.
+type ResponseTransformer func(io.ReadCloser) io.ReadCloser
+
+// contextKey is a custom type for context keys to avoid collisions.
+type contextKey string
+
+// ResponseTransformerKey is the context key for passing a ResponseTransformer.
+var ResponseTransformerKey = contextKey("llmux_response_transformer")

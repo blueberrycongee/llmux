@@ -11,6 +11,14 @@ const (
 	DefaultBaseURL = "https://ark.cn-beijing.volces.com/api/v3"
 )
 
+// DefaultModels lists available Volcengine models.
+var DefaultModels = []string{
+	"doubao-pro-32k",
+	"doubao-pro-128k",
+	"doubao-lite-32k",
+	"doubao-lite-128k",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

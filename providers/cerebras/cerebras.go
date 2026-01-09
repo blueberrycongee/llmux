@@ -11,6 +11,12 @@ const (
 	DefaultBaseURL = "https://api.cerebras.ai/v1"
 )
 
+// DefaultModels lists available Cerebras models.
+var DefaultModels = []string{
+	"llama3.1-8b",
+	"llama3.1-70b",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

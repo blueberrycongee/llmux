@@ -16,6 +16,18 @@ const (
 	DefaultBaseURL = "https://openrouter.ai/api/v1"
 )
 
+// DefaultModels lists some commonly used OpenRouter models.
+var DefaultModels = []string{
+	"openai/gpt-4o",
+	"openai/gpt-4o-mini",
+	"anthropic/claude-3.5-sonnet",
+	"anthropic/claude-3-opus",
+	"google/gemini-pro-1.5",
+	"meta-llama/llama-3.1-70b-instruct",
+	"mistralai/mistral-large",
+	"qwen/qwen-2.5-72b-instruct",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

@@ -11,6 +11,13 @@ const (
 	DefaultBaseURL = "https://api.x.ai/v1"
 )
 
+// DefaultModels lists available xAI models.
+var DefaultModels = []string{
+	"grok-beta",
+	"grok-2",
+	"grok-2-mini",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

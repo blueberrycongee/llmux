@@ -1,5 +1,7 @@
 package anthropic
 
+import "github.com/blueberrycongee/llmux/pkg/provider"
+
 // Option configures the Anthropic provider.
 type Option func(*Provider)
 
@@ -7,6 +9,14 @@ type Option func(*Provider)
 func WithAPIKey(key string) Option {
 	return func(p *Provider) {
 		p.apiKey = key
+	}
+}
+
+// WithTokenSource sets the token source for dynamic token retrieval.
+// When set, this takes precedence over APIKey.
+func WithTokenSource(ts provider.TokenSource) Option {
+	return func(p *Provider) {
+		p.tokenSource = ts
 	}
 }
 

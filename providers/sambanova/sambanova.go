@@ -11,6 +11,13 @@ const (
 	DefaultBaseURL = "https://api.sambanova.ai/v1"
 )
 
+// DefaultModels lists available SambaNova models.
+var DefaultModels = []string{
+	"Meta-Llama-3.1-8B-Instruct",
+	"Meta-Llama-3.1-70B-Instruct",
+	"Meta-Llama-3.1-405B-Instruct",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,

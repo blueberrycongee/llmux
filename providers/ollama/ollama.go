@@ -11,6 +11,18 @@ const (
 	DefaultBaseURL = "http://localhost:11434/v1"
 )
 
+// DefaultModels lists common local Ollama models.
+var DefaultModels = []string{
+	"llama3.2",
+	"llama3.1",
+	"mistral",
+	"mixtral",
+	"codellama",
+	"qwen2.5",
+	"phi3",
+	"gemma2",
+}
+
 var providerInfo = openailike.Info{
 	Name:              ProviderName,
 	DefaultBaseURL:    DefaultBaseURL,
