@@ -190,6 +190,7 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 	return nil, io.EOF
 }
 
+//nolint:unparam // err parameter kept for future error classification
 func (s *StreamReader) canRecover(err error) bool {
 	if s.retryCount >= s.maxRetries {
 		return false
@@ -202,6 +203,7 @@ func (s *StreamReader) canRecover(err error) bool {
 	return true
 }
 
+//nolint:unparam // originalErr kept for future logging/debugging
 func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error) {
 	s.mu.Lock()
 	// End request for current deployment if not already ended

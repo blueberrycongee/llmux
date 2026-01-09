@@ -47,8 +47,7 @@ func TestStreamRecovery_MidStreamFailure(t *testing.T) {
 
 		// Simulate hard failure (TCP reset / close connection) without sending [DONE]
 		// This causes io.UnexpectedEOF or similar error on client side
-		// We just return, closing the body.
-		return
+		// We just close the handler, which closes the body.
 	}))
 	defer serverA.Close()
 
@@ -287,7 +286,7 @@ func TestStreamReader_RecoveryRequestLifecycle(t *testing.T) {
 	client.router = trackingR
 
 	// Get deployments and configure deterministic pick order
-	deployments := trackingR.Router.GetDeployments("test-model")
+	deployments := trackingR.GetDeployments("test-model")
 	if len(deployments) < 3 {
 		t.Fatalf("Expected 3 deployments, got %d", len(deployments))
 	}
