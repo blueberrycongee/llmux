@@ -2,10 +2,10 @@
 
 ## 1. 总体评价 (Executive Summary)
 
-*   **成熟度定级：** **高级 MVP (Advanced MVP) / 早期企业级**
-*   **一句话结论：** **核心交互层（Chat/Stream/Embedding）已达生产级水准，架构设计优于 `litellm`（Go vs Python），但周边生态（多模态、可观测性、分布式治理）仍处于“荒原”状态。**
+*   **成熟度定级：** **早期企业级 (Early Enterprise)**
+*   **一句话结论：** **核心交互与流量治理（Chat/Stream/Embedding/RateLimit）已达生产级水准，架构设计优于 `litellm`（Go vs Python），但“可观测性”与“多模态生态”仍是最后两块短板。**
 
-`llmux` 展示了极高的工程素养，特别是在流式处理和故障恢复方面甚至超越了部分成熟竞品。然而，作为网关，它在“广度”上严重缺失，目前更像是一个“高可用的 Chat Completion 代理”，而非全能的 LLM Gateway。
+`llmux` 展示了极高的工程素养，特别是在流式处理、故障恢复和分布式限流方面已具备云原生落地能力。目前作为“文本/向量网关”已趋于成熟，但距离“全能型多模态网关”仍有差距，且急需补齐监控告警能力。
 
 ---
 
@@ -39,15 +39,14 @@
 
 ### **B. 流量治理与韧性 (Traffic & Governance)**
 
-| 功能模块            | llmux 现状     | 评级       | 证据/备注                                                                                                                         |
-| :------------------ | :------------- | :--------- | :-------------------------------------------------------------------------------------------------------------------------------- |
-| **Rate Limiting**   | ⚠️ **单机版**   | **玩具级** | `internal/resilience/ratelimiter.go` 使用内存 `sync.Mutex` 实现令牌桶。**不支持分布式限流**（如 Redis），多实例部署时限流将失效。 |
-| **Caching**         | ✅ **完整实现** | **生产级** | `caches/redis` 封装了成熟的 `go-redis`，支持 Cluster/Sentinel，具备 Pipeline 优化。                                               |
-| **Retries**         | ✅ **完整实现** | **生产级** | `client.go` 实现了指数退避 (Exponential Backoff) 重试。                                                                           |
-| **Stream Recovery** | 🌟 **超越竞品** | **卓越**   | `stream.go` 实现了自动拼接已接收 Chunk 并重发请求的逻辑，这是 `litellm` 的高级特性，`llmux` 实现得非常扎实。                      |
+| 功能模块            | llmux 现状     | 评级       | 证据/备注                                                                                                                  |
+| :------------------ | :------------- | :--------- | :------------------------------------------------------------------------------------------------------------------------- |
+| **Rate Limiting**   | ✅ **完整实现** | **生产级** | `internal/resilience/redis_limiter.go` 基于 Redis Lua 脚本实现了分布式限流，支持原子化检查与窗口过期，且具备内存降级机制。 |
+| **Caching**         | ✅ **完整实现** | **生产级** | `caches/redis` 封装了成熟的 `go-redis`，支持 Cluster/Sentinel，具备 Pipeline 优化。                                        |
+| **Retries**         | ✅ **完整实现** | **生产级** | `client.go` 实现了指数退避 (Exponential Backoff) 重试。                                                                    |
+| **Stream Recovery** | 🌟 **超越竞品** | **卓越**   | `stream.go` 实现了自动拼接已接收 Chunk 并重发请求的逻辑，这是 `litellm` 的高级特性，`llmux` 实现得非常扎实。               |
 
 ### **C. 可观测性与计费 (Observability & Cost)**
-
 | 功能模块             | llmux 现状     | 评级     | 证据/备注                                                                                         |
 | :------------------- | :------------- | :------- | :------------------------------------------------------------------------------------------------ |
 | **Cost Calculation** | ⚠️ **静态配置** | **简陋** | `routers/cost.go` 仅支持基于配置文件的静态价格路由，无动态价格抓取，无累计消费统计。              |
@@ -64,9 +63,9 @@
 
 ## 4. 关键缺陷清单 (Top Findings)
 
-### 1. [P1] 分布式限流缺失 (Missing Distributed Rate Limiting)
-*   **描述：** 当前限流器 `internal/resilience/ratelimiter.go` 仅基于进程内内存。在云原生多副本部署场景下，全局限流将无法生效，导致下游 Provider 被击穿。
-*   **建议：** 基于现有的 `caches/redis` 模块，实现 Redis Lua 脚本限流。
+### 1. [已修复] 分布式限流缺失 (Fixed: Missing Distributed Rate Limiting)
+*   **描述：** 原 `internal/resilience/ratelimiter.go` 仅基于进程内内存。
+*   **现状：** 已在 `internal/resilience/redis_limiter.go` 中实现了基于 Redis Lua 的分布式限流器，并集成到了 `internal/auth` 层。支持多实例部署下的全局限流。
 
 ### 2. [P1] 可观测性黑洞 (Observability Black Hole)
 *   **描述：** 作为网关，缺乏对请求日志、延迟分布、Token 消耗的外部输出能力。`pkg/plugin` 虽有定义但无实现。
@@ -86,9 +85,9 @@
 
 `llmux` 的核心（Chat Client & Router）是一块美玉，代码质量高，并发控制细腻，特别是流式恢复功能的实现令人印象深刻。
 
-**重大进展：** 我们刚刚修复了 **Embedding 入口未打通** 的 [P0] 级缺陷。现在 `llmux` 已经是一个完全合格的文本/向量混合网关。
+**重大进展：** 我们刚刚修复了 **Embedding 入口未打通** 的 [P0] 级缺陷，并完成了 **Redis 分布式限流** 的核心实现。现在 `llmux` 已经是一个完全合格的文本/向量混合网关，且具备了云原生部署的基础能力。
 
 **下一步行动建议：**
 
-1.  **Go Wide:** 集中精力填充“空壳”，优先实现 **Redis 分布式限流**。
-2.  **Plugin First:** 利用已有的 Pipeline 架构，开发官方的 **Logging/Metrics 插件**，解决可观测性问题。
+1.  **Plugin First:** 利用已有的 Pipeline 架构，开发官方的 **Logging/Metrics 插件**，解决可观测性问题。
+2.  **Multimodal:** 规划 Image/Audio 接口，补齐多模态短板。

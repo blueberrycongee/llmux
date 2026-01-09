@@ -2,6 +2,7 @@ package routers
 
 import (
 	"context"
+	"fmt"
 	"sort"
 
 	"github.com/blueberrycongee/llmux/pkg/pricing"
@@ -36,10 +37,16 @@ func NewCostRouter(cooldownPeriod ...interface{}) *CostRouter {
 // NewCostRouterWithConfig creates a new cost router with custom config.
 func NewCostRouterWithConfig(config router.Config) *CostRouter {
 	config.Strategy = router.StrategyLowestCost
-	return &CostRouter{
+	r := &CostRouter{
 		BaseRouter: NewBaseRouter(config),
 		registry:   pricing.NewRegistry(),
 	}
+	if config.PricingFile != "" {
+		if err := r.registry.Load(config.PricingFile); err != nil {
+			panic(fmt.Errorf("failed to load pricing file %s: %w", config.PricingFile, err))
+		}
+	}
+	return r
 }
 
 // Pick selects the deployment with lowest cost.

@@ -761,6 +761,7 @@ func (c *Client) createRouter(strategy Strategy) router.Router {
 		CooldownPeriod:     c.config.CooldownPeriod,
 		LatencyBuffer:      0.1,
 		MaxLatencyListSize: 10,
+		PricingFile:        c.config.PricingFile,
 	}
 	r, err := routers.New(config)
 	if err != nil {

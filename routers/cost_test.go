@@ -2,6 +2,7 @@ package routers
 
 import (
 	"context"
+	"os"
 	"testing"
 
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -54,4 +55,55 @@ func TestCostRouter_Pick_WithRegistry(t *testing.T) {
 	// We expect depA to be picked because it's cheaper in reality.
 	// If the registry is not working, depB will be picked (1.0 < 10.0).
 	assert.Equal(t, depA.ID, picked.ID, "Should pick depA (real cost ~0.00002) over depB (manual cost 1.0)")
+}
+
+func TestCostRouter_WithPricingFile(t *testing.T) {
+	// Create a temporary pricing file
+	pricingContent := `
+    {
+        "custom-model": {
+            "provider": "custom",
+            "input_cost_per_token": 0.000001,
+            "output_cost_per_token": 0.000001,
+            "mode": "chat"
+        }
+    }`
+	tmpfile, err := os.CreateTemp("", "pricing_*.json")
+	assert.NoError(t, err)
+	defer os.Remove(tmpfile.Name())
+	_, err = tmpfile.Write([]byte(pricingContent))
+	assert.NoError(t, err)
+	tmpfile.Close()
+
+	// Create router with config pointing to this file
+	config := router.Config{
+		Strategy:    router.StrategyLowestCost,
+		PricingFile: tmpfile.Name(),
+	}
+	r := NewCostRouterWithConfig(config)
+
+	// Add deployment for custom-model
+	dep := &provider.Deployment{
+		ID:           "dep-custom",
+		ModelName:    "custom-model",
+		ProviderName: "custom",
+	}
+	r.AddDeployment(dep)
+
+	// Add another deployment with higher cost
+	depExpensive := &provider.Deployment{
+		ID:           "dep-expensive",
+		ModelName:    "custom-model",
+		ProviderName: "expensive",
+	}
+	// Set explicit cost for expensive one
+	r.AddDeploymentWithConfig(depExpensive, router.DeploymentConfig{
+		InputCostPerToken:  1.0,
+		OutputCostPerToken: 1.0,
+	})
+
+	ctx := context.Background()
+	picked, err := r.Pick(ctx, "custom-model")
+	assert.NoError(t, err)
+	assert.Equal(t, dep.ID, picked.ID)
 }

@@ -369,6 +369,11 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 		llmux.WithFallback(true),
 	)
 
+	// Set pricing file
+	if cfg.PricingFile != "" {
+		opts = append(opts, llmux.WithPricingFile(cfg.PricingFile))
+	}
+
 	return opts
 }
 

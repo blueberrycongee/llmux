@@ -188,6 +188,9 @@ type Config struct {
 
 	// EnableTagFiltering enables tag-based deployment filtering
 	EnableTagFiltering bool
+
+	// PricingFile is the path to the custom pricing JSON file
+	PricingFile string
 }
 
 // DefaultConfig returns sensible default router configuration.

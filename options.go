@@ -37,6 +37,9 @@ type ClientConfig struct {
 	// Plugins
 	Plugins      []plugin.Plugin
 	PluginConfig *plugin.PipelineConfig
+
+	// Pricing
+	PricingFile string
 }
 
 // providerInstance holds a pre-configured provider with its models.
@@ -203,5 +206,12 @@ func WithPlugin(p plugin.Plugin) Option {
 func WithPluginConfig(config plugin.PipelineConfig) Option {
 	return func(c *ClientConfig) {
 		c.PluginConfig = &config
+	}
+}
+
+// WithPricingFile sets the path to the custom pricing JSON file.
+func WithPricingFile(path string) Option {
+	return func(c *ClientConfig) {
+		c.PricingFile = path
 	}
 }

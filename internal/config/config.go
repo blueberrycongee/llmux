@@ -12,18 +12,19 @@ import (
 
 // Config represents the complete gateway configuration.
 type Config struct {
-	Server    ServerConfig     `yaml:"server"`
-	Providers []ProviderConfig `yaml:"providers"`
-	Routing   RoutingConfig    `yaml:"routing"`
-	RateLimit RateLimitConfig  `yaml:"rate_limit"`
-	Logging   LoggingConfig    `yaml:"logging"`
-	Metrics   MetricsConfig    `yaml:"metrics"`
-	Tracing   TracingConfig    `yaml:"tracing"`
-	Auth      AuthConfig       `yaml:"auth"`
-	Database  DatabaseConfig   `yaml:"database"`
-	Cache     CacheConfig      `yaml:"cache"`
-	MCP       MCPConfig        `yaml:"mcp"`
-	Vault     VaultConfig      `yaml:"vault"`
+	Server      ServerConfig     `yaml:"server"`
+	Providers   []ProviderConfig `yaml:"providers"`
+	Routing     RoutingConfig    `yaml:"routing"`
+	RateLimit   RateLimitConfig  `yaml:"rate_limit"`
+	Logging     LoggingConfig    `yaml:"logging"`
+	Metrics     MetricsConfig    `yaml:"metrics"`
+	Tracing     TracingConfig    `yaml:"tracing"`
+	Auth        AuthConfig       `yaml:"auth"`
+	Database    DatabaseConfig   `yaml:"database"`
+	Cache       CacheConfig      `yaml:"cache"`
+	MCP         MCPConfig        `yaml:"mcp"`
+	Vault       VaultConfig      `yaml:"vault"`
+	PricingFile string           `yaml:"pricing_file"`
 }
 
 // VaultConfig contains HashiCorp Vault settings.

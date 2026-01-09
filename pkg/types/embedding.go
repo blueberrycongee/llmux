@@ -1,4 +1,4 @@
-package types
+package types //nolint:revive // package name 'types' is intentional
 
 import (
 	"encoding/json"
