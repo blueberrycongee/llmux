@@ -3,8 +3,8 @@ package main
 
 import (
 	"context"
-	"flag"
 	"embed"
+	"flag"
 	"fmt"
 	"io/fs"
 	"log/slog"
@@ -161,8 +161,8 @@ func run() error {
 	// Ensure store is closed on shutdown
 	defer func() {
 		if authStore != nil {
-			if err := authStore.Close(); err != nil {
-				logger.Error("failed to close auth store", "error", err)
+			if closeErr := authStore.Close(); closeErr != nil {
+				logger.Error("failed to close auth store", "error", closeErr)
 			}
 		}
 	}()

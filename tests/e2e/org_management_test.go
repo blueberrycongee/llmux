@@ -15,11 +15,11 @@ import (
 
 func TestOrgManagement_MemberLifecycle(t *testing.T) {
 	// Setup
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithAuth(),
 	)
 	require.NoError(t, err)
@@ -103,11 +103,11 @@ func TestOrgManagement_MemberLifecycle(t *testing.T) {
 func TestOrgManagement_BudgetControl(t *testing.T) {
 	t.Skip("Skipping TestOrgManagement_BudgetControl: Budget control not yet integrated in handler")
 	// Setup
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithAuth(),
 	)
 	require.NoError(t, err)

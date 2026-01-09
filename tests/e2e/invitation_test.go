@@ -15,11 +15,11 @@ import (
 
 func TestInvitation_Flow(t *testing.T) {
 	// Setup
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithAuth(),
 	)
 	require.NoError(t, err)
@@ -100,9 +100,9 @@ func TestInvitation_Flow(t *testing.T) {
 
 func TestInvitation_Expired(t *testing.T) {
 	// Setup
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
-	server, _ := testutil.NewTestServer(testutil.WithMockProvider(mockLLM.URL()), testutil.WithAuth())
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
+	server, _ := testutil.NewTestServer(testutil.WithMockProvider(mockServer.URL()), testutil.WithAuth())
 	defer server.Stop()
 	server.Start()
 

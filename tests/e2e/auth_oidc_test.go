@@ -34,11 +34,11 @@ func TestOIDC_StandardLogin(t *testing.T) {
 		TeamIDUpsert: true,
 	}
 
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithOIDC(oidcConfig),
 	)
 	require.NoError(t, err)
@@ -90,11 +90,11 @@ func TestOIDC_RoleMapping(t *testing.T) {
 		UserIDUpsert: true,
 	}
 
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithOIDC(oidcConfig),
 	)
 	require.NoError(t, err)
@@ -125,11 +125,11 @@ func TestOIDC_InvalidToken(t *testing.T) {
 	require.NoError(t, err)
 	defer providerA.Close()
 
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithOIDC(&config.OIDCConfig{
 			IssuerURL: providerA.URL(),
 			ClientID:  "llmux-client-id",
@@ -182,11 +182,11 @@ func TestOIDC_RoleHierarchy(t *testing.T) {
 		UserIDUpsert: true,
 	}
 
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithOIDC(oidcConfig),
 	)
 	require.NoError(t, err)

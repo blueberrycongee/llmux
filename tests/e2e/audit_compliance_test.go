@@ -16,11 +16,11 @@ import (
 func TestAudit_FullTrace(t *testing.T) {
 	t.Skip("Skipping TestAudit_FullTrace: Audit logging not yet integrated in management handler")
 	// Setup
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
 
 	server, err := testutil.NewTestServer(
-		testutil.WithMockProvider(mockLLM.URL()),
+		testutil.WithMockProvider(mockServer.URL()),
 		testutil.WithAuth(),
 	)
 	require.NoError(t, err)
@@ -73,9 +73,9 @@ func TestAudit_FullTrace(t *testing.T) {
 func TestAudit_SensitiveData(t *testing.T) {
 	t.Skip("Skipping TestAudit_SensitiveData: Audit logging not yet integrated")
 	// Setup
-	mockLLM := testutil.NewMockLLMServer()
-	defer mockLLM.Close()
-	server, _ := testutil.NewTestServer(testutil.WithMockProvider(mockLLM.URL()), testutil.WithAuth())
+	mockServer := testutil.NewMockLLMServer()
+	defer mockServer.Close()
+	server, _ := testutil.NewTestServer(testutil.WithMockProvider(mockServer.URL()), testutil.WithAuth())
 	defer server.Stop()
 	server.Start()
 
