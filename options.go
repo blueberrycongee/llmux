@@ -6,6 +6,7 @@ import (
 
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
+	"github.com/blueberrycongee/llmux/internal/resilience"
 )
 
 // ClientConfig holds all configuration for the LLMux client.
@@ -44,6 +45,9 @@ type ClientConfig struct {
 
 	// Observability
 	OTelMetricsConfig observability.OTelMetricsConfig
+
+	// Rate Limiting
+	RateLimiter resilience.DistributedLimiter
 }
 
 // providerInstance holds a pre-configured provider with its models.
@@ -224,5 +228,12 @@ func WithPricingFile(path string) Option {
 func WithOTelMetrics(config observability.OTelMetricsConfig) Option {
 	return func(c *ClientConfig) {
 		c.OTelMetricsConfig = config
+	}
+}
+
+// WithRateLimiter sets the distributed rate limiter.
+func WithRateLimiter(limiter resilience.DistributedLimiter) Option {
+	return func(c *ClientConfig) {
+		c.RateLimiter = limiter
 	}
 }
