@@ -22,7 +22,7 @@ func TestMain(m *testing.M) {
 	var err error
 	testServer, err = testutil.NewTestServer(
 		testutil.WithMockProvider(mockLLM.URL()),
-		testutil.WithModels("gpt-4o-mock", "gpt-3.5-turbo-mock"),
+		testutil.WithModels("gpt-4o-mock", "gpt-3.5-turbo-mock", "text-embedding-ada-002-mock"),
 	)
 	if err != nil {
 		panic("failed to create test server: " + err.Error())

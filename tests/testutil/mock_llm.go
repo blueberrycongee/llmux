@@ -591,25 +591,57 @@ func (m *MockLLMServer) handleEmbeddings(w http.ResponseWriter, r *http.Request)
 	body, _ := readBody(r) //nolint:errcheck // test code
 	m.recordRequest(r, body)
 
-	// Generate mock embedding (1536 dimensions for ada-002 compatibility)
-	embedding := make([]float64, 1536)
-	for i := range embedding {
-		embedding[i] = float64(i) * 0.001
+	// Check for configured error
+	if err, status := m.getAndClearError(); err != nil {
+		writeErrorResponse(w, status, err)
+		return
+	}
+
+	// Parse request to determine input count
+	var req struct {
+		Model string `json:"model"`
+		Input any    `json:"input"`
+	}
+	_ = json.Unmarshal(body, &req) //nolint:errcheck // ignore error in test code
+
+	// Determine number of embeddings to return based on input type
+	inputCount := 1
+	switch v := req.Input.(type) {
+	case string:
+		inputCount = 1
+	case []any:
+		inputCount = len(v)
+		if inputCount == 0 {
+			inputCount = 1
+		}
+	}
+
+	// Generate mock embeddings (1536 dimensions for ada-002 compatibility)
+	data := make([]map[string]any, inputCount)
+	for i := 0; i < inputCount; i++ {
+		embedding := make([]float64, 1536)
+		for j := range embedding {
+			embedding[j] = float64(j+i) * 0.001
+		}
+		data[i] = map[string]any{
+			"object":    "embedding",
+			"index":     i,
+			"embedding": embedding,
+		}
+	}
+
+	model := req.Model
+	if model == "" {
+		model = "text-embedding-ada-002"
 	}
 
 	resp := map[string]any{
 		"object": "list",
-		"data": []map[string]any{
-			{
-				"object":    "embedding",
-				"index":     0,
-				"embedding": embedding,
-			},
-		},
-		"model": "text-embedding-ada-002",
+		"data":   data,
+		"model":  model,
 		"usage": map[string]int{
-			"prompt_tokens": 5,
-			"total_tokens":  5,
+			"prompt_tokens": 5 * inputCount,
+			"total_tokens":  5 * inputCount,
 		},
 	}
 

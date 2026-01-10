@@ -380,3 +380,63 @@ func (r *StreamReader) CollectContent() (string, error) {
 	}
 	return content.String(), nil
 }
+
+// EmbeddingRequest represents an embedding request for testing.
+type EmbeddingRequest struct {
+	Model          string `json:"model"`
+	Input          any    `json:"input"` // string, []string, []int, or [][]int
+	EncodingFormat string `json:"encoding_format,omitempty"`
+	User           string `json:"user,omitempty"`
+	Dimensions     int    `json:"dimensions,omitempty"`
+}
+
+// EmbeddingResponse represents an embedding response for testing.
+type EmbeddingResponse struct {
+	Object string            `json:"object"`
+	Data   []EmbeddingObject `json:"data"`
+	Model  string            `json:"model"`
+	Usage  types.Usage       `json:"usage"`
+}
+
+// EmbeddingObject represents a single embedding object.
+type EmbeddingObject struct {
+	Object    string    `json:"object"`
+	Embedding []float64 `json:"embedding"`
+	Index     int       `json:"index"`
+}
+
+// Embedding sends an embedding request.
+func (c *TestClient) Embedding(ctx context.Context, req *EmbeddingRequest) (*EmbeddingResponse, *http.Response, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/v1/embeddings", bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("do request: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, resp, nil
+	}
+
+	var embResp EmbeddingResponse
+	if err := json.NewDecoder(resp.Body).Decode(&embResp); err != nil {
+		resp.Body.Close()
+		return nil, resp, fmt.Errorf("decode response: %w", err)
+	}
+	resp.Body.Close()
+
+	return &embResp, resp, nil
+}

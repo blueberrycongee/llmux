@@ -209,6 +209,8 @@ func run() error {
 
 	// OpenAI-compatible endpoints
 	mux.HandleFunc("POST /v1/chat/completions", handler.ChatCompletions)
+	mux.HandleFunc("POST /v1/embeddings", handler.Embeddings)
+	mux.HandleFunc("POST /embeddings", handler.Embeddings)
 	mux.HandleFunc("GET /v1/models", handler.ListModels)
 
 	// ========================================================================

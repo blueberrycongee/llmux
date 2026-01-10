@@ -18,6 +18,7 @@ import (
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	pkgprovider "github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 const (
@@ -266,4 +267,120 @@ func (h *Handler) ListModels(w http.ResponseWriter, r *http.Request) {
 		"object": "list",
 		"data":   []any{},
 	})
+}
+
+// Embeddings handles POST /v1/embeddings requests.
+func (h *Handler) Embeddings(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+
+	// Limit request body size to prevent OOM
+	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
+	body, err := io.ReadAll(limitedReader)
+	if err != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "failed to read request body"))
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+
+	// Check if body exceeded limit
+	if int64(len(body)) > h.maxBodySize {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "request body too large"))
+		return
+	}
+
+	var req types.EmbeddingRequest
+	if unmarshalErr := json.Unmarshal(body, &req); unmarshalErr != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "invalid JSON: "+unmarshalErr.Error()))
+		return
+	}
+
+	// Validate request
+	if req.Model == "" {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "model is required"))
+		return
+	}
+	if req.Input == nil || req.Input.IsEmpty() {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, "input is required"))
+		return
+	}
+	if validateErr := req.Input.Validate(); validateErr != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, validateErr.Error()))
+		return
+	}
+
+	// Route to deployment
+	deployment, err := h.llmRouter.Pick(r.Context(), req.Model)
+	if err != nil {
+		h.logger.Error("no deployment available", "model", req.Model, "error", err)
+		h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "no available deployment"))
+		return
+	}
+
+	// Get provider
+	prov, ok := h.registry.GetProvider(deployment.ProviderName)
+	if !ok {
+		h.writeError(w, llmerrors.NewInternalError(deployment.ProviderName, req.Model, "provider not found"))
+		return
+	}
+
+	// Check if provider supports embedding
+	if !prov.SupportEmbedding() {
+		h.writeError(w, llmerrors.NewInvalidRequestError(prov.Name(), req.Model, "provider does not support embeddings"))
+		return
+	}
+
+	// Build upstream request with timeout context
+	timeout := time.Duration(deployment.Timeout) * time.Second
+	if timeout == 0 {
+		timeout = 30 * time.Second // Default timeout
+	}
+	reqCtx, reqCancel := context.WithTimeout(r.Context(), timeout)
+	defer reqCancel()
+
+	upstreamReq, err := prov.BuildEmbeddingRequest(reqCtx, &req)
+	if err != nil {
+		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to build request: "+err.Error()))
+		return
+	}
+
+	// Execute request using shared client
+	resp, err := h.httpClient.Do(upstreamReq)
+	if err != nil {
+		h.llmRouter.ReportFailure(deployment, err)
+		metrics.RecordError(prov.Name(), "connection_error")
+		h.writeError(w, llmerrors.NewServiceUnavailableError(prov.Name(), req.Model, "upstream request failed"))
+		return
+	}
+	defer func() { _ = resp.Body.Close() }()
+
+	latency := time.Since(start)
+
+	// Handle error responses
+	if resp.StatusCode >= 400 {
+		respBody, _ := io.ReadAll(resp.Body)
+		llmErr := prov.MapError(resp.StatusCode, respBody)
+		h.llmRouter.ReportFailure(deployment, llmErr)
+		metrics.RecordRequest(prov.Name(), req.Model, resp.StatusCode, latency)
+		h.writeError(w, llmErr)
+		return
+	}
+
+	// Parse embedding response
+	embResp, err := prov.ParseEmbeddingResponse(resp)
+	if err != nil {
+		h.llmRouter.ReportFailure(deployment, err)
+		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to parse response"))
+		return
+	}
+
+	// Record success metrics
+	h.llmRouter.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
+	metrics.RecordRequest(prov.Name(), req.Model, http.StatusOK, latency)
+	if embResp.Usage.TotalTokens > 0 {
+		metrics.RecordTokens(prov.Name(), req.Model, embResp.Usage.PromptTokens, 0)
+	}
+
+	// Write response
+	w.Header().Set("Content-Type", "application/json")
+	_ = json.NewEncoder(w).Encode(embResp)
 }

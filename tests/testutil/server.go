@@ -246,6 +246,8 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	mux.HandleFunc("GET /health/live", handler.HealthCheck)
 	mux.HandleFunc("GET /health/ready", handler.HealthCheck)
 	mux.HandleFunc("POST /v1/chat/completions", handler.ChatCompletions)
+	mux.HandleFunc("POST /v1/embeddings", handler.Embeddings)
+	mux.HandleFunc("POST /embeddings", handler.Embeddings)
 	mux.HandleFunc("GET /v1/models", handler.ListModels)
 	mux.Handle("GET /metrics", promhttp.Handler())
 

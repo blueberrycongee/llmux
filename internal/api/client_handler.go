@@ -19,6 +19,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/streaming"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 // ClientHandler handles HTTP requests using llmux.Client.
@@ -362,6 +363,138 @@ func (h *ClientHandler) ListModels(w http.ResponseWriter, r *http.Request) {
 // This is useful for accessing client methods directly.
 func (h *ClientHandler) GetClient() *llmux.Client {
 	return h.client
+}
+
+// Embeddings handles POST /v1/embeddings requests.
+func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	requestID := uuid.New().String()
+
+	// Limit request body size to prevent OOM
+	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
+	body, err := io.ReadAll(limitedReader)
+	if err != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "failed to read request body"))
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+
+	// Check if body exceeded limit
+	if int64(len(body)) > h.maxBodySize {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "request body too large"))
+		return
+	}
+
+	var req types.EmbeddingRequest
+	if unmarshalErr := json.Unmarshal(body, &req); unmarshalErr != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "invalid JSON: "+unmarshalErr.Error()))
+		return
+	}
+
+	// Validate request
+	if req.Model == "" {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "model is required"))
+		return
+	}
+	if req.Input == nil || req.Input.IsEmpty() {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, "input is required"))
+		return
+	}
+	if validateErr := req.Input.Validate(); validateErr != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, validateErr.Error()))
+		return
+	}
+
+	// Call client.Embedding
+	resp, err := h.client.Embedding(r.Context(), &req)
+	if err != nil {
+		h.logger.Error("embedding failed", "model", req.Model, "error", err)
+		if llmErr, ok := err.(*llmerrors.LLMError); ok {
+			h.writeError(w, llmErr)
+		} else {
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+		}
+		return
+	}
+
+	latency := time.Since(start)
+
+	// Record metrics
+	metrics.RecordRequest("llmux", req.Model, http.StatusOK, latency)
+	if resp.Usage.TotalTokens > 0 {
+		metrics.RecordTokens("llmux", req.Model, resp.Usage.PromptTokens, 0)
+	}
+
+	// Record usage for budget tracking
+	h.recordEmbeddingUsage(r.Context(), requestID, req.Model, &resp.Usage, start, latency)
+
+	// Write response
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		h.logger.Error("failed to encode response", "error", err)
+	}
+}
+
+// recordEmbeddingUsage logs embedding API usage to the store and updates spend budgets.
+func (h *ClientHandler) recordEmbeddingUsage(ctx context.Context, requestID, model string, usage *types.Usage, start time.Time, latency time.Duration) {
+	if h.store == nil {
+		return
+	}
+
+	// Extract authentication context for tracking
+	authCtx := auth.GetAuthContext(ctx)
+
+	// Build usage log entry
+	log := &auth.UsageLog{
+		RequestID: requestID,
+		Model:     model,
+		Provider:  "llmux",
+		CallType:  "embedding",
+		StartTime: start,
+		EndTime:   time.Now(),
+		LatencyMs: int(latency.Milliseconds()),
+		CacheHit:  nil,
+	}
+
+	// Set token counts if available
+	if usage != nil {
+		log.InputTokens = usage.PromptTokens
+		log.TotalTokens = usage.TotalTokens
+		log.Cost = 0 // TODO: Implement model-based cost calculation
+	}
+
+	// Set API key and team info from auth context
+	if authCtx != nil && authCtx.APIKey != nil {
+		log.APIKeyID = authCtx.APIKey.ID
+		log.TeamID = authCtx.APIKey.TeamID
+		log.OrganizationID = authCtx.APIKey.OrganizationID
+		log.UserID = authCtx.APIKey.UserID
+	}
+
+	// Record usage asynchronously to avoid blocking the response
+	go func() {
+		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+
+		// Log usage
+		if err := h.store.LogUsage(bgCtx, log); err != nil {
+			h.logger.Warn("failed to log embedding usage", "error", err, "request_id", requestID)
+		}
+
+		// Update API key spend (if we have cost data)
+		if authCtx != nil && authCtx.APIKey != nil && log.Cost > 0 {
+			if err := h.store.UpdateAPIKeySpent(bgCtx, authCtx.APIKey.ID, log.Cost); err != nil {
+				h.logger.Warn("failed to update api key spend", "error", err, "key_id", authCtx.APIKey.ID)
+			}
+
+			// Update team spend if applicable
+			if authCtx.APIKey.TeamID != nil {
+				if err := h.store.UpdateTeamSpent(bgCtx, *authCtx.APIKey.TeamID, log.Cost); err != nil {
+					h.logger.Warn("failed to update team spend", "error", err, "team_id", *authCtx.APIKey.TeamID)
+				}
+			}
+		}
+	}()
 }
 
 // Ensure streaming package is imported for parser registration
