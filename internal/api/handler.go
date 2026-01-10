@@ -15,6 +15,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/provider"
 	"github.com/blueberrycongee/llmux/internal/streaming"
+	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	pkgprovider "github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -105,7 +106,9 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Route to deployment
-	deployment, err := h.llmRouter.Pick(r.Context(), req.Model)
+	promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+	routeCtx := buildRouterRequestContext(req, promptTokens, req.Stream)
+	deployment, err := h.llmRouter.PickWithContext(r.Context(), routeCtx)
 	if err != nil {
 		h.logger.Error("no deployment available", "model", req.Model, "error", err)
 		h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "no available deployment"))
@@ -124,10 +127,10 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	if timeout == 0 {
 		timeout = 30 * time.Second // Default timeout
 	}
-	reqCtx, reqCancel := context.WithTimeout(r.Context(), timeout)
+	upstreamCtx, reqCancel := context.WithTimeout(r.Context(), timeout)
 	defer reqCancel()
 
-	upstreamReq, err := prov.BuildRequest(reqCtx, req)
+	upstreamReq, err := prov.BuildRequest(upstreamCtx, sanitizeChatRequestForProvider(req))
 	if err != nil {
 		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to build request: "+err.Error()))
 		return
@@ -220,6 +223,32 @@ func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, r
 	metrics.RecordRequest(prov.Name(), model, http.StatusOK, latency)
 }
 
+func buildRouterRequestContext(req *types.ChatRequest, promptTokens int, isStreaming bool) *router.RequestContext {
+	if req == nil {
+		return &router.RequestContext{}
+	}
+
+	tags := make([]string, len(req.Tags))
+	copy(tags, req.Tags)
+
+	return &router.RequestContext{
+		Model:                req.Model,
+		IsStreaming:          isStreaming,
+		Tags:                 tags,
+		EstimatedInputTokens: promptTokens,
+	}
+}
+
+func sanitizeChatRequestForProvider(req *types.ChatRequest) *types.ChatRequest {
+	if req == nil || len(req.Tags) == 0 {
+		return req
+	}
+
+	cloned := *req
+	cloned.Tags = nil
+	return &cloned
+}
+
 // ErrorResponse represents an OpenAI-compatible error response.
 type ErrorResponse struct {
 	Error ErrorDetail `json:"error"`
@@ -309,7 +338,7 @@ func (h *Handler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Route to deployment
-	deployment, err := h.llmRouter.Pick(r.Context(), req.Model)
+	deployment, err := h.llmRouter.PickWithContext(r.Context(), &router.RequestContext{Model: req.Model})
 	if err != nil {
 		h.logger.Error("no deployment available", "model", req.Model, "error", err)
 		h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "no available deployment"))

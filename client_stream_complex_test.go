@@ -458,9 +458,9 @@ func TestClient_ChatCompletionStream_FallbackDisabled(t *testing.T) {
 		t.Errorf("Expected 3 requests, got %d", reqCount)
 	}
 
-	// Should have called Pick only ONCE
+	// Should have called PickWithContext only ONCE
 	if mockRouter.pickCount != 1 {
-		t.Errorf("Expected 1 Pick call, got %d", mockRouter.pickCount)
+		t.Errorf("Expected 1 PickWithContext call, got %d", mockRouter.pickCount)
 	}
 }
 
@@ -472,4 +472,9 @@ type countingRouter struct {
 func (r *countingRouter) Pick(ctx context.Context, model string) (*provider.Deployment, error) {
 	r.pickCount++
 	return r.sequenceRouter.Pick(ctx, model)
+}
+
+func (r *countingRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
+	r.pickCount++
+	return r.sequenceRouter.PickWithContext(ctx, reqCtx)
 }

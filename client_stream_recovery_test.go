@@ -195,6 +195,17 @@ func (t *trackingRouter) Pick(ctx context.Context, model string) (*provider.Depl
 	return t.Router.Pick(ctx, model)
 }
 
+func (t *trackingRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.pickDeployments != nil && t.pickIndex < len(t.pickDeployments) {
+		d := t.pickDeployments[t.pickIndex]
+		t.pickIndex++
+		return d, nil
+	}
+	return t.Router.PickWithContext(ctx, reqCtx)
+}
+
 func (t *trackingRouter) ReportRequestStart(deployment *provider.Deployment) {
 	t.mu.Lock()
 	t.startCalls[deployment.ID]++

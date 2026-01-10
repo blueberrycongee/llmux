@@ -237,7 +237,9 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	// If fallback enabled, try to pick a new node.
 	// If disabled, we might still want to retry on the same node if it was a transient error,
 	// but Pick() handles that logic (it might return the same node).
-	deployment, err = s.client.router.Pick(s.ctx, newReq.Model)
+	promptTokens := tokenizer.EstimatePromptTokens(newReq.Model, &newReq)
+	reqCtx := buildRouterRequestContext(&newReq, promptTokens, true)
+	deployment, err = s.client.router.PickWithContext(s.ctx, reqCtx)
 	if err != nil {
 		return nil, fmt.Errorf("recovery pick failed: %w", err)
 	}
@@ -251,7 +253,7 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	}
 
 	// Build request
-	httpReq, err := prov.BuildRequest(s.ctx, &newReq)
+	httpReq, err := prov.BuildRequest(s.ctx, sanitizeChatRequestForProvider(&newReq))
 	if err != nil {
 		return nil, fmt.Errorf("recovery build request failed: %w", err)
 	}

@@ -22,6 +22,8 @@ type ChatRequest struct {
 	ToolChoice       json.RawMessage `json:"tool_choice,omitempty"`
 	ResponseFormat   *ResponseFormat `json:"response_format,omitempty"`
 	StreamOptions    *StreamOptions  `json:"stream_options,omitempty"`
+	// Tags are request-level tags for routing decisions.
+	Tags []string `json:"tags,omitempty"`
 
 	// Extra holds provider-specific parameters that are passed through unchanged.
 	// This enables zero-copy forwarding of unknown fields.
@@ -84,6 +86,7 @@ func (r *ChatRequest) Reset() {
 	r.Tools = r.Tools[:0]
 	r.ToolChoice = nil
 	r.ResponseFormat = nil
+	r.Tags = nil
 	// Clear map but keep it if possible, or just nil it.
 	// For simplicity and safety, nil it.
 	r.Extra = nil
