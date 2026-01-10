@@ -553,9 +553,12 @@ func formatFunctionDefinitions(tools []types.Tool) string {
 		}
 		properties, _ := parameters["properties"].(map[string]any)
 		if len(properties) > 0 {
-			lines = append(lines, fmt.Sprintf("type %s = (_: {", function.Name))
-			lines = append(lines, formatObjectParameters(parameters, 0))
-			lines = append(lines, "}) => any;")
+			lines = append(
+				lines,
+				fmt.Sprintf("type %s = (_: {", function.Name),
+				formatObjectParameters(parameters, 0),
+				"}) => any;",
+			)
 		} else {
 			lines = append(lines, fmt.Sprintf("type %s = () => any;", function.Name))
 		}
