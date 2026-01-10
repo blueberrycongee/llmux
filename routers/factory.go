@@ -3,25 +3,33 @@ package routers
 import (
 	"fmt"
 
+	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
 // New creates a new router based on the specified strategy.
 // Returns an error if the strategy is not recognized.
 func New(config router.Config) (router.Router, error) {
+	return NewWithStore(config, nil)
+}
+
+// NewWithStore creates a new router with a distributed stats store.
+// When store is nil, the router uses local in-memory stats (single-instance mode).
+// When store is provided, stats are shared across multiple instances (distributed mode).
+func NewWithStore(config router.Config, store internalRouter.StatsStore) (router.Router, error) {
 	switch config.Strategy {
 	case router.StrategySimpleShuffle, "":
-		return NewShuffleRouterWithConfig(config), nil
+		return newShuffleRouterWithStore(config, store), nil
 	case router.StrategyLowestLatency:
-		return NewLatencyRouterWithConfig(config), nil
+		return newLatencyRouterWithStore(config, store), nil
 	case router.StrategyLeastBusy:
-		return NewLeastBusyRouterWithConfig(config), nil
+		return newLeastBusyRouterWithStore(config, store), nil
 	case router.StrategyLowestTPMRPM:
-		return NewTPMRPMRouterWithConfig(config), nil
+		return newTPMRPMRouterWithStore(config, store), nil
 	case router.StrategyLowestCost:
-		return NewCostRouterWithConfig(config), nil
+		return newCostRouterWithStore(config, store), nil
 	case router.StrategyTagBased:
-		return NewTagBasedRouterWithConfig(config), nil
+		return newTagBasedRouterWithStore(config, store), nil
 	default:
 		return nil, fmt.Errorf("unknown routing strategy: %s", config.Strategy)
 	}

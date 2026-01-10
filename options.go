@@ -7,6 +7,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/internal/resilience"
+	"github.com/blueberrycongee/llmux/internal/router"
 )
 
 // RateLimitKeyStrategy defines how to derive the rate limit key.
@@ -52,6 +53,9 @@ type ClientConfig struct {
 	RetryCount      int
 	RetryBackoff    time.Duration
 	CooldownPeriod  time.Duration
+
+	// Distributed Routing Stats (for multi-instance deployments)
+	StatsStore router.StatsStore
 
 	// Caching
 	CacheEnabled bool
@@ -289,5 +293,21 @@ func WithRateLimiter(limiter resilience.DistributedLimiter) Option {
 func WithRateLimiterConfig(config RateLimiterConfig) Option {
 	return func(c *ClientConfig) {
 		c.RateLimiterConfig = config
+	}
+}
+
+// WithStatsStore sets a distributed stats store for routing decisions.
+// This enables multi-instance deployments to share routing statistics
+// (latency, active requests, cooldowns), making load-balanced strategies
+// like least-busy and lowest-latency work correctly across a cluster.
+//
+// Example:
+//
+//	redisClient := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+//	statsStore := router.NewRedisStatsStore(redisClient)
+//	llmux.WithStatsStore(statsStore)
+func WithStatsStore(store router.StatsStore) Option {
+	return func(c *ClientConfig) {
+		c.StatsStore = store
 	}
 }

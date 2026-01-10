@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"sort"
 
+	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/pricing"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -41,6 +42,27 @@ func NewCostRouterWithConfig(config router.Config) *CostRouter {
 	config.Strategy = router.StrategyLowestCost
 	r := &CostRouter{
 		BaseRouter: NewBaseRouter(config),
+		registry:   pricing.NewRegistry(),
+	}
+	if config.PricingFile != "" {
+		if err := r.registry.Load(config.PricingFile); err != nil {
+			panic(fmt.Errorf("failed to load pricing file %s: %w", config.PricingFile, err))
+		}
+	}
+	return r
+}
+
+// newCostRouterWithStore creates a new cost router with optional distributed StatsStore.
+func newCostRouterWithStore(config router.Config, store internalRouter.StatsStore) *CostRouter {
+	config.Strategy = router.StrategyLowestCost
+	var base *BaseRouter
+	if store != nil {
+		base = NewBaseRouterWithStore(config, store)
+	} else {
+		base = NewBaseRouter(config)
+	}
+	r := &CostRouter{
+		BaseRouter: base,
 		registry:   pricing.NewRegistry(),
 	}
 	if config.PricingFile != "" {

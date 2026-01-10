@@ -25,6 +25,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/resilience"
+	"github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/internal/secret"
 	"github.com/blueberrycongee/llmux/internal/secret/env"
 	"github.com/blueberrycongee/llmux/internal/secret/vault"
@@ -374,6 +375,53 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	// Set pricing file
 	if cfg.PricingFile != "" {
 		opts = append(opts, llmux.WithPricingFile(cfg.PricingFile))
+	}
+
+	// Initialize distributed routing
+	if cfg.Routing.Distributed {
+		if cfg.Cache.Redis.Addr != "" || len(cfg.Cache.Redis.ClusterAddrs) > 0 {
+			var redisClient *redis.Client
+
+			if len(cfg.Cache.Redis.ClusterAddrs) > 0 {
+				logger.Warn("Redis cluster mode not fully supported for routing stats, using single-node mode")
+				redisClient = redis.NewClient(&redis.Options{
+					Addr:         cfg.Cache.Redis.ClusterAddrs[0],
+					Password:     cfg.Cache.Redis.Password,
+					DB:           cfg.Cache.Redis.DB,
+					DialTimeout:  cfg.Cache.Redis.DialTimeout,
+					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
+					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
+					PoolSize:     cfg.Cache.Redis.PoolSize,
+					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
+					MaxRetries:   cfg.Cache.Redis.MaxRetries,
+				})
+			} else {
+				redisClient = redis.NewClient(&redis.Options{
+					Addr:         cfg.Cache.Redis.Addr,
+					Password:     cfg.Cache.Redis.Password,
+					DB:           cfg.Cache.Redis.DB,
+					DialTimeout:  cfg.Cache.Redis.DialTimeout,
+					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
+					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
+					PoolSize:     cfg.Cache.Redis.PoolSize,
+					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
+					MaxRetries:   cfg.Cache.Redis.MaxRetries,
+				})
+			}
+
+			// Test Redis connection
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				logger.Error("failed to connect to Redis for distributed routing", "error", err)
+			} else {
+				statsStore := router.NewRedisStatsStore(redisClient)
+				opts = append(opts, llmux.WithStatsStore(statsStore))
+				logger.Info("distributed routing enabled", "redis_addr", cfg.Cache.Redis.Addr)
+			}
+		} else {
+			logger.Warn("distributed routing enabled but no Redis configured")
+		}
 	}
 
 	// Initialize distributed rate limiting

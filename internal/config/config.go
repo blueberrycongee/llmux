@@ -215,6 +215,7 @@ type RoutingConfig struct {
 	FallbackEnabled bool          `yaml:"fallback_enabled"`
 	RetryCount      int           `yaml:"retry_count"`
 	CooldownPeriod  time.Duration `yaml:"cooldown_period"`
+	Distributed     bool          `yaml:"distributed"` // Enable Redis-backed distributed routing stats
 }
 
 // RateLimitConfig defines rate limiting parameters.

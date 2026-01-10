@@ -3,6 +3,7 @@ package routers
 import (
 	"context"
 
+	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
@@ -44,6 +45,19 @@ func NewTagBasedRouterWithConfig(config router.Config) *TagBasedRouter {
 	return &TagBasedRouter{
 		BaseRouter: NewBaseRouter(config),
 	}
+}
+
+// newTagBasedRouterWithStore creates a new tag-based router with optional distributed StatsStore.
+func newTagBasedRouterWithStore(config router.Config, store internalRouter.StatsStore) *TagBasedRouter {
+	config.Strategy = router.StrategyTagBased
+	config.EnableTagFiltering = true
+	var base *BaseRouter
+	if store != nil {
+		base = NewBaseRouterWithStore(config, store)
+	} else {
+		base = NewBaseRouter(config)
+	}
+	return &TagBasedRouter{BaseRouter: base}
 }
 
 // Pick selects a random deployment (tag filtering requires context).
