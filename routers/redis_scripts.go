@@ -15,6 +15,7 @@ const (
 	//   KEYS[2] - ttft list key (e.g., "llmux:router:stats:deployment-1:ttft")
 	//   KEYS[3] - counters hash key (e.g., "llmux:router:stats:deployment-1:counters")
 	//   KEYS[4] - usage hash key (e.g., "llmux:router:stats:deployment-1:usage:2026-01-10-16-52")
+	//   KEYS[5] - success bucket key (e.g., "llmux:router:stats:deployment-1:successes:2026-01-10-16-52")
 	//
 	// Args:
 	//   ARGV[1] - latency value in milliseconds (float)
@@ -22,7 +23,8 @@ const (
 	//   ARGV[3] - total tokens (integer)
 	//   ARGV[4] - max latency list size (integer, default 10)
 	//   ARGV[5] - usage TTL in seconds (integer, default 120)
-	//   ARGV[6] - current timestamp (for last_request_time)
+	//   ARGV[6] - bucket TTL in seconds (integer)
+	//   ARGV[7] - current timestamp (for last_request_time)
 	//
 	// Returns:
 	//   "OK" on success
@@ -31,13 +33,15 @@ local latency_key = KEYS[1]
 local ttft_key = KEYS[2]
 local counters_key = KEYS[3]
 local usage_key = KEYS[4]
+local success_key = KEYS[5]
 
 local latency = tonumber(ARGV[1])
 local ttft = tonumber(ARGV[2])
 local tokens = tonumber(ARGV[3])
 local max_size = tonumber(ARGV[4])
 local usage_ttl = tonumber(ARGV[5])
-local now = tonumber(ARGV[6])
+local bucket_ttl = tonumber(ARGV[6])
+local now = tonumber(ARGV[7])
 
 -- 1. Update latency history (rolling window)
 redis.call('LPUSH', latency_key, latency)
@@ -62,6 +66,10 @@ redis.call('HINCRBY', usage_key, 'tpm', tokens)
 redis.call('HINCRBY', usage_key, 'rpm', 1)
 redis.call('EXPIRE', usage_key, usage_ttl)
 
+-- 5. Track per-minute successes (sliding window)
+redis.call('INCRBY', success_key, 1)
+redis.call('EXPIRE', success_key, bucket_ttl)
+
 return redis.status_reply("OK")
 `
 
@@ -70,21 +78,45 @@ return redis.status_reply("OK")
 	// Keys:
 	//   KEYS[1] - counters hash key
 	//   KEYS[2] - latency list key (for penalty latency on timeout)
+	//   KEYS[3] - cooldown key
+	//   KEYS[4..(3+N)] - success bucket keys (current minute first)
+	//   KEYS[(4+N)..(3+2N)] - failure bucket keys (current minute first)
 	//
 	// Args:
 	//   ARGV[1] - current timestamp
 	//   ARGV[2] - is timeout error (1 or 0)
 	//   ARGV[3] - max latency list size
+	//   ARGV[4] - window size (N)
+	//   ARGV[5] - bucket TTL in seconds
+	//   ARGV[6] - failure threshold percent (float)
+	//   ARGV[7] - min requests for threshold
+	//   ARGV[8] - cooldown seconds
+	//   ARGV[9] - immediate cooldown on 429 (1 or 0)
+	//   ARGV[10] - status code (int)
+	//   ARGV[11] - single deployment min requests
+	//   ARGV[12] - is single deployment (1 or 0)
+	//   ARGV[13] - cooldown TTL seconds
 	//
 	// Returns:
 	//   "OK" on success
 	recordFailureScript = `
 local counters_key = KEYS[1]
 local latency_key = KEYS[2]
+local cooldown_key = KEYS[3]
 
 local now = tonumber(ARGV[1])
 local is_timeout = tonumber(ARGV[2])
 local max_size = tonumber(ARGV[3])
+local window_size = tonumber(ARGV[4])
+local bucket_ttl = tonumber(ARGV[5])
+local failure_threshold = tonumber(ARGV[6])
+local min_requests = tonumber(ARGV[7])
+local cooldown_seconds = tonumber(ARGV[8])
+local immediate_on_429 = tonumber(ARGV[9])
+local status_code = tonumber(ARGV[10])
+local single_deploy_min_requests = tonumber(ARGV[11])
+local is_single_deployment = tonumber(ARGV[12])
+local cooldown_ttl = tonumber(ARGV[13])
 
 -- 1. Update failure counters
 redis.call('HINCRBY', counters_key, 'total_requests', 1)
@@ -97,6 +129,58 @@ if is_timeout == 1 then
     redis.call('LPUSH', latency_key, 1000000)  -- 1000s penalty
     redis.call('LTRIM', latency_key, 0, max_size - 1)
     redis.call('EXPIRE', latency_key, 3600)
+end
+
+-- 3. Track per-minute failures (sliding window)
+local success_start = 4
+local failure_start = 4 + window_size
+local current_failure_key = KEYS[failure_start]
+redis.call('INCRBY', current_failure_key, 1)
+redis.call('EXPIRE', current_failure_key, bucket_ttl)
+
+-- 4. Aggregate window totals
+local total_success = 0
+local total_failure = 0
+for i = 0, window_size - 1 do
+    local success_val = redis.call('GET', KEYS[success_start + i])
+    if success_val then
+        total_success = total_success + tonumber(success_val)
+    end
+    local failure_val = redis.call('GET', KEYS[failure_start + i])
+    if failure_val then
+        total_failure = total_failure + tonumber(failure_val)
+    end
+end
+
+local total_requests = total_success + total_failure
+local should_cooldown = false
+
+if status_code == 401 or status_code == 404 or status_code == 408 then
+    should_cooldown = true
+end
+
+if status_code == 429 and immediate_on_429 == 1 and is_single_deployment == 0 then
+    should_cooldown = true
+end
+
+if not should_cooldown then
+    if is_single_deployment == 1 then
+        if total_requests >= single_deploy_min_requests and total_failure == total_requests and total_requests > 0 then
+            should_cooldown = true
+        end
+    else
+        if total_requests >= min_requests and total_requests > 0 then
+            local failure_rate = total_failure / total_requests
+            if failure_rate > failure_threshold then
+                should_cooldown = true
+            end
+        end
+    end
+end
+
+if should_cooldown and cooldown_seconds and cooldown_seconds > 0 then
+    redis.call('SET', cooldown_key, now + cooldown_seconds)
+    redis.call('EXPIRE', cooldown_key, cooldown_ttl)
 end
 
 return redis.status_reply("OK")
@@ -201,6 +285,8 @@ return redis.status_reply("OK")
 	//   KEYS[3] - counters key
 	//   KEYS[4] - cooldown key
 	//   KEYS[5] - usage key pattern (for SCAN)
+	//   KEYS[6] - success bucket key pattern (for SCAN)
+	//   KEYS[7] - failure bucket key pattern (for SCAN)
 	//
 	// Returns:
 	//   Number of keys deleted
@@ -210,23 +296,31 @@ local ttft_key = KEYS[2]
 local counters_key = KEYS[3]
 local cooldown_key = KEYS[4]
 local usage_pattern = KEYS[5]
+local success_pattern = KEYS[6]
+local failure_pattern = KEYS[7]
 
 local deleted = 0
 
 -- Delete fixed keys
 deleted = deleted + redis.call('DEL', latency_key, ttft_key, counters_key, cooldown_key)
 
+local function delete_by_pattern(pattern)
+    local cursor = "0"
+    repeat
+        local result = redis.call('SCAN', cursor, 'MATCH', pattern, 'COUNT', 100)
+        cursor = result[1]
+        local keys = result[2]
+
+        if #keys > 0 then
+            deleted = deleted + redis.call('DEL', unpack(keys))
+        end
+    until cursor == "0"
+end
+
 -- Delete usage keys (pattern match)
-local cursor = "0"
-repeat
-    local result = redis.call('SCAN', cursor, 'MATCH', usage_pattern, 'COUNT', 100)
-    cursor = result[1]
-    local keys = result[2]
-    
-    if #keys > 0 then
-        deleted = deleted + redis.call('DEL', unpack(keys))
-    end
-until cursor == "0"
+delete_by_pattern(usage_pattern)
+delete_by_pattern(success_pattern)
+delete_by_pattern(failure_pattern)
 
 return deleted
 `
