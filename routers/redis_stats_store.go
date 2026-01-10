@@ -82,9 +82,9 @@ func WithFailureThresholdPercent(threshold float64) RedisStatsOption {
 }
 
 // WithMinRequestsForThreshold sets the minimum requests before rate-based cooldown.
-func WithMinRequestsForThreshold(min int) RedisStatsOption {
+func WithMinRequestsForThreshold(minRequests int) RedisStatsOption {
 	return func(r *RedisStatsStore) {
-		r.minRequests = min
+		r.minRequests = minRequests
 	}
 }
 
