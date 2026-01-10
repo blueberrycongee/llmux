@@ -343,7 +343,7 @@ func (s *StreamReader) finish() {
 	if !s.closed {
 		latency := time.Since(s.startTime)
 		promptTokens := tokenizer.EstimatePromptTokens(s.originalReq.Model, s.originalReq)
-		completionTokens := tokenizer.CountTextTokens(s.originalReq.Model, s.accumulated.String())
+		completionTokens := tokenizer.EstimateCompletionTokensFromText(s.originalReq.Model, s.accumulated.String())
 		s.router.ReportSuccess(s.deployment, &router.ResponseMetrics{
 			Latency:          latency,
 			TimeToFirstToken: s.ttft,
