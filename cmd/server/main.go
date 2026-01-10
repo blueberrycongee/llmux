@@ -130,46 +130,8 @@ func run() error {
 		logger.Warn("config hot-reload disabled", "error", watchErr)
 	}
 
-	// Initialize Redis Client (if configured)
-	var redisClient *redis.Client
-	var redisLimiter *resilience.RedisLimiter
-
-	// We use Cache.Redis config for connection details
-	// TODO: Separate Redis config for Rate Limiting if needed
-	if cfg.Cache.Redis.Addr != "" {
-		redisClient = redis.NewClient(&redis.Options{
-			Addr:         cfg.Cache.Redis.Addr,
-			Password:     cfg.Cache.Redis.Password,
-			DB:           cfg.Cache.Redis.DB,
-			DialTimeout:  cfg.Cache.Redis.DialTimeout,
-			ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
-			WriteTimeout: cfg.Cache.Redis.WriteTimeout,
-			PoolSize:     cfg.Cache.Redis.PoolSize,
-			MinIdleConns: cfg.Cache.Redis.MinIdleConns,
-		})
-
-		// Ping to verify connection (optional, but good for startup check)
-		pingCtx, pingCancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer pingCancel()
-
-		if pingErr := redisClient.Ping(pingCtx).Err(); pingErr != nil {
-			logger.Warn("failed to connect to redis", "addr", cfg.Cache.Redis.Addr, "error", pingErr)
-			// We don't fail hard here, just warn and continue without distributed features
-			redisClient = nil
-		} else {
-			logger.Info("connected to redis", "addr", cfg.Cache.Redis.Addr)
-			redisLimiter = resilience.NewRedisLimiter(redisClient)
-		}
-	}
-
 	// Build llmux.Client options from config
 	opts := buildClientOptions(cfg, logger, secretManager)
-
-	// Inject Distributed Rate Limiter if available
-	if redisLimiter != nil {
-		opts = append(opts, llmux.WithRateLimiter(redisLimiter))
-		logger.Info("distributed rate limiter enabled")
-	}
 
 	// Create llmux.Client
 	client, err := llmux.New(opts...)
@@ -305,24 +267,6 @@ func run() error {
 		logger.Info("OIDC authentication enabled", "issuer", cfg.Auth.OIDC.IssuerURL, "sync_enabled", syncer != nil)
 	}
 
-	// Rate Limiting Middleware
-	// Applied after authentication to support per-user/team limits
-	if cfg.RateLimit.Enabled {
-		trlConfig := &auth.TenantRateLimiterConfig{
-			DefaultRPM:   cfg.RateLimit.RequestsPerMinute,
-			DefaultBurst: cfg.RateLimit.BurstSize,
-		}
-		tenantLimiter := auth.NewTenantRateLimiter(trlConfig)
-
-		// Inject distributed limiter if available
-		if redisLimiter != nil {
-			tenantLimiter.SetDistributedLimiter(redisLimiter)
-		}
-
-		httpHandler = tenantLimiter.RateLimitMiddleware(httpHandler)
-		logger.Info("rate limiting enabled", "rpm", cfg.RateLimit.RequestsPerMinute, "distributed", redisLimiter != nil)
-	}
-
 	httpHandler = metrics.Middleware(httpHandler)
 	httpHandler = observability.RequestIDMiddleware(httpHandler)
 
@@ -432,7 +376,92 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 		opts = append(opts, llmux.WithPricingFile(cfg.PricingFile))
 	}
 
+	// Initialize distributed rate limiting
+	if cfg.RateLimit.Enabled && cfg.RateLimit.Distributed {
+		// Use Redis from Cache config for distributed rate limiting
+		if cfg.Cache.Redis.Addr != "" || len(cfg.Cache.Redis.ClusterAddrs) > 0 {
+			var redisClient *redis.Client
+
+			if len(cfg.Cache.Redis.ClusterAddrs) > 0 {
+				// For cluster mode, we need ClusterClient, but RedisLimiter uses *redis.Client
+				// For now, use single node. Full cluster support requires updating RedisLimiter.
+				logger.Warn("Redis cluster mode not fully supported for rate limiting, using single-node mode")
+				redisClient = redis.NewClient(&redis.Options{
+					Addr:         cfg.Cache.Redis.ClusterAddrs[0],
+					Password:     cfg.Cache.Redis.Password,
+					DB:           cfg.Cache.Redis.DB,
+					DialTimeout:  cfg.Cache.Redis.DialTimeout,
+					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
+					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
+					PoolSize:     cfg.Cache.Redis.PoolSize,
+					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
+					MaxRetries:   cfg.Cache.Redis.MaxRetries,
+				})
+			} else {
+				redisClient = redis.NewClient(&redis.Options{
+					Addr:         cfg.Cache.Redis.Addr,
+					Password:     cfg.Cache.Redis.Password,
+					DB:           cfg.Cache.Redis.DB,
+					DialTimeout:  cfg.Cache.Redis.DialTimeout,
+					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
+					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
+					PoolSize:     cfg.Cache.Redis.PoolSize,
+					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
+					MaxRetries:   cfg.Cache.Redis.MaxRetries,
+				})
+			}
+
+			// Test Redis connection
+			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			defer cancel()
+			if err := redisClient.Ping(ctx).Err(); err != nil {
+				logger.Error("failed to connect to Redis for rate limiting", "error", err)
+			} else {
+				limiter := resilience.NewRedisLimiter(redisClient)
+				opts = append(opts, llmux.WithRateLimiter(limiter))
+				logger.Info("distributed rate limiting enabled",
+					"redis_addr", cfg.Cache.Redis.Addr,
+					"rpm_limit", cfg.RateLimit.RequestsPerMinute,
+					"tpm_limit", cfg.RateLimit.TokensPerMinute,
+				)
+			}
+		} else {
+			logger.Warn("distributed rate limiting enabled but no Redis configured")
+		}
+	}
+
+	// Set rate limiter config
+	if cfg.RateLimit.Enabled {
+		windowSize := cfg.RateLimit.WindowSize
+		if windowSize == 0 {
+			windowSize = time.Minute
+		}
+		opts = append(opts, llmux.WithRateLimiterConfig(llmux.RateLimiterConfig{
+			Enabled:     cfg.RateLimit.Enabled,
+			RPMLimit:    cfg.RateLimit.RequestsPerMinute,
+			TPMLimit:    cfg.RateLimit.TokensPerMinute,
+			WindowSize:  windowSize,
+			KeyStrategy: mapKeyStrategy(cfg.RateLimit.KeyStrategy),
+		}))
+	}
+
 	return opts
+}
+
+// mapKeyStrategy converts config key strategy string to llmux.RateLimitKeyStrategy.
+func mapKeyStrategy(strategy string) llmux.RateLimitKeyStrategy {
+	switch strategy {
+	case "api_key":
+		return llmux.RateLimitKeyByAPIKey
+	case "user":
+		return llmux.RateLimitKeyByUser
+	case "model":
+		return llmux.RateLimitKeyByModel
+	case "api_key_model":
+		return llmux.RateLimitKeyByAPIKeyAndModel
+	default:
+		return llmux.RateLimitKeyByAPIKey
+	}
 }
 
 // mapRoutingStrategy converts config strategy string to llmux.Strategy.

@@ -219,9 +219,15 @@ type RoutingConfig struct {
 
 // RateLimitConfig defines rate limiting parameters.
 type RateLimitConfig struct {
-	Enabled           bool `yaml:"enabled"`
-	RequestsPerMinute int  `yaml:"requests_per_minute"`
-	BurstSize         int  `yaml:"burst_size"`
+	Enabled           bool          `yaml:"enabled"`
+	RequestsPerMinute int64         `yaml:"requests_per_minute"` // RPM limit
+	TokensPerMinute   int64         `yaml:"tokens_per_minute"`   // TPM limit
+	BurstSize         int           `yaml:"burst_size"`
+	WindowSize        time.Duration `yaml:"window_size"`  // Sliding window duration (default: 1m)
+	KeyStrategy       string        `yaml:"key_strategy"` // api_key, user, model, api_key_model
+
+	// Distributed rate limiting (Redis-backed)
+	Distributed bool `yaml:"distributed"` // Enable Redis-backed distributed rate limiting
 }
 
 // LoggingConfig contains logging settings.
@@ -263,7 +269,11 @@ func DefaultConfig() *Config {
 		RateLimit: RateLimitConfig{
 			Enabled:           false,
 			RequestsPerMinute: 60,
+			TokensPerMinute:   100000,
 			BurstSize:         10,
+			WindowSize:        time.Minute,
+			KeyStrategy:       "api_key",
+			Distributed:       false,
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
