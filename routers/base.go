@@ -276,6 +276,10 @@ func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *rou
 }
 
 // ReportFailure records a failed request and triggers cooldown if needed.
+// Cooldown is triggered based on LiteLLM-style failure rate logic:
+//   - Immediate cooldown on 429 (Rate Limit) if ImmediateCooldownOn429 is true
+//   - Immediate cooldown on non-retryable errors (401, 404)
+//   - Failure rate based cooldown when rate exceeds FailureThresholdPercent
 func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
@@ -295,13 +299,40 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 
 	var llmErr *llmerrors.LLMError
 	if errors.As(err, &llmErr) {
-		if llmerrors.IsCooldownRequired(llmErr.StatusCode) {
+		// Immediate cooldown: 429 Rate Limit
+		if r.config.ImmediateCooldownOn429 && llmErr.StatusCode == 429 {
 			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
+			return
 		}
+
+		// Immediate cooldown: Non-retryable errors (401, 404)
+		if llmErr.StatusCode == 401 || llmErr.StatusCode == 404 {
+			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
+			return
+		}
+
+		// Record high latency for timeout errors
 		if llmErr.StatusCode == 408 || llmErr.StatusCode == 504 {
 			r.appendToHistory(&stats.LatencyHistory, 1000000.0, stats.MaxLatencyListSize)
 		}
+
+		// Failure rate based cooldown
+		if r.shouldCooldownByFailureRate(stats) {
+			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
+		}
 	}
+}
+
+// shouldCooldownByFailureRate checks if deployment should enter cooldown based on failure rate.
+// Returns true if failure rate exceeds threshold AND minimum request count is met.
+func (r *BaseRouter) shouldCooldownByFailureRate(stats *statsEntry) bool {
+	total := stats.SuccessCount + stats.FailureCount
+	if total < int64(r.config.MinRequestsForThreshold) {
+		return false // Not enough requests to determine failure rate
+	}
+
+	failureRate := float64(stats.FailureCount) / float64(total)
+	return failureRate > r.config.FailureThresholdPercent
 }
 
 func (r *BaseRouter) getHealthyDeployments(model string) []*ExtendedDeployment {

@@ -1,5 +1,20 @@
 // Package resilience provides high-availability patterns for the LLM gateway.
 // It includes circuit breaker, rate limiting, and concurrency control.
+//
+// IMPORTANT: Circuit Breaker Status
+// =================================
+// The CircuitBreaker implementation in this file is a REFERENCE IMPLEMENTATION
+// that is NOT currently integrated into the production router.
+//
+// The router (routers/base.go) uses a LiteLLM-style failure-rate based cooldown
+// mechanism instead, which is more suitable for LLM APIs with bursty error patterns:
+//   - Immediate cooldown on 429 (Rate Limit)
+//   - Immediate cooldown on 401/404 (Non-retryable)
+//   - Failure rate threshold (default 50%, min 5 requests)
+//
+// This traditional circuit breaker implementation may be integrated in the future
+// if more sophisticated patterns (half-open state, gradual recovery) are needed.
+// See: routers/base.go ReportFailure() for the currently active logic.
 package resilience
 
 import (

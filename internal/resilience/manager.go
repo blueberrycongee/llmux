@@ -1,3 +1,13 @@
+// Package resilience provides high-availability patterns for the LLM gateway.
+//
+// Usage Status:
+//   - RateLimiter, RedisLimiter: ACTIVE - Used for distributed rate limiting
+//   - Semaphore: ACTIVE - Used for concurrency control
+//   - CircuitBreaker: NOT INTEGRATED - See circuitbreaker.go for details
+//   - Manager.GetCircuitBreaker: NOT USED IN PRODUCTION
+//
+// The router uses LiteLLM-style failure-rate cooldown instead of traditional
+// circuit breaker pattern. See routers/base.go for the active implementation.
 package resilience
 
 import (
@@ -7,6 +17,8 @@ import (
 )
 
 // Manager coordinates resilience components for multiple providers/deployments.
+// NOTE: The CircuitBreaker functionality in this Manager is NOT used in production.
+// Only RateLimiter and Semaphore features are actively used.
 type Manager struct {
 	mu              sync.RWMutex
 	circuitBreakers map[string]*CircuitBreaker

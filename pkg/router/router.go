@@ -191,16 +191,38 @@ type Config struct {
 
 	// PricingFile is the path to the custom pricing JSON file
 	PricingFile string
+
+	// --- Circuit Breaker / Cooldown Configuration (LiteLLM-style) ---
+
+	// FailureThresholdPercent is the failure rate threshold for triggering cooldown.
+	// When failure_count / total_requests exceeds this value, the deployment enters cooldown.
+	// Default: 0.5 (50%). Set to 1.0 to disable failure-rate based cooldown.
+	FailureThresholdPercent float64
+
+	// MinRequestsForThreshold is the minimum number of requests required before
+	// applying failure rate based cooldown. This prevents premature cooldown
+	// when sample size is too small.
+	// Default: 5 requests.
+	MinRequestsForThreshold int
+
+	// ImmediateCooldownOn429 triggers immediate cooldown on 429 (Rate Limit) errors.
+	// This is typically desired for LLM APIs where 429 indicates the provider
+	// needs time to recover from rate limiting.
+	// Default: true.
+	ImmediateCooldownOn429 bool
 }
 
 // DefaultConfig returns sensible default router configuration.
 func DefaultConfig() Config {
 	return Config{
-		Strategy:           StrategySimpleShuffle,
-		CooldownPeriod:     60 * time.Second,
-		LatencyBuffer:      0.1, // 10% buffer
-		MaxLatencyListSize: 10,
-		MetricsTTL:         1 * time.Hour,
-		EnableTagFiltering: false,
+		Strategy:                StrategySimpleShuffle,
+		CooldownPeriod:          60 * time.Second,
+		LatencyBuffer:           0.1, // 10% buffer
+		MaxLatencyListSize:      10,
+		MetricsTTL:              1 * time.Hour,
+		EnableTagFiltering:      false,
+		FailureThresholdPercent: 0.5,  // 50% failure rate
+		MinRequestsForThreshold: 5,    // Minimum 5 requests before checking rate
+		ImmediateCooldownOn429:  true, // Immediate cooldown on rate limit
 	}
 }
