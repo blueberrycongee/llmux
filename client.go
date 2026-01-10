@@ -13,6 +13,7 @@ import (
 
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
+	"github.com/blueberrycongee/llmux/internal/resilience"
 	"github.com/blueberrycongee/llmux/pkg/cache"
 	"github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -38,6 +39,10 @@ type Client struct {
 
 	// Provider factories for creating providers from config
 	factories map[string]provider.Factory
+
+	// Distributed rate limiting
+	rateLimiter       resilience.DistributedLimiter
+	rateLimiterConfig RateLimiterConfig
 
 	// Object pools for performance
 	requestPool  sync.Pool
@@ -126,10 +131,17 @@ func New(opts ...Option) (*Client, error) {
 		c.cache = cfg.Cache
 	}
 
+	// Initialize distributed rate limiter
+	if cfg.RateLimiter != nil {
+		c.rateLimiter = cfg.RateLimiter
+		c.rateLimiterConfig = cfg.RateLimiterConfig
+	}
+
 	c.logger.Info("llmux client initialized",
 		"providers", len(c.providers),
 		"strategy", cfg.RouterStrategy,
 		"cache_enabled", cfg.CacheEnabled,
+		"ratelimiter_enabled", cfg.RateLimiterConfig.Enabled,
 	)
 
 	// Initialize plugin pipeline
