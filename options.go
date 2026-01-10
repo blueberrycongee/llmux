@@ -9,6 +9,34 @@ import (
 	"github.com/blueberrycongee/llmux/internal/resilience"
 )
 
+// RateLimitKeyStrategy defines how to derive the rate limit key.
+type RateLimitKeyStrategy string
+
+const (
+	// RateLimitKeyByAPIKey uses the API key as the rate limit key.
+	RateLimitKeyByAPIKey RateLimitKeyStrategy = "api_key"
+	// RateLimitKeyByUser uses the user ID as the rate limit key.
+	RateLimitKeyByUser RateLimitKeyStrategy = "user"
+	// RateLimitKeyByModel uses the model name as the rate limit key.
+	RateLimitKeyByModel RateLimitKeyStrategy = "model"
+	// RateLimitKeyByAPIKeyAndModel uses both API key and model as the rate limit key.
+	RateLimitKeyByAPIKeyAndModel RateLimitKeyStrategy = "api_key_model"
+)
+
+// RateLimiterConfig holds configuration for rate limiting.
+type RateLimiterConfig struct {
+	// Enabled indicates whether rate limiting is enabled.
+	Enabled bool
+	// RPMLimit is the requests per minute limit.
+	RPMLimit int64
+	// TPMLimit is the tokens per minute limit.
+	TPMLimit int64
+	// WindowSize is the sliding window duration (default: 1 minute).
+	WindowSize time.Duration
+	// KeyStrategy defines how to derive the rate limit key.
+	KeyStrategy RateLimitKeyStrategy
+}
+
 // ClientConfig holds all configuration for the LLMux client.
 type ClientConfig struct {
 	// Providers configuration
@@ -46,8 +74,9 @@ type ClientConfig struct {
 	// Observability
 	OTelMetricsConfig observability.OTelMetricsConfig
 
-	// Rate Limiting
-	RateLimiter resilience.DistributedLimiter
+	// Rate Limiting (Distributed)
+	RateLimiter       resilience.DistributedLimiter
+	RateLimiterConfig RateLimiterConfig
 }
 
 // providerInstance holds a pre-configured provider with its models.
@@ -231,9 +260,34 @@ func WithOTelMetrics(config observability.OTelMetricsConfig) Option {
 	}
 }
 
-// WithRateLimiter sets the distributed rate limiter.
+// WithRateLimiter sets a custom distributed rate limiter implementation.
+// This enables distributed rate limiting across multiple LLMux instances.
+//
+// Example:
+//
+//	redisClient := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
+//	limiter := resilience.NewRedisLimiter(redisClient)
+//	llmux.WithRateLimiter(limiter)
 func WithRateLimiter(limiter resilience.DistributedLimiter) Option {
 	return func(c *ClientConfig) {
 		c.RateLimiter = limiter
+	}
+}
+
+// WithRateLimiterConfig sets the rate limiter configuration.
+// This configures the rate limits (RPM/TPM) and key strategy.
+//
+// Example:
+//
+//	llmux.WithRateLimiterConfig(llmux.RateLimiterConfig{
+//	    Enabled:     true,
+//	    RPMLimit:    100,
+//	    TPMLimit:    10000,
+//	    WindowSize:  time.Minute,
+//	    KeyStrategy: llmux.RateLimitKeyByAPIKey,
+//	})
+func WithRateLimiterConfig(config RateLimiterConfig) Option {
+	return func(c *ClientConfig) {
+		c.RateLimiterConfig = config
 	}
 }
