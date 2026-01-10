@@ -247,8 +247,10 @@ func run() error {
 			SkipPaths: cfg.Auth.SkipPaths,
 			Enabled:   true,
 		})
+		httpHandler = authMiddleware.ModelAccessMiddleware(httpHandler)
 		httpHandler = authMiddleware.Authenticate(httpHandler)
 		logger.Info("API key authentication middleware enabled")
+		logger.Info("model access middleware enabled")
 	}
 
 	// Gateway-level Rate Limiting Middleware (P0 Fix - Critical Security Feature)

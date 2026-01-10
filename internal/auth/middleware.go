@@ -1,7 +1,10 @@
 package auth
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"io"
 	"log/slog"
 	"net/http"
 	"time"
@@ -151,6 +154,12 @@ func (m *Middleware) writeError(w http.ResponseWriter, status int, message strin
 	_, _ = w.Write([]byte(`{"error":{"message":"` + message + `","type":"authentication_error"}}`))
 }
 
+func (m *Middleware) writePermissionDenied(w http.ResponseWriter, message string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusForbidden)
+	_, _ = w.Write([]byte(`{"error":{"message":"` + message + `","type":"permission_error"}}`))
+}
+
 // ModelAccessMiddleware checks if the authenticated key can access the requested model.
 // This should be called after Authenticate middleware.
 func (m *Middleware) ModelAccessMiddleware(next http.Handler) http.Handler {
@@ -160,8 +169,74 @@ func (m *Middleware) ModelAccessMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Model validation is done in the handler after parsing the request body
-		// This middleware is a placeholder for future enhancements
+		if m.skipPaths[r.URL.Path] {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		if !isModelAccessRequest(r) {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		authCtx := GetAuthContext(r.Context())
+		if authCtx == nil {
+			m.writeUnauthorized(w, "authentication required")
+			return
+		}
+
+		origBody := r.Body
+		body, err := io.ReadAll(origBody)
+		_ = origBody.Close()
+		if err != nil {
+			r.Body = io.NopCloser(bytes.NewReader(body))
+			next.ServeHTTP(w, r)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+
+		model, err := parseModelFromBody(body)
+		if err != nil || model == "" {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		access, err := NewModelAccess(r.Context(), m.store, authCtx)
+		if err != nil {
+			m.logger.Error("failed to evaluate model access", "error", err)
+			m.writeError(w, http.StatusInternalServerError, "internal error")
+			return
+		}
+
+		if !access.Allows(model) {
+			m.writePermissionDenied(w, "model access denied")
+			return
+		}
+
 		next.ServeHTTP(w, r)
 	})
+}
+
+type modelRequest struct {
+	Model string `json:"model"`
+}
+
+func parseModelFromBody(body []byte) (string, error) {
+	var req modelRequest
+	if err := json.Unmarshal(body, &req); err != nil {
+		return "", err
+	}
+	return req.Model, nil
+}
+
+func isModelAccessRequest(r *http.Request) bool {
+	if r.Method != http.MethodPost {
+		return false
+	}
+	switch r.URL.Path {
+	case "/v1/chat/completions", "/v1/embeddings", "/embeddings":
+		return true
+	default:
+		return false
+	}
 }
