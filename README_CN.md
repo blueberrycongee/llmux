@@ -30,6 +30,7 @@
 
 ### 核心网关
 - **统一 OpenAI 兼容 API** - 单一端点访问所有提供商
+- **[高级记忆系统](internal/memory/README_CN.md)** - 基于 Mem0 架构的长期记忆，支持智能摄入和混合检索
 - **多提供商支持** - OpenAI、Anthropic Claude、Google Gemini、Azure OpenAI 及任意 OpenAI 兼容 API
 - **6 种路由策略** - 随机轮询、最低延迟、最少请求、最低使用率、最低成本、标签路由
 - **流式响应** - 实时 SSE 流式传输，正确转发

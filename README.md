@@ -30,6 +30,7 @@ Both gateways were tested on identical hardware (limited to 4 CPU cores) against
 
 ### Core Gateway
 - **Unified OpenAI-Compatible API** - Single endpoint for all providers
+- **Advanced Memory System** - Long-term memory with Mem0 architecture, smart ingestion, and hybrid retrieval
 - **Multi-Provider Support** - OpenAI, Anthropic Claude, Google Gemini, Azure OpenAI, and any OpenAI-compatible API
 - **6 Routing Strategies** - simple-shuffle, lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
 - **Streaming Support** - Real-time SSE streaming with proper forwarding
@@ -315,6 +316,7 @@ npm run lint
 ## 📚 Documentation
 
 - **[Architecture Overview](.agent/docs/architecture/overview.md)**
+- **[Advanced Memory System](internal/memory/README.md)**
 - **[Plugin System](.agent/docs/architecture/plugin_system.md)**
 - **[Developer Guide](.agent/docs/development/codebase_overview.md)**
 - **[CI/CD Guide](.agent/docs/development/ci_guide.md)**

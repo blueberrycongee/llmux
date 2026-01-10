@@ -15,6 +15,7 @@ import (
 
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/auth"
+	"github.com/blueberrycongee/llmux/internal/mcp"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/streaming"
@@ -93,6 +94,44 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	if len(req.Messages) == 0 {
 		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, "messages is required"))
 		return
+	}
+
+	// Check for Agent execution (MCP)
+	if h.mcpManager != nil {
+		// Only trigger if we have tools available or explicit intent (can be refined)
+		tools := h.mcpManager.GetAvailableTools(r.Context())
+		if len(tools) > 0 {
+			h.logger.Info("executing request with agent", "model", req.Model, "tools_count", len(tools))
+
+			// For MVP, we disable streaming when using AgentExecutor as it's a blocking loop
+			req.Stream = false
+
+			executor := mcp.NewAgentExecutor(h.mcpManager, 10, h.logger)
+
+			// Define SendFunc using the client
+			sendFn := func(ctx context.Context, r *llmux.ChatRequest) (*llmux.ChatResponse, error) {
+				return h.client.ChatCompletion(ctx, r)
+			}
+
+			resp, err := executor.Execute(r.Context(), req, sendFn)
+			if err != nil {
+				h.logger.Error("agent execution failed", "error", err)
+				h.writeError(w, llmerrors.NewInternalError("", req.Model, "agent execution failed: "+err.Error()))
+				return
+			}
+
+			// Record metrics and usage for the final response
+			// Note: This doesn't capture intermediate tool calls usage yet
+			latency := time.Since(start)
+			metrics.RecordRequest("llmux-agent", req.Model, http.StatusOK, latency)
+			h.recordUsage(r.Context(), requestID, req.Model, resp.Usage, start, latency)
+
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(resp); err != nil {
+				h.logger.Error("failed to encode response", "error", err)
+			}
+			return
+		}
 	}
 
 	// Handle streaming response
