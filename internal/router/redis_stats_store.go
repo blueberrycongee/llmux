@@ -3,7 +3,6 @@ package router
 import (
 	"context"
 	"fmt"
-	"log"
 	"strconv"
 	"time"
 
@@ -126,34 +125,37 @@ func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*D
 		}
 	}
 
+	// Track whether the counters hash exists in Redis (has any fields)
+	// This is different from checking if the field VALUES are non-zero.
+	// A hash with [active_requests 0] still EXISTS, it just has zero value.
+	countersHashExists := false
+
 	// Parse counters hash (result[2])
 	// HGETALL returns an array of key-value pairs, or empty array if hash doesn't exist
-	// Debug: log the raw result to understand the data format
-	log.Printf("[DEBUG] GetStats(%s): resultSlice[2] type=%T, value=%+v", deploymentID, resultSlice[2], resultSlice[2])
 	if resultSlice[2] != nil {
-		if countersSlice, ok := resultSlice[2].([]interface{}); ok && len(countersSlice) > 0 {
-			log.Printf("[DEBUG] GetStats(%s): countersSlice len=%d, value=%+v", deploymentID, len(countersSlice), countersSlice)
-			countersMap := parseHashMap(countersSlice)
-			log.Printf("[DEBUG] GetStats(%s): countersMap=%+v", deploymentID, countersMap)
+		if countersSlice, ok := resultSlice[2].([]interface{}); ok {
+			// If HGETALL returned any fields, the hash exists
+			countersHashExists = len(countersSlice) > 0
 
-			stats.TotalRequests = parseInt64(countersMap["total_requests"])
-			stats.SuccessCount = parseInt64(countersMap["success_count"])
-			stats.FailureCount = parseInt64(countersMap["failure_count"])
-			stats.ActiveRequests = parseInt64(countersMap["active_requests"])
-			log.Printf("[DEBUG] GetStats(%s): parsed ActiveRequests=%d", deploymentID, stats.ActiveRequests)
+			if countersHashExists {
+				countersMap := parseHashMap(countersSlice)
 
-			if lastReqTime := parseInt64(countersMap["last_request_time"]); lastReqTime > 0 {
-				stats.LastRequestTime = time.Unix(lastReqTime, 0)
+				stats.TotalRequests = parseInt64(countersMap["total_requests"])
+				stats.SuccessCount = parseInt64(countersMap["success_count"])
+				stats.FailureCount = parseInt64(countersMap["failure_count"])
+				stats.ActiveRequests = parseInt64(countersMap["active_requests"])
+
+				if lastReqTime := parseInt64(countersMap["last_request_time"]); lastReqTime > 0 {
+					stats.LastRequestTime = time.Unix(lastReqTime, 0)
+				}
 			}
-		} else {
-			log.Printf("[DEBUG] GetStats(%s): countersSlice type assertion failed or empty, ok=%v", deploymentID, ok)
 		}
-	} else {
-		log.Printf("[DEBUG] GetStats(%s): resultSlice[2] is nil", deploymentID)
 	}
 
 	// Parse usage hash (result[3])
-	if usageSlice, ok := resultSlice[3].([]interface{}); ok {
+	usageHashExists := false
+	if usageSlice, ok := resultSlice[3].([]interface{}); ok && len(usageSlice) > 0 {
+		usageHashExists = true
 		usageMap := parseHashMap(usageSlice)
 		stats.CurrentMinuteTPM = parseInt64(usageMap["tpm"])
 		stats.CurrentMinuteRPM = parseInt64(usageMap["rpm"])
@@ -181,20 +183,23 @@ func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*D
 	cooldownUntil, _ := r.GetCooldownUntil(ctx, deploymentID)
 	stats.CooldownUntil = cooldownUntil
 
-	// Check if we have a valid counters hash
-	// If countersSlice was empty or type assertion failed, countersMap would have no entries
-	// We should check if there's any data in the counters hash by checking a broader condition
-	hasCounterData := stats.TotalRequests > 0 ||
-		stats.SuccessCount > 0 ||
-		stats.FailureCount > 0 ||
-		stats.ActiveRequests > 0
-
-	hasHistoryData := len(stats.LatencyHistory) > 0 || len(stats.TTFTHistory) > 0
-	hasUsageData := stats.CurrentMinuteTPM > 0 || stats.CurrentMinuteRPM > 0
+	// Determine if the deployment exists in Redis.
+	// A deployment exists if ANY of the following is true:
+	// - The counters hash has any fields (even if all values are 0)
+	// - The latency/TTFT lists have any entries
+	// - The usage hash has any fields
+	// - A cooldown is set
+	//
+	// This is the industry-standard approach: check if the Redis key/hash EXISTS,
+	// not whether the values are non-zero. A deployment with [active_requests=0]
+	// still exists, it just has no active requests.
+	hasLatencyData := len(stats.LatencyHistory) > 0
+	hasTTFTData := len(stats.TTFTHistory) > 0
 	hasCooldown := !stats.CooldownUntil.IsZero()
 
-	// Return ErrStatsNotFound only if there's absolutely no data
-	if !hasCounterData && !hasHistoryData && !hasUsageData && !hasCooldown {
+	deploymentExists := countersHashExists || hasLatencyData || hasTTFTData || usageHashExists || hasCooldown
+
+	if !deploymentExists {
 		return nil, ErrStatsNotFound
 	}
 
