@@ -22,12 +22,14 @@ func NewRedisLimiter(client *redis.Client) *RedisLimiter {
 local results = {}
 local now = tonumber(ARGV[1])        -- Current timestamp
 local window_size = tonumber(ARGV[2]) -- Window size in seconds (default 60)
+-- ARGV[3..] are increment values aligned with KEYS pairs
 
 -- Iterate over keys (pairs of window_key, counter_key)
 for i = 1, #KEYS, 2 do
     local window_key = KEYS[i]
     local counter_key = KEYS[i + 1]
-    local increment_value = 1
+    local descriptor_index = math.floor((i + 1) / 2)
+    local increment_value = tonumber(ARGV[2 + descriptor_index]) or 1
 
     -- 1. Check window start time
     local window_start = redis.call('GET', window_key)
@@ -39,10 +41,10 @@ for i = 1, #KEYS, 2 do
         redis.call('EXPIRE', window_key, window_size)
         redis.call('EXPIRE', counter_key, window_size)
         table.insert(results, tostring(now)) -- New window start
-        table.insert(results, increment_value) -- New count (1)
+        table.insert(results, increment_value) -- New count (increment_value)
     else
         -- 3. Window active: Increment counter
-        local counter = redis.call('INCR', counter_key)
+        local counter = redis.call('INCRBY', counter_key, increment_value)
         -- Ensure TTL exists (defensive programming)
         if redis.call('TTL', counter_key) == -1 then
             redis.call('EXPIRE', counter_key, window_size)
@@ -75,6 +77,7 @@ func (r *RedisLimiter) CheckAllow(ctx context.Context, descriptors []Descriptor)
 	}
 
 	keys := make([]string, 0, len(descriptors)*2)
+	increments := make([]interface{}, 0, len(descriptors))
 	for _, desc := range descriptors {
 		// Format: {{api_key}:{model}}:window
 		// Logic: By enclosing the "identity" part in curly braces {}, Redis guarantees that the window key and the counter key are stored on the same node.
@@ -86,9 +89,16 @@ func (r *RedisLimiter) CheckAllow(ctx context.Context, descriptors []Descriptor)
 		counterKey := baseKey + ":count"
 
 		keys = append(keys, windowKey, counterKey)
+
+		increment := desc.Increment
+		if increment <= 0 {
+			increment = 1
+		}
+		increments = append(increments, increment)
 	}
 
 	args := []interface{}{now, windowSize}
+	args = append(args, increments...)
 
 	// Run script
 	val, err := r.script.Run(ctx, r.client, keys, args...).Result()

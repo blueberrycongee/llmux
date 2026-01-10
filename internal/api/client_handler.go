@@ -296,8 +296,7 @@ func (h *ClientHandler) recordUsage(ctx context.Context, requestID, model string
 		log.InputTokens = usage.PromptTokens
 		log.OutputTokens = usage.CompletionTokens
 		log.TotalTokens = usage.TotalTokens
-		// Cost calculation can be extended based on model pricing
-		log.Cost = 0 // TODO: Implement model-based cost calculation
+		log.Cost = h.client.CalculateCost(model, usage)
 	}
 
 	// Set API key and team info from auth context
@@ -471,7 +470,11 @@ func (h *ClientHandler) recordEmbeddingUsage(ctx context.Context, requestID, mod
 	if usage != nil {
 		log.InputTokens = usage.PromptTokens
 		log.TotalTokens = usage.TotalTokens
-		log.Cost = 0 // TODO: Implement model-based cost calculation
+		log.Cost = h.client.CalculateCost(model, &llmux.Usage{
+			PromptTokens:     usage.PromptTokens,
+			CompletionTokens: 0,
+			TotalTokens:      usage.TotalTokens,
+		})
 	}
 
 	// Set API key and team info from auth context

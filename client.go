@@ -17,6 +17,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/cache"
 	"github.com/blueberrycongee/llmux/pkg/errors"
+	"github.com/blueberrycongee/llmux/pkg/pricing"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/pkg/types"
@@ -36,6 +37,7 @@ type Client struct {
 	httpClient  *http.Client
 	logger      *slog.Logger
 	config      *ClientConfig
+	pricing     *pricing.Registry
 	pipeline    *plugin.Pipeline
 
 	// Provider factories for creating providers from config
@@ -77,6 +79,7 @@ func New(opts ...Option) (*Client, error) {
 		factories:   make(map[string]provider.Factory),
 		config:      cfg,
 		logger:      cfg.Logger,
+		pricing:     pricing.NewRegistry(),
 		requestPool: sync.Pool{
 			New: func() any { return new(types.ChatRequest) },
 		},
@@ -97,6 +100,13 @@ func New(opts ...Option) (*Client, error) {
 
 	// Register built-in provider factories
 	c.registerBuiltinFactories()
+
+	// Load custom pricing if provided
+	if cfg.PricingFile != "" {
+		if err := c.pricing.Load(cfg.PricingFile); err != nil {
+			return nil, fmt.Errorf("load pricing file: %w", err)
+		}
+	}
 
 	// Initialize providers from config
 	for i := range cfg.Providers {
@@ -222,7 +232,12 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	if req.User != "" {
 		rateLimitKey = req.User
 	}
-	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
+	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
+	estimatedTokens := promptEstimate
+	if req.MaxTokens > 0 {
+		estimatedTokens += req.MaxTokens
+	}
+	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, estimatedTokens); err != nil {
 		return nil, err
 	}
 
@@ -312,7 +327,12 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	if req.User != "" {
 		rateLimitKey = req.User
 	}
-	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
+	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
+	estimatedTokens := promptEstimate
+	if req.MaxTokens > 0 {
+		estimatedTokens += req.MaxTokens
+	}
+	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, estimatedTokens); err != nil {
 		return nil, err
 	}
 
@@ -671,12 +691,6 @@ func (c *Client) RegisterProviderFactory(providerType string, factory ProviderFa
 
 // Private methods
 
-// checkRateLimit checks if the request is allowed by the rate limiter.
-// It checks both RPM and TPM limits if configured.
-// Returns nil if allowed, or an error if rate limited.
-// Note: estimatedTokens is reserved for future pre-check TPM validation.
-//
-//nolint:unparam // estimatedTokens will be used for TPM pre-validation in future
 func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimatedTokens int) error {
 	// Skip if rate limiting is disabled or limiter is nil
 	if !c.rateLimiterConfig.Enabled || c.rateLimiter == nil {
@@ -694,22 +708,28 @@ func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimate
 	// Add RPM descriptor if limit is set
 	if c.rateLimiterConfig.RPMLimit > 0 {
 		descriptors = append(descriptors, resilience.Descriptor{
-			Key:    key,
-			Value:  model,
-			Limit:  c.rateLimiterConfig.RPMLimit,
-			Type:   resilience.LimitTypeRequests,
-			Window: windowSize,
+			Key:       key,
+			Value:     model,
+			Limit:     c.rateLimiterConfig.RPMLimit,
+			Type:      resilience.LimitTypeRequests,
+			Window:    windowSize,
+			Increment: 1,
 		})
 	}
 
 	// Add TPM descriptor if limit is set
 	if c.rateLimiterConfig.TPMLimit > 0 {
+		inc := int64(estimatedTokens)
+		if inc <= 0 {
+			inc = 1
+		}
 		descriptors = append(descriptors, resilience.Descriptor{
-			Key:    key,
-			Value:  model,
-			Limit:  c.rateLimiterConfig.TPMLimit,
-			Type:   resilience.LimitTypeTokens,
-			Window: windowSize,
+			Key:       key,
+			Value:     model,
+			Limit:     c.rateLimiterConfig.TPMLimit,
+			Type:      resilience.LimitTypeTokens,
+			Window:    windowSize,
+			Increment: inc,
 		})
 	}
 
@@ -856,6 +876,23 @@ func (c *Client) executeOnce(
 	c.router.ReportSuccess(deployment, metrics)
 
 	return chatResp, nil
+}
+
+// CalculateCost computes the usage cost for a given model using loaded pricing data.
+// Returns 0 when pricing is unavailable or model not found.
+func (c *Client) CalculateCost(model string, usage *types.Usage) float64 {
+	if usage == nil || c.pricing == nil {
+		return 0
+	}
+
+	price, ok := c.pricing.GetPrice(model, "")
+	if !ok {
+		return 0
+	}
+
+	inputCost := float64(usage.PromptTokens) * price.InputCostPerToken
+	outputCost := float64(usage.CompletionTokens) * price.OutputCostPerToken
+	return inputCost + outputCost
 }
 
 func (c *Client) addProviderFromConfig(cfg ProviderConfig) error {
