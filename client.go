@@ -14,6 +14,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/internal/resilience"
+	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/cache"
 	"github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -833,6 +834,16 @@ func (c *Client) executeOnce(
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
 
+	if chatResp.Usage == nil || chatResp.Usage.TotalTokens == 0 {
+		promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+		completionTokens := tokenizer.EstimateCompletionTokens(req.Model, chatResp, "")
+		chatResp.Usage = &types.Usage{
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
+		}
+	}
+
 	// Report success metrics
 	metrics := &router.ResponseMetrics{
 		Latency: latency,
@@ -885,13 +896,12 @@ func (c *Client) addProviderInstance(name string, prov provider.Provider, models
 
 func (c *Client) createRouter(strategy Strategy) router.Router {
 	// Use the routers package for all strategies
-	config := router.Config{
-		Strategy:           strategy,
-		CooldownPeriod:     c.config.CooldownPeriod,
-		LatencyBuffer:      0.1,
-		MaxLatencyListSize: 10,
-		PricingFile:        c.config.PricingFile,
-	}
+	config := router.DefaultConfig()
+	config.Strategy = strategy
+	config.CooldownPeriod = c.config.CooldownPeriod
+	config.LatencyBuffer = 0.1
+	config.MaxLatencyListSize = 10
+	config.PricingFile = c.config.PricingFile
 	r, err := routers.NewWithStore(config, c.config.StatsStore)
 	if err != nil {
 		// Fallback to shuffle router if strategy is invalid

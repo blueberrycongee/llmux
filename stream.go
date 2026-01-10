@@ -11,6 +11,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/pkg/types"
@@ -341,9 +342,14 @@ func (s *StreamReader) close() error {
 func (s *StreamReader) finish() {
 	if !s.closed {
 		latency := time.Since(s.startTime)
+		promptTokens := tokenizer.EstimatePromptTokens(s.originalReq.Model, s.originalReq)
+		completionTokens := tokenizer.CountTextTokens(s.originalReq.Model, s.accumulated.String())
 		s.router.ReportSuccess(s.deployment, &router.ResponseMetrics{
 			Latency:          latency,
 			TimeToFirstToken: s.ttft,
+			InputTokens:      promptTokens,
+			OutputTokens:     completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
 		})
 		_ = s.close()
 	}

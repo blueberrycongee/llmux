@@ -18,6 +18,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/streaming"
+	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/types"
 )
@@ -122,6 +123,16 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 	latency := time.Since(start)
 
+	if resp.Usage == nil || resp.Usage.TotalTokens == 0 {
+		promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+		completionTokens := tokenizer.EstimateCompletionTokens(req.Model, resp, "")
+		resp.Usage = &llmux.Usage{
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
+		}
+	}
+
 	// Record metrics
 	metrics.RecordRequest("llmux", req.Model, http.StatusOK, latency)
 	if resp.Usage != nil {
@@ -223,8 +234,8 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 
 	// Calculate fallback usage if not returned by provider
 	if finalUsage == nil {
-		promptTokens := estimatePromptTokens(req.Messages)
-		completionTokens := len(completionContent.String()) / 4
+		promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+		completionTokens := tokenizer.CountTextTokens(req.Model, completionContent.String())
 		finalUsage = &llmux.Usage{
 			PromptTokens:     promptTokens,
 			CompletionTokens: completionTokens,
@@ -499,17 +510,3 @@ func (h *ClientHandler) recordEmbeddingUsage(ctx context.Context, requestID, mod
 
 // Ensure streaming package is imported for parser registration
 var _ = streaming.GetParser
-
-// estimatePromptTokens estimates the number of tokens in the prompt.
-// This is a rough approximation (chars / 4) used when the provider doesn't return usage.
-func estimatePromptTokens(messages []llmux.ChatMessage) int {
-	tokens := 0
-	for _, msg := range messages {
-		tokens += 4 // Message overhead
-		// msg.Content is json.RawMessage ([]byte), so len() gives byte count
-		tokens += len(msg.Content) / 4
-		tokens += len(msg.Name) / 4
-	}
-	tokens += 3 // Reply primer
-	return tokens
-}
