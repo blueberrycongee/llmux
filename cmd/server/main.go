@@ -147,19 +147,10 @@ func run() error {
 	// ========================================================================
 
 	// Initialize auth Store (Memory or Postgres based on config)
-	var authStore auth.Store
-	var auditStore auth.AuditLogStore
-
-	// TODO: Add PostgresStore initialization when cfg.Database.Enabled is true.
-	// PostgresStore fully implements Store interface (see postgres.go, postgres_ext.go, postgres_ext2.go).
-	if cfg.Database.Enabled {
-		logger.Warn("database.enabled is true but PostgresStore is not wired up yet; using MemoryStore")
+	authStore, auditStore, err := initAuthStores(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth stores: %w", err)
 	}
-
-	// Use in-memory store for development/testing
-	authStore = auth.NewMemoryStore()
-	auditStore = auth.NewMemoryAuditLogStore()
-	logger.Info("using in-memory auth store (for development only)")
 
 	// Ensure store is closed on shutdown
 	defer func() {
