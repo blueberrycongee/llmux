@@ -642,6 +642,79 @@ func (c *Client) RegisterProviderFactory(providerType string, factory ProviderFa
 
 // Private methods
 
+// checkRateLimit checks if the request is allowed by the rate limiter.
+// It checks both RPM and TPM limits if configured.
+// Returns nil if allowed, or an error if rate limited.
+// Note: estimatedTokens is reserved for future pre-check TPM validation.
+//
+//nolint:unparam // estimatedTokens will be used for TPM pre-validation in future
+func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimatedTokens int) error {
+	// Skip if rate limiting is disabled or limiter is nil
+	if !c.rateLimiterConfig.Enabled || c.rateLimiter == nil {
+		return nil
+	}
+
+	// Build descriptors for rate limit check
+	var descriptors []resilience.Descriptor
+
+	windowSize := c.rateLimiterConfig.WindowSize
+	if windowSize == 0 {
+		windowSize = time.Minute // Default to 1 minute
+	}
+
+	// Add RPM descriptor if limit is set
+	if c.rateLimiterConfig.RPMLimit > 0 {
+		descriptors = append(descriptors, resilience.Descriptor{
+			Key:    key,
+			Value:  model,
+			Limit:  c.rateLimiterConfig.RPMLimit,
+			Type:   resilience.LimitTypeRequests,
+			Window: windowSize,
+		})
+	}
+
+	// Add TPM descriptor if limit is set
+	if c.rateLimiterConfig.TPMLimit > 0 {
+		descriptors = append(descriptors, resilience.Descriptor{
+			Key:    key,
+			Value:  model,
+			Limit:  c.rateLimiterConfig.TPMLimit,
+			Type:   resilience.LimitTypeTokens,
+			Window: windowSize,
+		})
+	}
+
+	if len(descriptors) == 0 {
+		return nil // No limits configured
+	}
+
+	// Check limits
+	results, err := c.rateLimiter.CheckAllow(ctx, descriptors)
+	if err != nil {
+		// Log error but allow request (fail-open)
+		c.logger.Warn("rate limiter check failed, allowing request", "error", err)
+		return nil
+	}
+
+	// Check if any limit was exceeded
+	for i, result := range results {
+		if !result.Allowed {
+			limitType := "requests"
+			if descriptors[i].Type == resilience.LimitTypeTokens {
+				limitType = "tokens"
+			}
+			return errors.NewRateLimitError(
+				"llmux",
+				model,
+				fmt.Sprintf("rate limit exceeded: %s per minute limit reached (current: %d, limit: %d, reset at: %d)",
+					limitType, result.Current, descriptors[i].Limit, result.ResetAt),
+			)
+		}
+	}
+
+	return nil
+}
+
 func (c *Client) executeWithRetry(
 	ctx context.Context,
 	prov provider.Provider,
