@@ -150,10 +150,10 @@ func run() error {
 	var authStore auth.Store
 	var auditStore auth.AuditLogStore
 
-	// NOTE: PostgresStore does not fully implement Store interface yet.
-	// Using MemoryStore for now. Full PostgreSQL implementation is a TODO.
+	// TODO: Add PostgresStore initialization when cfg.Database.Enabled is true.
+	// PostgresStore fully implements Store interface (see postgres.go, postgres_ext.go, postgres_ext2.go).
 	if cfg.Database.Enabled {
-		logger.Warn("database.enabled is true but PostgresStore is not fully implemented; using MemoryStore")
+		logger.Warn("database.enabled is true but PostgresStore is not wired up yet; using MemoryStore")
 	}
 
 	// Use in-memory store for development/testing
