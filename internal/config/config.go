@@ -398,5 +398,32 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("routing.cooldown_period cannot be negative")
 	}
 
+	if c.Database.Enabled {
+		if c.Database.Host == "" {
+			return fmt.Errorf("database.host is required when database is enabled")
+		}
+		if c.Database.Port <= 0 || c.Database.Port > 65535 {
+			return fmt.Errorf("database.port must be between 1 and 65535")
+		}
+		if c.Database.User == "" {
+			return fmt.Errorf("database.user is required when database is enabled")
+		}
+		if c.Database.Database == "" {
+			return fmt.Errorf("database.database is required when database is enabled")
+		}
+		if c.Database.SSLMode == "" {
+			return fmt.Errorf("database.ssl_mode is required when database is enabled")
+		}
+		if c.Database.MaxOpenConns < 0 {
+			return fmt.Errorf("database.max_open_conns cannot be negative")
+		}
+		if c.Database.MaxIdleConns < 0 {
+			return fmt.Errorf("database.max_idle_conns cannot be negative")
+		}
+		if c.Database.ConnLifetime < 0 {
+			return fmt.Errorf("database.conn_lifetime cannot be negative")
+		}
+	}
+
 	return nil
 }
