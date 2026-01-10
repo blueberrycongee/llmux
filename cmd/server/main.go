@@ -249,6 +249,51 @@ func run() error {
 		logger.Info("API key authentication middleware enabled")
 	}
 
+	// Gateway-level Rate Limiting Middleware (P0 Fix - Critical Security Feature)
+	// This is the FIRST line of defense against abuse, applied AFTER authentication
+	// so we have access to API Key/Team context for per-tenant limits.
+	// Note: This is separate from application-level rate limiting in client.go
+	if cfg.RateLimit.Enabled {
+		defaultRPM := int(cfg.RateLimit.RequestsPerMinute)
+		rateLimiter := auth.NewTenantRateLimiter(&auth.TenantRateLimiterConfig{
+			DefaultRPM:   defaultRPM,
+			DefaultBurst: defaultRPM / 6, // ~10 seconds burst
+			CleanupTTL:   10 * time.Minute,
+		})
+
+		// Inject distributed limiter if configured (for multi-instance deployments)
+		if cfg.RateLimit.Distributed && cfg.Cache.Redis.Addr != "" {
+			redisClient := redis.NewClient(&redis.Options{
+				Addr:         cfg.Cache.Redis.Addr,
+				Password:     cfg.Cache.Redis.Password,
+				DB:           cfg.Cache.Redis.DB,
+				DialTimeout:  cfg.Cache.Redis.DialTimeout,
+				ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
+				WriteTimeout: cfg.Cache.Redis.WriteTimeout,
+				PoolSize:     cfg.Cache.Redis.PoolSize,
+				MinIdleConns: cfg.Cache.Redis.MinIdleConns,
+				MaxRetries:   cfg.Cache.Redis.MaxRetries,
+			})
+
+			// Test connection before using
+			pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+			if err := redisClient.Ping(pingCtx).Err(); err != nil {
+				logger.Warn("distributed rate limiting unavailable, using local limiter", "error", err)
+			} else {
+				distributedLimiter := resilience.NewRedisLimiter(redisClient)
+				rateLimiter.SetDistributedLimiter(distributedLimiter)
+				logger.Info("gateway rate limiting using distributed Redis backend")
+			}
+			pingCancel()
+		}
+
+		httpHandler = rateLimiter.RateLimitMiddleware(httpHandler)
+		logger.Info("gateway rate limiting enabled",
+			"default_rpm", cfg.RateLimit.RequestsPerMinute,
+			"distributed", cfg.RateLimit.Distributed,
+		)
+	}
+
 	// OIDC Middleware (SSO authentication with sync integration)
 	if cfg.Auth.Enabled && cfg.Auth.OIDC.IssuerURL != "" {
 		oidcCfg := auth.OIDCConfig{
