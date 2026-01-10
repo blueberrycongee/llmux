@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -38,6 +39,10 @@ type statsEntry struct {
 
 // BaseRouter provides common functionality for all routing strategies.
 // Specific strategies embed this and override the selection logic.
+//
+// BaseRouter supports two modes of operation:
+//   - Local mode (default): Stats are stored in memory, suitable for single-instance deployments
+//   - Distributed mode: Stats are stored in a StatsStore (e.g., Redis), suitable for multi-instance deployments
 type BaseRouter struct {
 	mu          sync.RWMutex
 	rngMu       sync.Mutex
@@ -46,9 +51,15 @@ type BaseRouter struct {
 	config      router.Config
 	rng         *rand.Rand
 	strategy    router.Strategy
+
+	// statsStore is an optional distributed stats store.
+	// When nil, local stats map is used (backward compatible).
+	// When set, stats operations delegate to the store (distributed mode).
+	statsStore internalRouter.StatsStore
 }
 
 // NewBaseRouter creates a new base router with the given configuration.
+// This creates a router in local mode (stats stored in memory).
 func NewBaseRouter(config router.Config) *BaseRouter {
 	return &BaseRouter{
 		deployments: make(map[string][]*ExtendedDeployment),
@@ -56,7 +67,16 @@ func NewBaseRouter(config router.Config) *BaseRouter {
 		config:      config,
 		rng:         rand.New(rand.NewSource(time.Now().UnixNano())),
 		strategy:    config.Strategy,
+		statsStore:  nil, // Local mode
 	}
+}
+
+// NewBaseRouterWithStore creates a new base router with a distributed stats store.
+// This enables multi-instance deployments to share routing statistics.
+func NewBaseRouterWithStore(config router.Config, store internalRouter.StatsStore) *BaseRouter {
+	r := NewBaseRouter(config)
+	r.statsStore = store
+	return r
 }
 
 // GetStrategy returns the current routing strategy.
@@ -164,6 +184,17 @@ func (r *BaseRouter) GetStats(deploymentID string) *router.DeploymentStats {
 
 // IsCircuitOpen checks if the deployment is in cooldown.
 func (r *BaseRouter) IsCircuitOpen(deployment *provider.Deployment) bool {
+	// Distributed mode: check via StatsStore
+	if r.statsStore != nil {
+		cooldownUntil, err := r.statsStore.GetCooldownUntil(context.Background(), deployment.ID)
+		if err != nil {
+			// Fail-safe: assume not in cooldown if store error
+			return false
+		}
+		return time.Now().Before(cooldownUntil)
+	}
+
+	// Local mode: use local stats map
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 
@@ -176,6 +207,14 @@ func (r *BaseRouter) IsCircuitOpen(deployment *provider.Deployment) bool {
 
 // ReportRequestStart increments the active request count.
 func (r *BaseRouter) ReportRequestStart(deployment *provider.Deployment) {
+	// Distributed mode: delegate to StatsStore
+	if r.statsStore != nil {
+		// Fail-safe: ignore errors
+		_ = r.statsStore.IncrementActiveRequests(context.Background(), deployment.ID)
+		return
+	}
+
+	// Local mode: use local stats map
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -185,6 +224,14 @@ func (r *BaseRouter) ReportRequestStart(deployment *provider.Deployment) {
 
 // ReportRequestEnd decrements the active request count.
 func (r *BaseRouter) ReportRequestEnd(deployment *provider.Deployment) {
+	// Distributed mode: delegate to StatsStore
+	if r.statsStore != nil {
+		// Fail-safe: ignore errors
+		_ = r.statsStore.DecrementActiveRequests(context.Background(), deployment.ID)
+		return
+	}
+
+	// Local mode: use local stats map
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -196,6 +243,23 @@ func (r *BaseRouter) ReportRequestEnd(deployment *provider.Deployment) {
 
 // ReportSuccess records a successful request with metrics.
 func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *router.ResponseMetrics) {
+	// Distributed mode: delegate to StatsStore
+	if r.statsStore != nil {
+		// Convert to internal metrics type
+		internalMetrics := &internalRouter.ResponseMetrics{
+			Latency:          metrics.Latency,
+			TimeToFirstToken: metrics.TimeToFirstToken,
+			TotalTokens:      metrics.TotalTokens,
+			InputTokens:      metrics.InputTokens,
+			OutputTokens:     metrics.OutputTokens,
+			Cost:             metrics.Cost,
+		}
+		// Fail-safe: ignore errors
+		_ = r.statsStore.RecordSuccess(context.Background(), deployment.ID, internalMetrics)
+		return
+	}
+
+	// Local mode: use local stats map
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
@@ -223,6 +287,14 @@ func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *rou
 
 // ReportFailure records a failed request and triggers cooldown if needed.
 func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
+	// Distributed mode: delegate to StatsStore
+	if r.statsStore != nil {
+		// Fail-safe: ignore errors
+		_ = r.statsStore.RecordFailure(context.Background(), deployment.ID, err)
+		return
+	}
+
+	// Local mode: use local stats map
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
