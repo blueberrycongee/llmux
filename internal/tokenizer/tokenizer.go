@@ -6,12 +6,9 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"io"
-	"net/http"
 	"sort"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/pkoukk/tiktoken-go"
 
@@ -38,8 +35,6 @@ const (
 	maxLongSideHighRes  = 2000
 	maxTileWidth        = 512
 	maxTileHeight       = 512
-
-	imageFetchTimeout = 10 * time.Second
 )
 
 type messageCountParams struct {
@@ -375,14 +370,9 @@ func getImageDimensions(data string) (int, int) {
 }
 
 func loadImageData(data string) ([]byte, error) {
+	// Explicitly avoid fetching remote URLs during token counting to prevent SSRF/latency.
 	if strings.HasPrefix(data, "http://") || strings.HasPrefix(data, "https://") {
-		client := &http.Client{Timeout: imageFetchTimeout}
-		resp, err := client.Get(data)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		return io.ReadAll(resp.Body)
+		return nil, fmt.Errorf("network fetch disabled for token counting")
 	}
 
 	if strings.HasPrefix(data, "data:") {
