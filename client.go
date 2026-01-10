@@ -215,6 +215,16 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 		}
 	}
 
+	// Check rate limit before processing request
+	// Use user ID if available, otherwise use a default key
+	rateLimitKey := "default"
+	if req.User != "" {
+		rateLimitKey = req.User
+	}
+	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
+		return nil, err
+	}
+
 	var resp *ChatResponse
 	var err error
 
@@ -295,6 +305,15 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	}
 
 	req.Stream = true
+
+	// Check rate limit before processing request
+	rateLimitKey := "default"
+	if req.User != "" {
+		rateLimitKey = req.User
+	}
+	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
+		return nil, err
+	}
 
 	var lastErr error
 	var deployment *provider.Deployment
@@ -409,6 +428,15 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 	}
 	if err := req.Validate(); err != nil {
 		return nil, fmt.Errorf("invalid request: %w", err)
+	}
+
+	// Check rate limit before processing request
+	rateLimitKey := "default"
+	if req.User != "" {
+		rateLimitKey = req.User
+	}
+	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
+		return nil, err
 	}
 
 	var lastErr error
