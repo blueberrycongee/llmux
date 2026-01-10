@@ -3,7 +3,6 @@ package routers
 import (
 	"context"
 
-	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
@@ -32,7 +31,7 @@ func NewShuffleRouterWithConfig(config router.Config) *ShuffleRouter {
 }
 
 // newShuffleRouterWithStore creates a new shuffle router with optional distributed StatsStore.
-func newShuffleRouterWithStore(config router.Config, store internalRouter.StatsStore) *ShuffleRouter {
+func newShuffleRouterWithStore(config router.Config, store router.StatsStore) *ShuffleRouter {
 	config.Strategy = router.StrategySimpleShuffle
 	var base *BaseRouter
 	if store != nil {

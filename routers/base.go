@@ -7,7 +7,6 @@ import (
 	"sync"
 	"time"
 
-	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -55,7 +54,7 @@ type BaseRouter struct {
 	// statsStore is an optional distributed stats store.
 	// When nil, local stats map is used (backward compatible).
 	// When set, stats operations delegate to the store (distributed mode).
-	statsStore internalRouter.StatsStore
+	statsStore router.StatsStore
 }
 
 // NewBaseRouter creates a new base router with the given configuration.
@@ -73,7 +72,7 @@ func NewBaseRouter(config router.Config) *BaseRouter {
 
 // NewBaseRouterWithStore creates a new base router with a distributed stats store.
 // This enables multi-instance deployments to share routing statistics.
-func NewBaseRouterWithStore(config router.Config, store internalRouter.StatsStore) *BaseRouter {
+func NewBaseRouterWithStore(config router.Config, store router.StatsStore) *BaseRouter {
 	r := NewBaseRouter(config)
 	r.statsStore = store
 	return r
@@ -245,17 +244,8 @@ func (r *BaseRouter) ReportRequestEnd(deployment *provider.Deployment) {
 func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *router.ResponseMetrics) {
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
-		// Convert to internal metrics type
-		internalMetrics := &internalRouter.ResponseMetrics{
-			Latency:          metrics.Latency,
-			TimeToFirstToken: metrics.TimeToFirstToken,
-			TotalTokens:      metrics.TotalTokens,
-			InputTokens:      metrics.InputTokens,
-			OutputTokens:     metrics.OutputTokens,
-			Cost:             metrics.Cost,
-		}
 		// Fail-safe: ignore errors
-		_ = r.statsStore.RecordSuccess(context.Background(), deployment.ID, internalMetrics)
+		_ = r.statsStore.RecordSuccess(context.Background(), deployment.ID, metrics)
 		return
 	}
 

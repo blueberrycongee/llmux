@@ -14,10 +14,10 @@ import (
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/provider"
-	llmrouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/internal/streaming"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	pkgprovider "github.com/blueberrycongee/llmux/pkg/provider"
+	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
 const (
@@ -34,14 +34,14 @@ type HandlerConfig struct {
 // Handler handles HTTP requests for the LLM gateway.
 type Handler struct {
 	registry    *provider.Registry
-	llmRouter   llmrouter.Router
+	llmRouter   router.Router
 	logger      *slog.Logger
 	httpClient  *http.Client
 	maxBodySize int64
 }
 
 // NewHandler creates a new API handler with a shared HTTP client.
-func NewHandler(registry *provider.Registry, r llmrouter.Router, logger *slog.Logger, cfg *HandlerConfig) *Handler {
+func NewHandler(registry *provider.Registry, r router.Router, logger *slog.Logger, cfg *HandlerConfig) *Handler {
 	maxBodySize := int64(DefaultMaxBodySize)
 	if cfg != nil && cfg.MaxBodySize > 0 {
 		maxBodySize = cfg.MaxBodySize
@@ -175,7 +175,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	defer pool.PutChatResponse(chatResp)
 
 	// Record success metrics
-	h.llmRouter.ReportSuccess(deployment, &llmrouter.ResponseMetrics{Latency: latency})
+	h.llmRouter.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), req.Model, http.StatusOK, latency)
 	if chatResp.Usage != nil {
 		metrics.RecordTokens(prov.Name(), req.Model, chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens)
@@ -186,7 +186,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	_ = json.NewEncoder(w).Encode(chatResp)
 }
 
-func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, resp *http.Response, prov provider.Provider, deployment *provider.Deployment, model string, start time.Time) {
+func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, resp *http.Response, prov provider.Provider, deployment *pkgprovider.Deployment, model string, start time.Time) {
 	// Get provider-specific parser for chunk transformation
 	parser := streaming.GetParser(prov.Name())
 
@@ -215,7 +215,7 @@ func (h *Handler) handleStreamResponse(w http.ResponseWriter, r *http.Request, r
 
 	// Record metrics
 	latency := time.Since(start)
-	h.llmRouter.ReportSuccess(deployment, &llmrouter.ResponseMetrics{Latency: latency})
+	h.llmRouter.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), model, http.StatusOK, latency)
 }
 

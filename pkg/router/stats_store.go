@@ -1,4 +1,4 @@
-// Package router provides request routing and load balancing for LLM deployments.
+// Package router provides public request routing and load balancing interfaces.
 package router
 
 import (

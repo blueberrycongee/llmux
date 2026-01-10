@@ -25,10 +25,10 @@ import (
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/resilience"
-	"github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/internal/secret"
 	"github.com/blueberrycongee/llmux/internal/secret/env"
 	"github.com/blueberrycongee/llmux/internal/secret/vault"
+	"github.com/blueberrycongee/llmux/routers"
 )
 
 //go:embed all:ui_assets
@@ -415,7 +415,7 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 			if err := redisClient.Ping(ctx).Err(); err != nil {
 				logger.Error("failed to connect to Redis for distributed routing", "error", err)
 			} else {
-				statsStore := router.NewRedisStatsStore(redisClient)
+				statsStore := routers.NewRedisStatsStore(redisClient)
 				opts = append(opts, llmux.WithStatsStore(statsStore))
 				logger.Info("distributed routing enabled", "redis_addr", cfg.Cache.Redis.Addr)
 			}

@@ -1,4 +1,4 @@
-package router
+package routers
 
 // This file contains Lua scripts for atomic Redis operations on router statistics.
 // The scripts ensure consistency in distributed deployments where multiple LLMux

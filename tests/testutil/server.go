@@ -16,8 +16,10 @@ import (
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/provider"
-	"github.com/blueberrycongee/llmux/internal/router"
+	pkgprovider "github.com/blueberrycongee/llmux/pkg/provider"
+	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/providers/openai"
+	"github.com/blueberrycongee/llmux/routers"
 )
 
 // TestServer manages a LLMux server instance for testing.
@@ -160,7 +162,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	registry.RegisterFactory("openai", provider.AdaptFactory(openai.NewFromConfig))
 
 	// Initialize router with no cooldown for testing
-	simpleRouter := router.NewSimpleShuffleRouter(router.RouterConfig{
+	simpleRouter := routers.NewShuffleRouterWithConfig(router.Config{
 		CooldownPeriod: 0,
 	}) // No cooldown in tests
 
@@ -183,7 +185,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 
 			// Register deployments for each model
 			for _, model := range p.Models {
-				deployment := &provider.Deployment{
+				deployment := &pkgprovider.Deployment{
 					ID:            fmt.Sprintf("%s-%s", p.Name, model),
 					ProviderName:  p.Name,
 					ModelName:     model,
@@ -213,7 +215,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 
 		// Register deployments
 		for _, model := range options.models {
-			deployment := &provider.Deployment{
+			deployment := &pkgprovider.Deployment{
 				ID:            fmt.Sprintf("mock-openai-%s", model),
 				ProviderName:  "mock-openai",
 				ModelName:     model,

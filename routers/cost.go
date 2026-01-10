@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"sort"
 
-	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/pricing"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -53,7 +52,7 @@ func NewCostRouterWithConfig(config router.Config) *CostRouter {
 }
 
 // newCostRouterWithStore creates a new cost router with optional distributed StatsStore.
-func newCostRouterWithStore(config router.Config, store internalRouter.StatsStore) *CostRouter {
+func newCostRouterWithStore(config router.Config, store router.StatsStore) *CostRouter {
 	config.Strategy = router.StrategyLowestCost
 	var base *BaseRouter
 	if store != nil {

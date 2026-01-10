@@ -3,7 +3,6 @@ package routers
 import (
 	"fmt"
 
-	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
@@ -16,7 +15,7 @@ func New(config router.Config) (router.Router, error) {
 // NewWithStore creates a new router with a distributed stats store.
 // When store is nil, the router uses local in-memory stats (single-instance mode).
 // When store is provided, stats are shared across multiple instances (distributed mode).
-func NewWithStore(config router.Config, store internalRouter.StatsStore) (router.Router, error) {
+func NewWithStore(config router.Config, store router.StatsStore) (router.Router, error) {
 	switch config.Strategy {
 	case router.StrategySimpleShuffle, "":
 		return newShuffleRouterWithStore(config, store), nil

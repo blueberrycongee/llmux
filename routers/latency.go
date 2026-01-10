@@ -4,7 +4,6 @@ import (
 	"context"
 	"sort"
 
-	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
@@ -34,7 +33,7 @@ func NewLatencyRouterWithConfig(config router.Config) *LatencyRouter {
 }
 
 // newLatencyRouterWithStore creates a new latency router with optional distributed StatsStore.
-func newLatencyRouterWithStore(config router.Config, store internalRouter.StatsStore) *LatencyRouter {
+func newLatencyRouterWithStore(config router.Config, store router.StatsStore) *LatencyRouter {
 	config.Strategy = router.StrategyLowestLatency
 	var base *BaseRouter
 	if store != nil {

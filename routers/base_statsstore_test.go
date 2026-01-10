@@ -5,7 +5,6 @@ import (
 	"testing"
 	"time"
 
-	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/routers"
@@ -204,7 +203,7 @@ type mockStatsStore struct {
 
 	// Last call arguments
 	lastDeploymentID string
-	lastMetrics      *internalRouter.ResponseMetrics
+	lastMetrics      *router.ResponseMetrics
 	lastError        error
 
 	// Behavior control
@@ -212,8 +211,8 @@ type mockStatsStore struct {
 	cooldownUntil time.Time
 }
 
-func (m *mockStatsStore) GetStats(ctx context.Context, deploymentID string) (*internalRouter.DeploymentStats, error) {
-	return &internalRouter.DeploymentStats{}, nil
+func (m *mockStatsStore) GetStats(ctx context.Context, deploymentID string) (*router.DeploymentStats, error) {
+	return &router.DeploymentStats{}, nil
 }
 
 func (m *mockStatsStore) IncrementActiveRequests(ctx context.Context, deploymentID string) error {
@@ -234,7 +233,7 @@ func (m *mockStatsStore) DecrementActiveRequests(ctx context.Context, deployment
 	return nil
 }
 
-func (m *mockStatsStore) RecordSuccess(ctx context.Context, deploymentID string, metrics *internalRouter.ResponseMetrics) error {
+func (m *mockStatsStore) RecordSuccess(ctx context.Context, deploymentID string, metrics *router.ResponseMetrics) error {
 	m.successCalls++
 	m.lastDeploymentID = deploymentID
 	m.lastMetrics = metrics

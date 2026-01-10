@@ -3,7 +3,6 @@ package routers
 import (
 	"context"
 
-	internalRouter "github.com/blueberrycongee/llmux/internal/router"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
@@ -36,7 +35,7 @@ func NewLeastBusyRouterWithConfig(config router.Config) *LeastBusyRouter {
 }
 
 // newLeastBusyRouterWithStore creates a new least busy router with optional distributed StatsStore.
-func newLeastBusyRouterWithStore(config router.Config, store internalRouter.StatsStore) *LeastBusyRouter {
+func newLeastBusyRouterWithStore(config router.Config, store router.StatsStore) *LeastBusyRouter {
 	config.Strategy = router.StrategyLeastBusy
 	var base *BaseRouter
 	if store != nil {

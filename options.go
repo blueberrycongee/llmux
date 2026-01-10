@@ -7,7 +7,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/internal/resilience"
-	"github.com/blueberrycongee/llmux/internal/router"
+	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
 // RateLimitKeyStrategy defines how to derive the rate limit key.

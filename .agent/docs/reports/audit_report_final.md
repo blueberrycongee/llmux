@@ -1,116 +1,57 @@
-# 🛡️ LLMux 终极代码审计报告 (Final Audit Report)
+# 审计追踪日志 (Audit Trace Log)
 
----
+## 1. 断链与死代码 (Broken Links & Dead Code)
 
-## 🚀 修复进度 (Remediation Progress)
+### [严重] 模块名/功能：下游限流 (Downstream Rate Limiting)
+*   **定义位置：** `internal/auth/ratelimiter.go` (TenantRateLimiter)
+*   **追踪结果：**
+    *   **定义：** `TenantRateLimiter` 及其方法 `RateLimitMiddleware` 在 `internal/auth` 包中被完整定义。
+    *   **断链：** 在 `cmd/server/main.go` 的初始化流程中，虽然初始化了 `authMiddleware`，但**从未调用** `RateLimitMiddleware`。
+    *   **证据：** `main.go` 第 248 行仅调用了 `authMiddleware.Authenticate(httpHandler)`。而在 `internal/auth/middleware.go` 的 `Authenticate` 方法中（第 50-134 行），仅检查了 `IsOverBudget`，**完全没有调用** `RateLimiter.Check()` 或任何限流逻辑。
+    *   **结论：** 所谓的“网关层限流”是**虚假的**。代码存在但未实装，流量可以无限制地穿透到应用层（虽然 `client.go` 有应用层限流，但网关层防御失效）。
 
-| 日期       | 修复项         | 状态     | 提交                                                                                   |
-| ---------- | -------------- | -------- | -------------------------------------------------------------------------------------- |
-| 2026-01-10 | **分布式限流** | ✅ 已完成 | [3443482..8ab5cbc](https://github.com/blueberrycongee/llmux/compare/3443482...8ab5cbc) |
+### [严重] 模块名/功能：路由实现分裂 (Zombie Router Implementation)
+*   **定义位置：** `internal/router/` (simple_shuffle.go, least_busy.go 等)
+*   **追踪结果：**
+    *   **定义：** `internal/router` 包中包含了一整套路由策略实现。
+    *   **断链：** `client.go` (第 895 行) 使用的是 `routers` 包 (`github.com/blueberrycongee/llmux/routers`) 来创建路由器。
+    *   **证据：** `main.go` 仅使用了 `internal/router` 中的 `NewRedisStatsStore` (第 418 行)。`internal/router` 中的所有具体路由算法文件（如 `simple_shuffle.go`）在生产路径中**从未被引用**。
+    *   **结论：** `internal/router` 是**僵尸代码**库，不仅增加了维护负担，还可能导致测试环境（如果使用了它）与生产环境行为不一致。
 
-### 已完成的原子化开发步骤：
+## 2. 数据流完整性分析 (Data Flow Integrity)
 
-1. ✅ **Atom 1**: 添加 `WithRateLimiter` 和 `WithRateLimiterConfig` 选项 (feat: add WithRateLimiter options)
-2. ✅ **Atom 2**: 在 `Client` 结构体中集成 `rateLimiter` 字段 (feat: integrate RateLimiter into Client)  
-3. ✅ **Atom 3**: 实现 `checkRateLimit()` 方法 (feat: implement checkRateLimit method)
-4. ✅ **Atom 4**: 在 `ChatCompletion`/`ChatCompletionStream`/`Embedding` 中调用限流检查 (feat: apply rate limiting to all request methods)
-5. ✅ **Atom 5**: 更新 Server `main.go` 初始化 Redis Rate Limiter (feat: enable distributed rate limiting in server)
+### [漏洞] 参数/功能：Anthropic Stream Options (流式选项)
+*   **证据：**
+    *   **输入：** `pkg/types/request.go` 中 `ChatRequest` 定义了 `StreamOptions` 字段 (第 24 行)。
+    *   **转换：** 在 `providers/anthropic/anthropic.go` 的 `transformRequest` 函数 (第 208 行) 中。
+    *   **丢失：** `anthropicRequest` 结构体 (第 104 行) **没有定义** `stream_options` 字段，且转换逻辑完全忽略了 `req.StreamOptions`。
+    *   **后果：** 用户请求中的 `include_usage: true` 等流式选项在传递给 Claude 模型时会被**静默丢弃**，导致客户端无法获取 Token 使用量。
 
-### 使用方法：
+### [隐患] 参数/功能：多模态支持 (Multimodal Support)
+*   **证据：**
+    *   `pkg/types/request.go` 中 `ChatMessage.Content` 被定义为 `json.RawMessage`。
+    *   虽然这允许透传任意 JSON（包括图片数组），但代码库中**缺乏显式的 Image/Audio 类型定义和校验逻辑**。
+    *   这意味着 `llmux` 对多模态的支持是“盲目”的——它不理解也不验证多模态数据，只是作为字节流透传。这在需要对图片进行计费或处理（如压缩、审核）时将成为重大阻碍。
 
-```yaml
-# config.yaml
-rate_limit:
-  enabled: true
-  distributed: true           # 启用 Redis 分布式限流
-  requests_per_minute: 100    # RPM 限制
-  tokens_per_minute: 100000   # TPM 限制
-  key_strategy: api_key       # 限流键策略
+## 3. 全链路逻辑验证总结
 
-cache:
-  redis:
-    addr: "localhost:6379"    # Redis 地址
-```
+*   **已打通的链路 (Solid Links)：**
+    *   **核心对话流程 (Chat Completion)：** `main` -> `handler` -> `client` -> `router` -> `openai provider` 的链路是畅通的。
+    *   **流式响应 (Streaming)：** `stream.go` 实现了健壮的 `StreamReader`，包含 `tryRecover` 重试机制，能正确处理连接中断和 `[DONE]` 信号。
+    *   **上游限流 (Upstream Rate Limit)：** `client.go` 中的 `checkRateLimit` (第 679 行) 被正确调用，且与 `resilience` 包打通。
 
----
+*   **未打通/虚假的链路 (Broken/Hollow Links)：**
+    *   **网关防御 (Downstream Rate Limit)：** 完全断开，代码存在但未接入。
+    *   **非 OpenAI 提供商的完整性：** 如 Anthropic 的 `StreamOptions` 丢失，表明非 OpenAI 提供商的适配层存在数据丢失风险。
+    *   **路由一致性：** 生产代码与旧的 `internal/router` 实现共存，存在混淆风险。
 
+## 4. 最终判决
 
-**审计日期：** 2026-01-10
-**审计对象：** LLMux (Commit: HEAD)
-**最终定级：** **Single-Node Production Ready (单机生产级)**
-**核心判决：** 代码质量极高，但分布式能力处于“未插电”状态。
+基于**控制流分析**，`llmux` 的完成度目前属于 **“空心化 (Hollow)”** 状态。
 
-## 1. 核心争议终审 (The Verdict on Controversies)
+虽然其核心的 OpenAI 转发路径是实心的，但在**企业级网关**所必须的“防御层（限流）”和“多模态适配层”上存在明显的**断链**和**数据丢失**。它更像是一个“具备重试功能的 HTTP 代理”，而非一个严谨的“AI 网关”。
 
-针对之前两份报告打架的焦点问题，基于代码事实的最终裁决如下：
-
-| 审计项         | 状态         | 事实依据 (Code Truth)                                                                                                                                 | 判决                     |
-| :------------- | :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------- |
-| **分布式限流** | ✅ **已启用** | `internal/resilience/redis_limiter.go` 已在 `cmd/server/main.go` 中正确初始化并注入到 Client。支持 RPM/TPM 分布式限流。                               | **已修复 (Fixed)**       |
-| **分布式路由** | ❌ **不支持** | `routers/leastbusy.go` 调用 `internal/router/base.go`，其状态存储在 `r.stats` (内存 Map) 中。多实例部署时，各节点状态隔离，负载均衡将退化为随机轮询。 | **仅支持单机**           |
-| **可观测性**   | ✅ **已集成** | `cmd/server/main.go` (L108, L268) 明确初始化了 OTel Tracing 和 Metrics 中间件。之前的报告称其为“功能孤岛”是错误的。                                   | **已上线 (Operational)** |
-| **多模态**     | ❌ **不支持** | 代码库中无任何 Image/Audio 处理逻辑。                                                                                                                 | **完全缺失**             |
-
----
-
-## 2. 深度风险评估 (Deep Risk Assessment)
-
-### 🔴 致命风险：分布式幻觉 (The Distributed Illusion) [已部分修复]
-*   **现象：** 开发者编写了高质量的 Redis 客户端 (`caches/redis`) 和 Redis 限流脚本 (`redis_limiter.go`)，这给代码审查者一种“支持分布式”的错觉。
-*   **真相：** 这些组件之前**没有被组装在一起**。
-    *   `Router` 仅接受本地状态。(仍需修复)
-    *   ~~`Client` 初始化时没有提供注入 `RedisLimiter` 的选项。~~ (**已修复：** Client 现已集成 RedisLimiter)
-*   **后果：** 如果用户因为看到 `redis_limiter.go` 就放心地将 LLMux 部署到 Kubernetes 集群中，**限流将完全失效**。(**更新：** 分布式限流现已生效，但分布式路由仍未支持)
-
-### 🟠 高危风险：错误处理的“方言”问题
-*   **现象：** `providers/openailike` 强行假设所有上游都返回 OpenAI 格式的 JSON 错误 (`error.message`)。
-*   **真相：** Azure OpenAI 返回 XML 或不同的 JSON 结构；Anthropic 有自己的错误码体系。
-*   **后果：** 当遇到非标准错误时，LLMux 无法正确解析错误类型（如区分“可重试的限流”与“不可重试的坏请求”），导致**重试风暴**或**错误吞没**。
-
----
-
-## 3. 架构亮点 (Architectural Strengths)
-
-尽管有上述问题，LLMux 的底座质量远超一般的开源项目，具备成为顶级网关的潜力：
-
-1.  **🔌 企业级插件系统 (`internal/plugin`)**：
-    *   支持 `PreHook` / `PostHook` / `StreamHook`。
-    *   设计了完善的上下文 (`Context`) 传递和短路 (`ShortCircuit`) 机制。
-    *   这是实现自定义鉴权、计费、审计功能的完美切入点。
-2.  **💾 健壮的 Redis 客户端 (`caches/redis`)**：
-    *   原生支持 Cluster、Sentinel 和 Failover 模式。
-    *   封装了 Pipeline 和原子操作，代码质量很高。
-3.  **🌊 优秀的流式处理 (`stream.go`)**：
-    *   利用 Go 的并发特性，实现了比 Python (LiteLLM) 更稳定的流式转发和断点恢复逻辑。
-
----
-
-## 4. 修复路线图 (Remediation Roadmap)
-
-如果您打算将 LLMux 推向企业级生产环境，请按以下优先级进行修复：
-
-### Phase 1: 激活分布式能力 (必须做)
-1.  ✅ **修改 `options.go`**：添加 `WithRateLimiter` 选项。(已完成)
-2.  ✅ **修改 `cmd/server/main.go`**：(已完成)
-    *   初始化 `redis.Client`。
-    *   创建 `resilience.NewRedisLimiter(redisClient)`。
-    *   将其注入到 `llmux.New(..., llmux.WithRateLimiter(limiter))`。
-3.  **改造 `Router`**：(待进行)
-    *   定义 `ClusterStats` 接口。
-    *   使用 Redis 实现该接口，替换 `internal/router/base.go` 中的 `r.stats` Map。
-
-### Phase 2: 增强鲁棒性
-1.  **抽象错误解析器**：在 `Provider` 接口中增加 `ErrorParser`，允许不同厂商注入自定义的解析逻辑。
-2.  **配置热加载**：利用 `internal/config` 中的 Watcher 机制，实现路由策略和价格表的动态更新。
-
----
-
-### 5. 最终结论 (Conclusion)
-
-**LLMux 不是一个玩具，它是一辆组装了 90% 的法拉利。**
-
-引擎（Go 并发模型）、底盘（插件系统）和轮子（Redis 客户端）都是顶级的。只是出厂时，工程师忘记把**传动轴**（分布式状态同步）接上。
-
-**最新进展：** 工程师刚刚接上了**前轮传动轴**（分布式限流），车辆已经具备了在集群中安全行驶的能力。下一步是接上**后轮传动轴**（分布式路由），实现完全的四驱性能。
-
-只要完成剩下的工作，它将立即超越 LiteLLM。
+**建议立即行动：**
+1.  **Wire Up Rate Limiter:** 在 `main.go` 中显式调用 `TenantRateLimiter.RateLimitMiddleware`。
+2.  **Purge Zombie Code:** 删除 `internal/router` 中除 `StatsStore` 以外的所有代码，或将其合并到 `routers` 包。
+3.  **Fix Data Mutation:** 修复 `providers/anthropic` (及其他提供商) 的参数映射，确保 `StreamOptions` 等字段正确透传。

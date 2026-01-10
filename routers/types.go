@@ -15,6 +15,13 @@ type (
 	RequestContext   = router.RequestContext
 	ResponseMetrics  = router.ResponseMetrics
 	Strategy         = router.Strategy
+	StatsStore       = router.StatsStore
+)
+
+// Re-export error variables
+var (
+	ErrStatsNotFound     = router.ErrStatsNotFound
+	ErrStoreNotAvailable = router.ErrStoreNotAvailable
 )
 
 // Re-export constants
