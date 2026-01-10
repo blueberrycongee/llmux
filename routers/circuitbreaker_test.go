@@ -24,7 +24,9 @@ func TestBaseRouter_CooldownOn429(t *testing.T) {
 	r := routers.NewBaseRouter(config)
 
 	deployment := &provider.Deployment{ID: "test-deployment", ModelName: "gpt-4"}
+	secondary := &provider.Deployment{ID: "test-deployment-2", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Report 429 error
 	err := llmerrors.NewRateLimitError("openai", "gpt-4", "rate limited")
@@ -43,7 +45,9 @@ func TestBaseRouter_CooldownOn429_Disabled(t *testing.T) {
 	r := routers.NewBaseRouter(config)
 
 	deployment := &provider.Deployment{ID: "test-deployment", ModelName: "gpt-4"}
+	secondary := &provider.Deployment{ID: "test-deployment-2", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Report 429 error
 	err := llmerrors.NewRateLimitError("openai", "gpt-4", "rate limited")
@@ -60,7 +64,9 @@ func TestBaseRouter_CooldownOn401(t *testing.T) {
 	r := routers.NewBaseRouter(config)
 
 	deployment := &provider.Deployment{ID: "test-deployment", ModelName: "gpt-4"}
+	secondary := &provider.Deployment{ID: "test-deployment-2", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Report 401 error
 	err := llmerrors.NewAuthenticationError("openai", "gpt-4", "unauthorized")
@@ -77,7 +83,9 @@ func TestBaseRouter_CooldownOn404(t *testing.T) {
 	r := routers.NewBaseRouter(config)
 
 	deployment := &provider.Deployment{ID: "test-deployment", ModelName: "gpt-4"}
+	secondary := &provider.Deployment{ID: "test-deployment-2", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Report 404 error
 	err := llmerrors.NewNotFoundError("openai", "gpt-4", "not found")
@@ -96,7 +104,9 @@ func TestBaseRouter_FailureRateThreshold(t *testing.T) {
 	r := routers.NewBaseRouter(config)
 
 	deployment := &provider.Deployment{ID: "test-deployment", ModelName: "gpt-4"}
+	secondary := &provider.Deployment{ID: "test-deployment-2", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Report 1 success and 4 failures (5 total, 80% failure rate)
 	r.ReportSuccess(deployment, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
@@ -118,7 +128,9 @@ func TestBaseRouter_FailureRateMinRequests(t *testing.T) {
 	r := routers.NewBaseRouter(config)
 
 	deployment := &provider.Deployment{ID: "test-deployment", ModelName: "gpt-4"}
+	secondary := &provider.Deployment{ID: "test-deployment-2", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Report 5 failures (100% failure rate, but only 5 requests)
 	for i := 0; i < 5; i++ {
@@ -161,7 +173,9 @@ func TestBaseRouter_CooldownRecovery(t *testing.T) {
 	r := routers.NewBaseRouter(config)
 
 	deployment := &provider.Deployment{ID: "test-deployment", ModelName: "gpt-4"}
+	secondary := &provider.Deployment{ID: "test-deployment-2", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Trigger cooldown
 	err := llmerrors.NewRateLimitError("openai", "gpt-4", "rate limited")

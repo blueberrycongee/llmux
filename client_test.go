@@ -364,10 +364,17 @@ func TestSimpleRouter_Cooldown(t *testing.T) {
 		ProviderName: "test",
 		ModelName:    "test-model",
 	}
+	secondary := &Deployment{
+		ID:           "test-2",
+		ProviderName: "test",
+		ModelName:    "test-model",
+	}
 	r.AddDeployment(deployment)
+	r.AddDeployment(secondary)
 
 	// Report failure to trigger cooldown
 	r.ReportFailure(deployment, NewRateLimitError("test", "test-model", "rate limited"))
+	r.ReportFailure(secondary, NewRateLimitError("test", "test-model", "rate limited"))
 
 	// Should fail during cooldown
 	_, err := r.Pick(context.Background(), "test-model")
@@ -383,8 +390,8 @@ func TestSimpleRouter_Cooldown(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Pick() after cooldown error = %v", err)
 	}
-	if picked.ID != "test-1" {
-		t.Errorf("expected deployment test-1, got %s", picked.ID)
+	if picked.ID != "test-1" && picked.ID != "test-2" {
+		t.Errorf("expected deployment test-1 or test-2, got %s", picked.ID)
 	}
 }
 

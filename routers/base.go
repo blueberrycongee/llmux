@@ -26,6 +26,7 @@ type statsEntry struct {
 	ActiveRequests     int64
 	LatencyHistory     []float64
 	TTFTHistory        []float64
+	FailureBuckets     []failureBucket
 	AvgLatencyMs       float64
 	AvgTTFTMs          float64
 	MaxLatencyListSize int
@@ -35,6 +36,18 @@ type statsEntry struct {
 	LastRequestTime    time.Time
 	CooldownUntil      time.Time
 }
+
+type failureBucket struct {
+	minute  int64
+	success int64
+	failure int64
+}
+
+const (
+	defaultFailureWindowMinutes          = 5
+	defaultFailureBucketSeconds          = 60
+	defaultSingleDeploymentFailureMinReq = 1000
+)
 
 // BaseRouter provides common functionality for all routing strategies.
 // Specific strategies embed this and override the selection logic.
@@ -122,11 +135,7 @@ func (r *BaseRouter) AddDeploymentWithConfig(deployment *provider.Deployment, co
 	}
 
 	r.deployments[model] = append(r.deployments[model], extended)
-	r.stats[deployment.ID] = &statsEntry{
-		MaxLatencyListSize: r.config.MaxLatencyListSize,
-		LatencyHistory:     make([]float64, 0, r.config.MaxLatencyListSize),
-		TTFTHistory:        make([]float64, 0, r.config.MaxLatencyListSize),
-	}
+	r.stats[deployment.ID] = r.newStatsEntry()
 }
 
 // RemoveDeployment removes a deployment from the router.
@@ -256,7 +265,9 @@ func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *rou
 	stats := r.getOrCreateStats(deployment.ID)
 	stats.TotalRequests++
 	stats.SuccessCount++
-	stats.LastRequestTime = time.Now()
+	now := time.Now()
+	stats.LastRequestTime = now
+	r.recordWindowSuccess(stats, now)
 
 	latencyMs := float64(metrics.Latency.Milliseconds())
 	r.appendToHistory(&stats.LatencyHistory, latencyMs, stats.MaxLatencyListSize)
@@ -284,29 +295,43 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
+		isSingleDeployment := r.isSingleDeployment(deployment)
+		if recorder, ok := r.statsStore.(failureRecordWithOptions); ok {
+			_ = recorder.RecordFailureWithOptions(
+				context.Background(),
+				deployment.ID,
+				err,
+				failureRecordOptions{isSingleDeployment: isSingleDeployment},
+			)
+			return
+		}
 		_ = r.statsStore.RecordFailure(context.Background(), deployment.ID, err)
 		return
 	}
 
 	// Local mode: use local stats map
+	isSingleDeployment := r.isSingleDeployment(deployment)
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	stats := r.getOrCreateStats(deployment.ID)
 	stats.TotalRequests++
 	stats.FailureCount++
-	stats.LastRequestTime = time.Now()
+	now := time.Now()
+	stats.LastRequestTime = now
+	r.recordWindowFailure(stats, now)
 
 	var llmErr *llmerrors.LLMError
-	if errors.As(err, &llmErr) {
+	isLLMErr := errors.As(err, &llmErr)
+	if isLLMErr {
 		// Immediate cooldown: 429 Rate Limit
-		if r.config.ImmediateCooldownOn429 && llmErr.StatusCode == 429 {
+		if r.config.ImmediateCooldownOn429 && llmErr.StatusCode == 429 && !isSingleDeployment {
 			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
 			return
 		}
 
-		// Immediate cooldown: Non-retryable errors (401, 404)
-		if llmErr.StatusCode == 401 || llmErr.StatusCode == 404 {
+		// Immediate cooldown: Non-retryable errors (401, 404, 408)
+		if llmErr.StatusCode == 401 || llmErr.StatusCode == 404 || llmErr.StatusCode == 408 {
 			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
 			return
 		}
@@ -315,23 +340,30 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 		if llmErr.StatusCode == 408 || llmErr.StatusCode == 504 {
 			r.appendToHistory(&stats.LatencyHistory, 1000000.0, stats.MaxLatencyListSize)
 		}
+	}
 
-		// Failure rate based cooldown
-		if r.shouldCooldownByFailureRate(stats) {
-			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
-		}
+	// Failure rate based cooldown
+	if r.shouldCooldownByFailureRate(stats, now, isSingleDeployment) {
+		stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
 	}
 }
 
 // shouldCooldownByFailureRate checks if deployment should enter cooldown based on failure rate.
 // Returns true if failure rate exceeds threshold AND minimum request count is met.
-func (r *BaseRouter) shouldCooldownByFailureRate(stats *statsEntry) bool {
-	total := stats.SuccessCount + stats.FailureCount
+func (r *BaseRouter) shouldCooldownByFailureRate(stats *statsEntry, now time.Time, isSingleDeployment bool) bool {
+	successTotal, failureTotal := r.windowTotals(stats, now)
+	total := successTotal + failureTotal
+	if total == 0 {
+		return false
+	}
+	if isSingleDeployment {
+		return total >= int64(r.singleDeploymentFailureThreshold()) && failureTotal == total
+	}
 	if total < int64(r.config.MinRequestsForThreshold) {
 		return false // Not enough requests to determine failure rate
 	}
 
-	failureRate := float64(stats.FailureCount) / float64(total)
+	failureRate := float64(failureTotal) / float64(total)
 	return failureRate > r.config.FailureThresholdPercent
 }
 
@@ -417,14 +449,84 @@ func (r *BaseRouter) filterByTPMRPM(deployments []*ExtendedDeployment, inputToke
 func (r *BaseRouter) getOrCreateStats(deploymentID string) *statsEntry {
 	stats, ok := r.stats[deploymentID]
 	if !ok {
-		stats = &statsEntry{
-			MaxLatencyListSize: r.config.MaxLatencyListSize,
-			LatencyHistory:     make([]float64, 0, r.config.MaxLatencyListSize),
-			TTFTHistory:        make([]float64, 0, r.config.MaxLatencyListSize),
-		}
+		stats = r.newStatsEntry()
 		r.stats[deploymentID] = stats
 	}
 	return stats
+}
+
+func (r *BaseRouter) newStatsEntry() *statsEntry {
+	windowSize := r.failureWindowMinutes()
+	buckets := make([]failureBucket, 0, windowSize)
+	if windowSize > 0 {
+		buckets = make([]failureBucket, windowSize)
+	}
+	return &statsEntry{
+		MaxLatencyListSize: r.config.MaxLatencyListSize,
+		LatencyHistory:     make([]float64, 0, r.config.MaxLatencyListSize),
+		TTFTHistory:        make([]float64, 0, r.config.MaxLatencyListSize),
+		FailureBuckets:     buckets,
+	}
+}
+
+func (r *BaseRouter) failureWindowMinutes() int {
+	return defaultFailureWindowMinutes
+}
+
+func (r *BaseRouter) singleDeploymentFailureThreshold() int {
+	return defaultSingleDeploymentFailureMinReq
+}
+
+func (r *BaseRouter) recordWindowSuccess(stats *statsEntry, now time.Time) {
+	r.recordWindow(stats, now, true)
+}
+
+func (r *BaseRouter) recordWindowFailure(stats *statsEntry, now time.Time) {
+	r.recordWindow(stats, now, false)
+}
+
+func (r *BaseRouter) recordWindow(stats *statsEntry, now time.Time, success bool) {
+	if len(stats.FailureBuckets) == 0 {
+		return
+	}
+	minute := now.Unix() / defaultFailureBucketSeconds
+	idx := int(minute % int64(len(stats.FailureBuckets)))
+	bucket := &stats.FailureBuckets[idx]
+	if bucket.minute != minute {
+		stats.FailureBuckets[idx] = failureBucket{minute: minute}
+		bucket = &stats.FailureBuckets[idx]
+	}
+	if success {
+		bucket.success++
+	} else {
+		bucket.failure++
+	}
+}
+
+func (r *BaseRouter) windowTotals(stats *statsEntry, now time.Time) (int64, int64) {
+	if len(stats.FailureBuckets) == 0 {
+		return 0, 0
+	}
+	currentMinute := now.Unix() / defaultFailureBucketSeconds
+	cutoff := currentMinute - int64(r.failureWindowMinutes()-1)
+	var successTotal, failureTotal int64
+	for _, bucket := range stats.FailureBuckets {
+		if bucket.minute >= cutoff {
+			successTotal += bucket.success
+			failureTotal += bucket.failure
+		}
+	}
+	return successTotal, failureTotal
+}
+
+func (r *BaseRouter) isSingleDeployment(deployment *provider.Deployment) bool {
+	model := deployment.ModelName
+	if deployment.ModelAlias != "" {
+		model = deployment.ModelAlias
+	}
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return len(r.deployments[model]) == 1
 }
 
 func (r *BaseRouter) appendToHistory(history *[]float64, value float64, maxSize int) {

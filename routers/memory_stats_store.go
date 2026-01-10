@@ -149,6 +149,11 @@ func (m *MemoryStatsStore) RecordFailure(ctx context.Context, deploymentID strin
 	return nil
 }
 
+// RecordFailureWithOptions records a failed request with routing context.
+func (m *MemoryStatsStore) RecordFailureWithOptions(ctx context.Context, deploymentID string, err error, opts failureRecordOptions) error {
+	return m.RecordFailure(ctx, deploymentID, err)
+}
+
 // SetCooldown manually sets a cooldown period for a deployment.
 func (m *MemoryStatsStore) SetCooldown(ctx context.Context, deploymentID string, until time.Time) error {
 	m.mu.Lock()

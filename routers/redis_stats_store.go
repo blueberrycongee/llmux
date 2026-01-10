@@ -7,6 +7,7 @@ import (
 	"time"
 
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
+	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/redis/go-redis/v9"
 )
 
@@ -17,6 +18,13 @@ type RedisStatsStore struct {
 	keyPrefix          string
 	maxLatencyListSize int
 	usageTTL           time.Duration
+	failureWindowMins  int
+	failureBucketSecs  int
+	failureThreshold   float64
+	minRequests        int
+	cooldownPeriod     time.Duration
+	immediateOn429     bool
+	singleDeployMinReq int
 
 	// Precompiled Lua scripts
 	recordSuccessScript      *redis.Script
@@ -52,13 +60,70 @@ func WithUsageTTL(ttl time.Duration) RedisStatsOption {
 	}
 }
 
+// WithFailureWindowMinutes sets the sliding window size in minutes (default: 5).
+func WithFailureWindowMinutes(minutes int) RedisStatsOption {
+	return func(r *RedisStatsStore) {
+		r.failureWindowMins = minutes
+	}
+}
+
+// WithFailureBucketSeconds sets the bucket size in seconds (default: 60).
+func WithFailureBucketSeconds(seconds int) RedisStatsOption {
+	return func(r *RedisStatsStore) {
+		r.failureBucketSecs = seconds
+	}
+}
+
+// WithFailureThresholdPercent sets the failure rate threshold for cooldown.
+func WithFailureThresholdPercent(threshold float64) RedisStatsOption {
+	return func(r *RedisStatsStore) {
+		r.failureThreshold = threshold
+	}
+}
+
+// WithMinRequestsForThreshold sets the minimum requests before rate-based cooldown.
+func WithMinRequestsForThreshold(min int) RedisStatsOption {
+	return func(r *RedisStatsStore) {
+		r.minRequests = min
+	}
+}
+
+// WithCooldownPeriod sets the cooldown period for distributed stats.
+func WithCooldownPeriod(period time.Duration) RedisStatsOption {
+	return func(r *RedisStatsStore) {
+		r.cooldownPeriod = period
+	}
+}
+
+// WithImmediateCooldownOn429 toggles immediate cooldown for 429 responses.
+func WithImmediateCooldownOn429(enabled bool) RedisStatsOption {
+	return func(r *RedisStatsStore) {
+		r.immediateOn429 = enabled
+	}
+}
+
+// WithSingleDeploymentFailureThreshold sets the minimum requests before cooldown on single-deployment groups.
+func WithSingleDeploymentFailureThreshold(minRequests int) RedisStatsOption {
+	return func(r *RedisStatsStore) {
+		r.singleDeployMinReq = minRequests
+	}
+}
+
 // NewRedisStatsStore creates a new Redis-backed stats store.
 func NewRedisStatsStore(client *redis.Client, opts ...RedisStatsOption) *RedisStatsStore {
+	defaults := router.DefaultConfig()
 	store := &RedisStatsStore{
 		client:             client,
 		keyPrefix:          "llmux:router:stats",
 		maxLatencyListSize: 10,
 		usageTTL:           120 * time.Second,
+		failureWindowMins:  defaultFailureWindowMinutes,
+		failureBucketSecs:  defaultFailureBucketSeconds,
+		failureThreshold:   defaults.FailureThresholdPercent,
+		minRequests:        defaults.MinRequestsForThreshold,
+		cooldownPeriod:     defaults.CooldownPeriod,
+		immediateOn429:     defaults.ImmediateCooldownOn429,
+		singleDeployMinReq: defaultSingleDeploymentFailureMinReq,
 	}
 
 	// Apply options
@@ -222,13 +287,16 @@ func (r *RedisStatsStore) DecrementActiveRequests(ctx context.Context, deploymen
 
 // RecordSuccess records a successful request with its metrics.
 func (r *RedisStatsStore) RecordSuccess(ctx context.Context, deploymentID string, metrics *ResponseMetrics) error {
-	currentMinute := time.Now().Format("2006-01-02-15-04")
+	now := time.Now()
+	usageMinute := now.Format("2006-01-02-15-04")
+	bucketKey := now.Format(r.bucketKeyFormat())
 
 	keys := []string{
 		r.latencyKey(deploymentID),
 		r.ttftKey(deploymentID),
 		r.countersKey(deploymentID),
-		r.usageKey(deploymentID, currentMinute),
+		r.usageKey(deploymentID, usageMinute),
+		r.successKey(deploymentID, bucketKey),
 	}
 
 	latencyMs := float64(metrics.Latency.Milliseconds())
@@ -243,7 +311,8 @@ func (r *RedisStatsStore) RecordSuccess(ctx context.Context, deploymentID string
 		metrics.TotalTokens,
 		r.maxLatencyListSize,
 		int(r.usageTTL.Seconds()),
-		time.Now().Unix(),
+		r.bucketTTLSeconds(),
+		now.Unix(),
 	}
 
 	_, err := r.recordSuccessScript.Run(ctx, r.client, keys, args...).Result()
@@ -252,13 +321,27 @@ func (r *RedisStatsStore) RecordSuccess(ctx context.Context, deploymentID string
 
 // RecordFailure records a failed request.
 func (r *RedisStatsStore) RecordFailure(ctx context.Context, deploymentID string, err error) error {
+	return r.RecordFailureWithOptions(ctx, deploymentID, err, failureRecordOptions{})
+}
+
+// RecordFailureWithOptions records a failed request with routing context.
+func (r *RedisStatsStore) RecordFailureWithOptions(ctx context.Context, deploymentID string, err error, opts failureRecordOptions) error {
+	now := time.Now()
+	windowSize := r.failureWindowSize()
+	successKeys, failureKeys := r.windowBucketKeys(deploymentID, now, windowSize)
+
 	keys := []string{
 		r.countersKey(deploymentID),
 		r.latencyKey(deploymentID),
+		r.cooldownKey(deploymentID),
 	}
+	keys = append(keys, successKeys...)
+	keys = append(keys, failureKeys...)
 
 	isTimeout := 0
+	statusCode := 0
 	if llmErr, ok := err.(*llmerrors.LLMError); ok {
+		statusCode = llmErr.StatusCode
 		// Timeout errors: 408 (Request Timeout) or 504 (Gateway Timeout)
 		if llmErr.StatusCode == 408 || llmErr.StatusCode == 504 {
 			isTimeout = 1
@@ -266,9 +349,19 @@ func (r *RedisStatsStore) RecordFailure(ctx context.Context, deploymentID string
 	}
 
 	args := []interface{}{
-		time.Now().Unix(),
+		now.Unix(),
 		isTimeout,
 		r.maxLatencyListSize,
+		windowSize,
+		r.bucketTTLSeconds(),
+		r.failureThreshold,
+		r.minRequests,
+		int(r.cooldownPeriod.Seconds()),
+		boolToInt(r.immediateOn429),
+		statusCode,
+		r.singleDeployMinReq,
+		boolToInt(opts.isSingleDeployment),
+		r.cooldownTTLSeconds(),
 	}
 
 	_, runErr := r.recordFailureScript.Run(ctx, r.client, keys, args...).Result()
@@ -344,6 +437,8 @@ func (r *RedisStatsStore) DeleteStats(ctx context.Context, deploymentID string) 
 		r.countersKey(deploymentID),
 		r.cooldownKey(deploymentID),
 		r.usageKeyPrefix(deploymentID) + "*", // Pattern for SCAN
+		r.successKeyPrefix(deploymentID) + "*",
+		r.failureKeyPrefix(deploymentID) + "*",
 	}
 
 	_, err := r.deleteStatsScript.Run(ctx, r.client, keys).Result()
@@ -374,6 +469,22 @@ func (r *RedisStatsStore) cooldownKey(deploymentID string) string {
 	return fmt.Sprintf("%s:%s:cooldown", r.keyPrefix, deploymentID)
 }
 
+func (r *RedisStatsStore) successKeyPrefix(deploymentID string) string {
+	return fmt.Sprintf("%s:%s:successes:", r.keyPrefix, deploymentID)
+}
+
+func (r *RedisStatsStore) failureKeyPrefix(deploymentID string) string {
+	return fmt.Sprintf("%s:%s:failures:", r.keyPrefix, deploymentID)
+}
+
+func (r *RedisStatsStore) successKey(deploymentID, minute string) string {
+	return fmt.Sprintf("%s:%s:successes:%s", r.keyPrefix, deploymentID, minute)
+}
+
+func (r *RedisStatsStore) failureKey(deploymentID, minute string) string {
+	return fmt.Sprintf("%s:%s:failures:%s", r.keyPrefix, deploymentID, minute)
+}
+
 func (r *RedisStatsStore) usageKeyPrefix(deploymentID string) string {
 	return fmt.Sprintf("%s:%s:usage:", r.keyPrefix, deploymentID)
 }
@@ -399,6 +510,64 @@ func (r *RedisStatsStore) extractDeploymentID(key string) string {
 	}
 
 	return key[start:end]
+}
+
+func (r *RedisStatsStore) failureWindowSize() int {
+	if r.failureWindowMins <= 0 {
+		return defaultFailureWindowMinutes
+	}
+	return r.failureWindowMins
+}
+
+func (r *RedisStatsStore) bucketSeconds() int {
+	if r.failureBucketSecs <= 0 {
+		return defaultFailureBucketSeconds
+	}
+	return r.failureBucketSecs
+}
+
+func (r *RedisStatsStore) bucketKeyFormat() string {
+	if r.bucketSeconds() != 60 {
+		return "2006-01-02-15-04-05"
+	}
+	return "2006-01-02-15-04"
+}
+
+func (r *RedisStatsStore) bucketTTLSeconds() int {
+	windowSeconds := r.failureWindowSize() * r.bucketSeconds()
+	return windowSeconds + r.bucketSeconds()
+}
+
+func (r *RedisStatsStore) cooldownTTLSeconds() int {
+	cooldownSeconds := int(r.cooldownPeriod.Seconds())
+	if cooldownSeconds <= 0 {
+		return 0
+	}
+	return cooldownSeconds + 10
+}
+
+func (r *RedisStatsStore) windowBucketKeys(deploymentID string, now time.Time, windowSize int) ([]string, []string) {
+	if windowSize <= 0 {
+		windowSize = defaultFailureWindowMinutes
+	}
+	bucketSeconds := r.bucketSeconds()
+	current := now.Truncate(time.Duration(bucketSeconds) * time.Second)
+	format := r.bucketKeyFormat()
+	successKeys := make([]string, 0, windowSize)
+	failureKeys := make([]string, 0, windowSize)
+	for i := 0; i < windowSize; i++ {
+		minuteKey := current.Add(-time.Duration(i) * time.Duration(bucketSeconds) * time.Second).Format(format)
+		successKeys = append(successKeys, r.successKey(deploymentID, minuteKey))
+		failureKeys = append(failureKeys, r.failureKey(deploymentID, minuteKey))
+	}
+	return successKeys, failureKeys
+}
+
+func boolToInt(v bool) int {
+	if v {
+		return 1
+	}
+	return 0
 }
 
 // Parsing helpers
