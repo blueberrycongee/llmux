@@ -169,8 +169,16 @@ func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*D
 	stats.CooldownUntil = cooldownUntil
 
 	// Check if deployment has any recorded stats
-	// If all counters are zero and no history, return ErrStatsNotFound
-	if stats.TotalRequests == 0 && len(stats.LatencyHistory) == 0 && len(stats.TTFTHistory) == 0 {
+	// Return ErrStatsNotFound only if there's absolutely no data
+	if stats.TotalRequests == 0 &&
+		stats.SuccessCount == 0 &&
+		stats.FailureCount == 0 &&
+		stats.ActiveRequests == 0 &&
+		len(stats.LatencyHistory) == 0 &&
+		len(stats.TTFTHistory) == 0 &&
+		stats.CooldownUntil.IsZero() &&
+		stats.CurrentMinuteTPM == 0 &&
+		stats.CurrentMinuteRPM == 0 {
 		return nil, ErrStatsNotFound
 	}
 
