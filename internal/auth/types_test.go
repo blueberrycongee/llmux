@@ -31,6 +31,54 @@ func TestAPIKey_CanAccessModel(t *testing.T) {
 	}
 }
 
+func TestUser_CanAccessModel(t *testing.T) {
+	tests := []struct {
+		name   string
+		models []string
+		model  string
+		expect bool
+	}{
+		{"empty models - all access", []string{}, "gpt-4", true},
+		{"nil models - all access", nil, "gpt-4", true},
+		{"exact match", []string{"gpt-4", "gpt-3.5-turbo"}, "gpt-4", true},
+		{"no match", []string{"gpt-4", "gpt-3.5-turbo"}, "claude-3", false},
+		{"wildcard", []string{"*"}, "any-model", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			user := &User{Models: tt.models}
+			if got := user.CanAccessModel(tt.model); got != tt.expect {
+				t.Errorf("CanAccessModel(%q) = %v, want %v", tt.model, got, tt.expect)
+			}
+		})
+	}
+}
+
+func TestOrganization_CanAccessModel(t *testing.T) {
+	tests := []struct {
+		name   string
+		models []string
+		model  string
+		expect bool
+	}{
+		{"empty models - all access", []string{}, "gpt-4", true},
+		{"nil models - all access", nil, "gpt-4", true},
+		{"exact match", []string{"gpt-4", "gpt-3.5-turbo"}, "gpt-4", true},
+		{"no match", []string{"gpt-4", "gpt-3.5-turbo"}, "claude-3", false},
+		{"wildcard", []string{"*"}, "any-model", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			org := &Organization{Models: tt.models}
+			if got := org.CanAccessModel(tt.model); got != tt.expect {
+				t.Errorf("CanAccessModel(%q) = %v, want %v", tt.model, got, tt.expect)
+			}
+		})
+	}
+}
+
 func TestAPIKey_IsExpired(t *testing.T) {
 	now := time.Now()
 	past := now.Add(-24 * time.Hour)

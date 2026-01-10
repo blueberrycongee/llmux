@@ -294,6 +294,19 @@ func (t *Team) CanAccessModel(model string) bool {
 	return false
 }
 
+// CanAccessModel checks if the user is allowed to use the specified model.
+func (u *User) CanAccessModel(model string) bool {
+	if len(u.Models) == 0 {
+		return true // No restrictions
+	}
+	for _, m := range u.Models {
+		if m == model || m == "*" {
+			return true
+		}
+	}
+	return false
+}
+
 // IsProxyAdmin checks if the user has proxy admin role.
 func (u *User) IsProxyAdmin() bool {
 	return u.Role == string(UserRoleProxyAdmin)
@@ -332,6 +345,19 @@ func (o *Organization) IsOverBudget() bool {
 		return false
 	}
 	return o.Spend >= o.MaxBudget
+}
+
+// CanAccessModel checks if the organization is allowed to use the specified model.
+func (o *Organization) CanAccessModel(model string) bool {
+	if len(o.Models) == 0 {
+		return true // No restrictions
+	}
+	for _, m := range o.Models {
+		if m == model || m == "*" {
+			return true
+		}
+	}
+	return false
 }
 
 // TeamMembership tracks a user's membership and spend within a team.

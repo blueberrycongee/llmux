@@ -351,6 +351,25 @@ func (h *ClientHandler) ListModels(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	authCtx := auth.GetAuthContext(r.Context())
+	if authCtx != nil {
+		access, err := auth.NewModelAccess(r.Context(), h.store, authCtx)
+		if err != nil {
+			h.logger.Error("failed to evaluate model access", "error", err)
+			h.writeError(w, llmerrors.NewInternalError("", "", "failed to evaluate model access"))
+			return
+		}
+		if access != nil {
+			filtered := models[:0]
+			for _, model := range models {
+				if access.Allows(model.ID) {
+					filtered = append(filtered, model)
+				}
+			}
+			models = filtered
+		}
+	}
+
 	// Convert to OpenAI format
 	data := make([]map[string]any, 0, len(models))
 	for _, m := range models {
