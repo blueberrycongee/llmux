@@ -93,6 +93,7 @@ func TestClient_ChatCompletion_UsesRequestContextAndStripsTags(t *testing.T) {
 	client, err := New(
 		WithProviderInstance("mock", mockProvider, []string{"test-model"}),
 		WithRouter(recRouter),
+		withTestPricing(t, "test-model"),
 	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -164,6 +165,7 @@ func TestClient_ChatCompletionStream_UsesStreamingContextAndStripsTags(t *testin
 	client, err := New(
 		WithProviderInstance("mock", mockProvider, []string{"test-model"}),
 		WithRouter(recRouter),
+		withTestPricing(t, "test-model"),
 	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
