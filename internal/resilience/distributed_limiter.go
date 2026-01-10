@@ -15,11 +15,14 @@ const (
 
 // Descriptor defines a specific limit rule
 type Descriptor struct {
-	Key    string        // e.g., "api-key-123"
-	Value  string        // e.g., "model-gpt4"
-	Limit  int64         // The limit threshold (e.g., 100)
-	Type   LimitType     // RPM or TPM
-	Window time.Duration // Window size (default 1m)
+	Key   string    // e.g., "api-key-123"
+	Value string    // e.g., "model-gpt4"
+	Limit int64     // The limit threshold (e.g., 100)
+	Type  LimitType // RPM or TPM
+	// Increment represents how much to add to the counter for this check.
+	// Defaults to 1 when zero.
+	Increment int64
+	Window    time.Duration // Window size (default 1m)
 }
 
 // LimitResult contains the result of a check

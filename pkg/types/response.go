@@ -22,9 +22,10 @@ type Choice struct {
 
 // Usage contains token usage statistics for the request.
 type Usage struct {
-	PromptTokens     int `json:"prompt_tokens"`
-	CompletionTokens int `json:"completion_tokens"`
-	TotalTokens      int `json:"total_tokens"`
+	PromptTokens     int    `json:"prompt_tokens"`
+	CompletionTokens int    `json:"completion_tokens"`
+	TotalTokens      int    `json:"total_tokens"`
+	Provider         string `json:"-"`
 }
 
 // Logprobs contains log probability information.
