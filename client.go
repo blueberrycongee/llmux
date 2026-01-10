@@ -253,6 +253,16 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 		}
 	}
 
+	if resp != nil {
+		provider := ""
+		if resp.Usage != nil {
+			provider = resp.Usage.Provider
+		}
+		if pricingErr := c.validatePricing(req.Model, provider); pricingErr != nil {
+			return nil, pricingErr
+		}
+	}
+
 	if resp == nil {
 		// Route to deployment
 		var deployment *provider.Deployment
@@ -380,6 +390,10 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 		if !ok {
 			lastErr = fmt.Errorf("provider %s not found", deployment.ProviderName)
 			continue
+		}
+
+		if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
+			return nil, err
 		}
 
 		// Build and execute request
@@ -533,6 +547,10 @@ func (c *Client) executeEmbeddingOnce(
 	req *types.EmbeddingRequest,
 ) (*types.EmbeddingResponse, error) {
 	start := time.Now()
+
+	if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
+		return nil, err
+	}
 
 	httpReq, err := prov.BuildEmbeddingRequest(ctx, req)
 	if err != nil {
@@ -824,6 +842,10 @@ func (c *Client) executeOnce(
 ) (*ChatResponse, error) {
 	start := time.Now()
 
+	if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
+		return nil, err
+	}
+
 	httpReq, err := prov.BuildRequest(ctx, req)
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
@@ -897,6 +919,18 @@ func (c *Client) CalculateCost(model string, usage *types.Usage) float64 {
 	inputCost := float64(usage.PromptTokens) * price.InputCostPerToken
 	outputCost := float64(usage.CompletionTokens) * price.OutputCostPerToken
 	return inputCost + outputCost
+}
+
+func (c *Client) validatePricing(model, provider string) error {
+	if c.pricing == nil {
+		return errors.NewInternalError(provider, model, "pricing registry unavailable")
+	}
+
+	if _, ok := c.pricing.GetPrice(model, provider); !ok {
+		return errors.NewInternalError(provider, model, "pricing not configured for model")
+	}
+
+	return nil
 }
 
 func (c *Client) addProviderFromConfig(cfg ProviderConfig) error {

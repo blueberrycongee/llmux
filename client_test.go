@@ -527,6 +527,7 @@ func TestClient_ChatCompletion_Integration(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("mock", mock, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithTimeout(5*time.Second),
 	)
 	if err != nil {

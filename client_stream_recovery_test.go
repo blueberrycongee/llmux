@@ -97,6 +97,7 @@ func TestStreamRecovery_MidStreamFailure(t *testing.T) {
 			APIKey:  "test-key",
 			BaseURL: serverB.URL,
 		}),
+		withTestPricing(t, "gpt-test"),
 		WithFallback(true), // Enable fallback
 		WithRetry(3, 10*time.Millisecond),
 	)
@@ -290,6 +291,7 @@ func TestStreamReader_RecoveryRequestLifecycle(t *testing.T) {
 			APIKey:  "test-key",
 			BaseURL: server3.URL,
 		}),
+		withTestPricing(t, "test-model"),
 		WithFallback(true),
 		WithRetry(5, 10*time.Millisecond), // Allow enough retries
 	)
