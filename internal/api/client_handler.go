@@ -235,7 +235,7 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 	// Calculate fallback usage if not returned by provider
 	if finalUsage == nil {
 		promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
-		completionTokens := tokenizer.CountTextTokens(req.Model, completionContent.String())
+		completionTokens := tokenizer.EstimateCompletionTokensFromText(req.Model, completionContent.String())
 		finalUsage = &llmux.Usage{
 			PromptTokens:     promptTokens,
 			CompletionTokens: completionTokens,
