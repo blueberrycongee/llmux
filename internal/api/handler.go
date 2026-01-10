@@ -262,6 +262,8 @@ func (h *Handler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 // ListModels handles GET /v1/models endpoint.
 func (h *Handler) ListModels(w http.ResponseWriter, r *http.Request) {
 	// TODO: Implement model listing from all providers
+	// TODO: [Real Data Fetching] - Retrieve available models from ProviderRegistry and potentially filter by user access.
+	// Currently returning hardcoded empty list.
 	w.Header().Set("Content-Type", "application/json")
 	_ = json.NewEncoder(w).Encode(map[string]any{
 		"object": "list",

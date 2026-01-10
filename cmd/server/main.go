@@ -152,6 +152,8 @@ func run() error {
 
 	// TODO: Add PostgresStore initialization when cfg.Database.Enabled is true.
 	// PostgresStore fully implements Store interface (see postgres.go, postgres_ext.go, postgres_ext2.go).
+	// TODO: [Real Data Fetching] - Switch to PostgresStore in production for persistent data.
+	// Currently hardcoded to use MemoryStore even if DB is enabled.
 	if cfg.Database.Enabled {
 		logger.Warn("database.enabled is true but PostgresStore is not wired up yet; using MemoryStore")
 	}

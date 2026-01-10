@@ -101,8 +101,29 @@ The system is highly modular. You can implement your own backends by satisfying 
 
 ## 🧪 Testing
 
-The module includes a comprehensive test suite using a **Deterministic Simulator** instead of mocks, ensuring logic flows are tested with "real" behavior without external API costs.
+The module employs a comprehensive testing strategy that prioritizes **determinism** and **real logic paths** over mocking. Instead of mocking return values, we use a `RealLLMClientSimulator` that parses prompts and executes pre-defined logic rules.
 
+To run the tests:
 ```bash
-go test ./internal/memory/tests/...
+go test -v ./internal/memory/tests/...
 ```
+
+### Test Case Breakdown
+
+We have consolidated all critical tests into `manager_test.go` to cover the 5 key pillars of the system:
+
+| Test Function | Description | Key Verification |
+| :--- | :--- | :--- |
+| **`TestManager_SessionLifecycle`** | Verifies Short-term Memory operations. | Ensures sessions can be created, messages appended, and history retrieved intact. |
+| **`TestManager_VectorRetrieval`** | Verifies Long-term Memory isolation. | Ensures user A cannot retrieve user B's memories (Tenant Isolation). |
+| **`TestManager_HybridRetrieval_Recency`** | Verifies the Hybrid Scoring formula. | Ingests two identical facts (one old, one new). Verifies the newer fact ranks higher due to time decay. |
+| **`TestManager_SmartIngestion`** | Verifies LLM-driven extraction. | Input: *"I moved to Berlin and like currywurst"*. Verifies that **two separate facts** ("User lives in Berlin", "User likes currywurst") are extracted and stored. |
+| **`TestManager_MemoryResolution`** | Verifies Dynamic Conflict Resolution. | Input: *"Forget I love Java"*. Verifies that the simulator triggers a `DELETE` action and the memory is physically removed from the store. |
+
+### Why Simulator?
+
+We use `RealLLMClientSimulator` because:
+1.  **Speed**: No network latency (runs in milliseconds).
+2.  **Cost**: Zero API cost.
+3.  **Reliability**: No flaky tests due to LLM non-determinism.
+4.  **Logic Verification**: Unlike simple mocks, it verifies that the *manager* correctly constructs prompts and handles the *structure* of LLM responses (JSON parsing, action execution).

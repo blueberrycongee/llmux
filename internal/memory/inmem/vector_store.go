@@ -12,6 +12,7 @@ import (
 
 // MemoryVectorStore is a simple thread-safe in-memory vector database.
 // It performs brute-force cosine similarity search.
+// TODO: [Real Data Fetching] - Replace with real Vector DB (Qdrant/Milvus/pgvector) for production.
 type MemoryVectorStore struct {
 	mu      sync.RWMutex
 	entries map[string]*memory.MemoryEntry

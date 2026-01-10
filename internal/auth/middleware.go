@@ -162,6 +162,8 @@ func (m *Middleware) ModelAccessMiddleware(next http.Handler) http.Handler {
 
 		// Model validation is done in the handler after parsing the request body
 		// This middleware is a placeholder for future enhancements
+		// TODO: [Real Data Fetching] - Implement real model access control logic here.
+		// Should fetch allowed models for the API Key/User from Store and validate against request.
 		next.ServeHTTP(w, r)
 	})
 }

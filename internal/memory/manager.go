@@ -26,6 +26,7 @@ type MemoryManager struct {
 
 // NewMemoryManager creates a new instance of MemoryManager.
 // Optionally pass LLMClient to enable Smart Ingestion.
+// TODO: [Real Data Fetching] - Wire up real components (VectorStore, LLMClient, Embedder) in main.go instead of in-memory ones.
 func NewMemoryManager(sessionStore SessionStore, vectorStore VectorStore, embedder Embedder, llmClient LLMClient) *MemoryManager {
 	var extractor *Extractor
 	if llmClient != nil {

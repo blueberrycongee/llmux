@@ -12,6 +12,7 @@ import (
 // Instead of mocking the interface call, it implements a deterministic logic engine
 // that behaves like a very simple LLM (Extracts facts based on rules).
 // This avoids network calls but executes real logic flow.
+// TODO: [Real Data Fetching] - Replace with real LLM API Client (OpenAI/Anthropic) in production.
 type RealLLMClientSimulator struct{}
 
 func NewRealLLMClientSimulator() *RealLLMClientSimulator {

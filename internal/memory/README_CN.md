@@ -99,10 +99,31 @@ contextStr, err := memManager.RetrieveRelevantContext(ctx, query, userID)
 *   **`Embedder`**: 用于生成向量嵌入 (`Embed`)。
 *   **`SessionStore`**: 用于原始聊天记录。
 
-## 🧪 测试
+## 🧪 测试 (Testing)
 
-该模块包含一个全面的测试套件，使用 **确定性模拟器 (Deterministic Simulator)** 而不是 Mock 对象，确保在没有外部 API 成本的情况下测试真实的逻辑流。
+本模块采用了一种综合测试策略，优先考虑 **确定性 (Determinism)** 和 **真实逻辑路径**，而不是简单的 Mock。我们使用 `RealLLMClientSimulator` 来解析 Prompt 并执行预定义的逻辑规则，而不是 Mock 返回值。
 
+运行测试：
 ```bash
-go test ./internal/memory/tests/...
+go test -v ./internal/memory/tests/...
 ```
+
+### 测试用例详解 (Test Case Breakdown)
+
+我们将所有关键测试合并到了 `manager_test.go` 中，以覆盖系统的 5 个核心支柱：
+
+| 测试函数名 | 描述 | 关键验证点 |
+| :--- | :--- | :--- |
+| **`TestManager_SessionLifecycle`** | 验证短期记忆操作。 | 确保 Session 可以被创建、追加消息，并且历史记录可以被完整读取。 |
+| **`TestManager_VectorRetrieval`** | 验证长期记忆隔离。 | 确保用户 A 无法检索到用户 B 的记忆（多租户数据隔离）。 |
+| **`TestManager_HybridRetrieval_Recency`** | 验证混合评分公式。 | 摄入两个完全相同的事实（一个旧，一个新）。验证由于时间衰减，**较新的事实排名更高**。 |
+| **`TestManager_SmartIngestion`** | 验证 LLM 驱动的提取。 | 输入：*"我搬到了柏林并且喜欢吃咖喱香肠"*。验证系统是否提取并存储了 **两个独立的事实** ("User lives in Berlin", "User likes currywurst")。 |
+| **`TestManager_MemoryResolution`** | 验证动态冲突解决。 | 输入：*"忘掉我喜欢 Java 这件事"*。验证模拟器是否触发了 `DELETE` 动作，并且该记忆确实从存储中被移除了。 |
+
+### 为什么使用模拟器 (Simulator)?
+
+我们使用 `RealLLMClientSimulator` 的原因：
+1.  **速度**: 无网络延迟（毫秒级运行）。
+2.  **成本**: 零 API 调用成本。
+3.  **可靠性**: 避免了 LLM 输出不确定性导致的测试抖动 (Flaky Tests)。
+4.  **逻辑验证**: 与简单的 Mock 不同，它验证了 `Manager` 是否正确构建了 Prompt，以及是否能正确处理 LLM 返回的 JSON 结构和 Action 逻辑。

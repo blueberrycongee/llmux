@@ -14,6 +14,7 @@ import (
 //
 // For "Semantic" testing, we can implement a keyword-based heuristic if needed,
 // but for integration testing, exact match or deterministic output is often enough.
+// TODO: [Real Data Fetching] - Replace with real Embedding Model API (e.g. text-embedding-3-small) in production.
 type SimpleEmbedder struct {
 	Dimensions int
 }
