@@ -266,7 +266,8 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	if resp == nil {
 		// Route to deployment
 		var deployment *provider.Deployment
-		deployment, err = c.router.Pick(ctx, req.Model)
+		reqCtx := buildRouterRequestContext(req, promptEstimate, req.Stream)
+		deployment, err = c.router.PickWithContext(ctx, reqCtx)
 		if err != nil {
 			err = fmt.Errorf("no available deployment for model %s: %w", req.Model, err)
 		} else {
@@ -367,7 +368,8 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 		// 2. Fallback is enabled (try to find a healthy node)
 		// 3. We don't have a deployment yet (e.g. previous pick failed)
 		if attempt == 0 || c.config.FallbackEnabled || deployment == nil {
-			newDeployment, err := c.router.Pick(ctx, req.Model)
+			reqCtx := buildRouterRequestContext(req, promptEstimate, true)
+			newDeployment, err := c.router.PickWithContext(ctx, reqCtx)
 			if err != nil {
 				lastErr = fmt.Errorf("no available deployment for model %s: %w", req.Model, err)
 				// If we can't pick a deployment and we don't have one from before, we can't proceed
@@ -397,7 +399,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 		}
 
 		// Build and execute request
-		httpReq, err := prov.BuildRequest(ctx, req)
+		httpReq, err := prov.BuildRequest(ctx, sanitizeChatRequestForProvider(req))
 		if err != nil {
 			return nil, fmt.Errorf("build request: %w", err)
 		}
@@ -789,6 +791,7 @@ func (c *Client) executeWithRetry(
 	req *ChatRequest,
 ) (*ChatResponse, error) {
 	var lastErr error
+	promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
 
 	for attempt := 0; attempt <= c.config.RetryCount; attempt++ {
 		if attempt > 0 {
@@ -815,7 +818,8 @@ func (c *Client) executeWithRetry(
 
 		// Try fallback if enabled
 		if c.config.FallbackEnabled && attempt < c.config.RetryCount {
-			newDeployment, pickErr := c.router.Pick(ctx, req.Model)
+			reqCtx := buildRouterRequestContext(req, promptTokens, req.Stream)
+			newDeployment, pickErr := c.router.PickWithContext(ctx, reqCtx)
 			if pickErr == nil && newDeployment.ID != deployment.ID {
 				deployment = newDeployment
 				c.mu.RLock()
@@ -846,7 +850,7 @@ func (c *Client) executeOnce(
 		return nil, err
 	}
 
-	httpReq, err := prov.BuildRequest(ctx, req)
+	httpReq, err := prov.BuildRequest(ctx, sanitizeChatRequestForProvider(req))
 	if err != nil {
 		return nil, fmt.Errorf("build request: %w", err)
 	}
