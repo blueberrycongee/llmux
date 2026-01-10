@@ -8,6 +8,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -111,6 +112,7 @@ func TestClient_Embedding_Success(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("mock-embedding", mock, []string{"text-embedding-3-small"}),
+		withTestPricing(t, "text-embedding-3-small"),
 	)
 	if err != nil {
 		t.Fatalf("New() error = %v", err)
@@ -132,6 +134,62 @@ func TestClient_Embedding_Success(t *testing.T) {
 	}
 	if resp.Data[0].Embedding[0] != 0.1 {
 		t.Errorf("expected embedding value 0.1, got %f", resp.Data[0].Embedding[0])
+	}
+}
+
+func TestClient_Embedding_MissingPricing(t *testing.T) {
+	var requestCount int32
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requestCount, 1)
+		resp := types.EmbeddingResponse{
+			Object: "list",
+			Data: []types.EmbeddingObject{
+				{
+					Object:    "embedding",
+					Embedding: []float64{0.1},
+					Index:     0,
+				},
+			},
+			Model: "embedding-missing-price",
+			Usage: types.Usage{
+				PromptTokens: 5,
+				TotalTokens:  5,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &mockEmbeddingProvider{
+		name:              "mock-embedding",
+		models:            []string{"embedding-missing-price"},
+		baseURL:           server.URL,
+		supportsEmbedding: true,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock-embedding", mock, []string{"embedding-missing-price"}),
+	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer client.Close()
+
+	req := &types.EmbeddingRequest{
+		Model: "embedding-missing-price",
+		Input: types.NewEmbeddingInputFromString("Hello"),
+	}
+
+	_, err = client.Embedding(context.Background(), req)
+	if err == nil {
+		t.Fatal("expected error for missing pricing, got nil")
+	}
+	if llmErr, ok := err.(*errors.LLMError); !ok || llmErr.Type != errors.TypeInternalError {
+		t.Fatalf("expected internal error for missing pricing, got %T (%v)", err, err)
+	}
+	if atomic.LoadInt32(&requestCount) != 0 {
+		t.Errorf("expected no upstream calls, got %d", requestCount)
 	}
 }
 
@@ -185,6 +243,7 @@ func TestClient_Embedding_Retry(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("mock-retry", mock, []string{"text-embedding-3-small"}),
+		withTestPricing(t, "text-embedding-3-small"),
 		WithRetry(2, 10*time.Millisecond),
 		WithCooldown(1*time.Millisecond),
 	)

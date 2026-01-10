@@ -92,6 +92,7 @@ func TestClient_ChatCompletionStream_CrossProviderFallback(t *testing.T) {
 	client, err := New(
 		WithProviderInstance("providerA", provA, []string{"test-model"}),
 		WithProviderInstance("providerB", provB, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRouter(mockRouter),
 		WithRetry(3, 10*time.Millisecond),
 		WithCooldown(0),
@@ -151,6 +152,7 @@ func TestClient_ChatCompletionStream_MixedErrors(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("mixed-error-prov", prov, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRouter(mockRouter),
 		WithRetry(3, 10*time.Millisecond),
 		WithCooldown(0),
@@ -196,6 +198,7 @@ func TestClient_ChatCompletionStream_NonRetryableError(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("bad-req-prov", prov, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRouter(mockRouter),
 		WithRetry(3, 10*time.Millisecond),
 		WithCooldown(0),
@@ -239,6 +242,7 @@ func TestClient_ChatCompletionStream_ContextCancellation(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("cancel-prov", prov, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRouter(mockRouter),
 		WithRetry(3, 200*time.Millisecond), // Long backoff
 		WithCooldown(0),
@@ -305,6 +309,7 @@ func TestClient_ChatCompletionStream_TimeoutRetry(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("timeout-prov", prov, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRouter(mockRouter),
 		WithRetry(3, 10*time.Millisecond),
 		WithTimeout(50*time.Millisecond), // Short timeout
@@ -365,6 +370,7 @@ func TestClient_ChatCompletionStream_RateLimitRetry(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("ratelimit-prov", prov, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRouter(mockRouter),
 		WithRetry(3, 10*time.Millisecond),
 		WithCooldown(0),
@@ -427,6 +433,7 @@ func TestClient_ChatCompletionStream_FallbackDisabled(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("nofallback-prov", prov, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRouter(mockRouter),
 		WithRetry(2, 10*time.Millisecond),
 		WithFallback(false), // Disable fallback

@@ -132,6 +132,59 @@ func TestConfigValidation(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "database enabled missing user",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Database: DatabaseConfig{
+					Enabled:  true,
+					Host:     "localhost",
+					Port:     5432,
+					Database: "llmux",
+					SSLMode:  "disable",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "database enabled invalid port",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Database: DatabaseConfig{
+					Enabled:  true,
+					Host:     "localhost",
+					Port:     70000,
+					User:     "llmux",
+					Database: "llmux",
+					SSLMode:  "disable",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "database enabled valid config",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Database: DatabaseConfig{
+					Enabled:  true,
+					Host:     "localhost",
+					Port:     5432,
+					User:     "llmux",
+					Database: "llmux",
+					SSLMode:  "disable",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {

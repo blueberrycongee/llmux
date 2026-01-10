@@ -49,6 +49,7 @@ func TestClient_ChatCompletionStream_RetrySuccess(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("mock-stream", mock, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRetry(3, 10*time.Millisecond),
 		WithCooldown(0),
 	)
@@ -93,6 +94,7 @@ func TestClient_ChatCompletionStream_RetryFailure(t *testing.T) {
 
 	client, err := New(
 		WithProviderInstance("mock-stream-fail", mock, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
 		WithRetry(2, 10*time.Millisecond),
 		WithCooldown(0),
 	)
