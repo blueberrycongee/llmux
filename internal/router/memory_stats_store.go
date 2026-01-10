@@ -140,10 +140,6 @@ func (m *MemoryStatsStore) RecordFailure(ctx context.Context, deploymentID strin
 
 	// Check if error is cooldown-worthy (e.g., 500, 503, timeout)
 	if llmErr, ok := err.(*llmerrors.LLMError); ok {
-		if llmerrors.IsCooldownRequired(llmErr.StatusCode) {
-			// Will be set explicitly via SetCooldown
-		}
-
 		// Add penalty latency for timeout errors (helps lowest-latency routing avoid slow deployments)
 		if llmErr.StatusCode == 408 || llmErr.StatusCode == 504 {
 			m.appendToHistoryLocked(&stats.LatencyHistory, 1000000.0) // 1000s penalty

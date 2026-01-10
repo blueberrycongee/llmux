@@ -50,8 +50,8 @@ func setupRedisStoreIfAvailable(t *testing.T) router.StatsStore {
 
 	// Register cleanup
 	t.Cleanup(func() {
-		if err := redisContainer.Terminate(ctx); err != nil {
-			t.Logf("Failed to terminate Redis container: %v", err)
+		if terminateErr := redisContainer.Terminate(ctx); terminateErr != nil {
+			t.Logf("Failed to terminate Redis container: %v", terminateErr)
 		}
 	})
 
@@ -279,13 +279,13 @@ func testLatencyHistoryRolling(t *testing.T, store router.StatsStore) {
 	deploymentID := "test-deployment-rolling"
 
 	// Create store with small max size for testing
-	memStore, ok := store.(*router.MemoryStatsStore)
+	_, ok := store.(*router.MemoryStatsStore)
 	if !ok {
 		t.Skip("Rolling window test only for MemoryStatsStore")
 	}
 
 	// Re-create with max size = 3
-	memStore = router.NewMemoryStatsStoreWithConfig(3)
+	memStore := router.NewMemoryStatsStoreWithConfig(3)
 	defer memStore.Close()
 
 	// Test 1: Add latencies up to max size
@@ -352,8 +352,8 @@ func testListAndDeleteDeployments(t *testing.T, store router.StatsStore) {
 	for i := 0; i < 3; i++ {
 		deploymentID := "test-deployment-" + string(rune('A'+i))
 		metrics := &router.ResponseMetrics{Latency: 100 * time.Millisecond}
-		err := store.RecordSuccess(ctx, deploymentID, metrics)
-		require.NoError(t, err)
+		recordErr := store.RecordSuccess(ctx, deploymentID, metrics)
+		require.NoError(t, recordErr)
 	}
 
 	deployments, err = store.ListDeployments(ctx)

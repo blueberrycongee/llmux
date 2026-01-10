@@ -168,6 +168,12 @@ func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*D
 	cooldownUntil, _ := r.GetCooldownUntil(ctx, deploymentID)
 	stats.CooldownUntil = cooldownUntil
 
+	// Check if deployment has any recorded stats
+	// If all counters are zero and no history, return ErrStatsNotFound
+	if stats.TotalRequests == 0 && len(stats.LatencyHistory) == 0 && len(stats.TTFTHistory) == 0 {
+		return nil, ErrStatsNotFound
+	}
+
 	return stats, nil
 }
 
@@ -244,7 +250,7 @@ func (r *RedisStatsStore) RecordFailure(ctx context.Context, deploymentID string
 func (r *RedisStatsStore) SetCooldown(ctx context.Context, deploymentID string, until time.Time) error {
 	keys := []string{r.cooldownKey(deploymentID)}
 
-	ttl := until.Sub(time.Now())
+	ttl := time.Until(until)
 	if ttl <= 0 {
 		// Already expired, delete the key
 		return r.client.Del(ctx, keys[0]).Err()

@@ -44,23 +44,23 @@ cache:
 
 针对之前两份报告打架的焦点问题，基于代码事实的最终裁决如下：
 
-| 审计项         | 状态         | 事实依据 (Code Truth)                                                                                                                                                      | 判决                     |
-| :------------- | :----------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------- |
-| **分布式限流** | ❌ **未启用** | `internal/resilience/redis_limiter.go` 代码存在且逻辑正确，但在 `cmd/server/main.go` 和 `options.go` 中**从未被初始化或注入**。目前运行时使用的是基于 `Mutex` 的本地限流。 | **僵尸代码 (Dead Code)** |
-| **分布式路由** | ❌ **不支持** | `routers/leastbusy.go` 调用 `internal/router/base.go`，其状态存储在 `r.stats` (内存 Map) 中。多实例部署时，各节点状态隔离，负载均衡将退化为随机轮询。                      | **仅支持单机**           |
-| **可观测性**   | ✅ **已集成** | `cmd/server/main.go` (L108, L268) 明确初始化了 OTel Tracing 和 Metrics 中间件。之前的报告称其为“功能孤岛”是错误的。                                                        | **已上线 (Operational)** |
-| **多模态**     | ❌ **不支持** | 代码库中无任何 Image/Audio 处理逻辑。                                                                                                                                      | **完全缺失**             |
+| 审计项         | 状态         | 事实依据 (Code Truth)                                                                                                                                 | 判决                     |
+| :------------- | :----------- | :---------------------------------------------------------------------------------------------------------------------------------------------------- | :----------------------- |
+| **分布式限流** | ✅ **已启用** | `internal/resilience/redis_limiter.go` 已在 `cmd/server/main.go` 中正确初始化并注入到 Client。支持 RPM/TPM 分布式限流。                               | **已修复 (Fixed)**       |
+| **分布式路由** | ❌ **不支持** | `routers/leastbusy.go` 调用 `internal/router/base.go`，其状态存储在 `r.stats` (内存 Map) 中。多实例部署时，各节点状态隔离，负载均衡将退化为随机轮询。 | **仅支持单机**           |
+| **可观测性**   | ✅ **已集成** | `cmd/server/main.go` (L108, L268) 明确初始化了 OTel Tracing 和 Metrics 中间件。之前的报告称其为“功能孤岛”是错误的。                                   | **已上线 (Operational)** |
+| **多模态**     | ❌ **不支持** | 代码库中无任何 Image/Audio 处理逻辑。                                                                                                                 | **完全缺失**             |
 
 ---
 
 ## 2. 深度风险评估 (Deep Risk Assessment)
 
-### 🔴 致命风险：分布式幻觉 (The Distributed Illusion)
+### 🔴 致命风险：分布式幻觉 (The Distributed Illusion) [已部分修复]
 *   **现象：** 开发者编写了高质量的 Redis 客户端 (`caches/redis`) 和 Redis 限流脚本 (`redis_limiter.go`)，这给代码审查者一种“支持分布式”的错觉。
-*   **真相：** 这些组件**没有被组装在一起**。
-    *   `Router` 仅接受本地状态。
-    *   `Client` 初始化时没有提供注入 `RedisLimiter` 的选项。
-*   **后果：** 如果用户因为看到 `redis_limiter.go` 就放心地将 LLMux 部署到 Kubernetes 集群中，**限流将完全失效**（每个 Pod 都有自己的限流计数器，导致总流量超标 N 倍）。
+*   **真相：** 这些组件之前**没有被组装在一起**。
+    *   `Router` 仅接受本地状态。(仍需修复)
+    *   ~~`Client` 初始化时没有提供注入 `RedisLimiter` 的选项。~~ (**已修复：** Client 现已集成 RedisLimiter)
+*   **后果：** 如果用户因为看到 `redis_limiter.go` 就放心地将 LLMux 部署到 Kubernetes 集群中，**限流将完全失效**。(**更新：** 分布式限流现已生效，但分布式路由仍未支持)
 
 ### 🟠 高危风险：错误处理的“方言”问题
 *   **现象：** `providers/openailike` 强行假设所有上游都返回 OpenAI 格式的 JSON 错误 (`error.message`)。
@@ -90,12 +90,12 @@ cache:
 如果您打算将 LLMux 推向企业级生产环境，请按以下优先级进行修复：
 
 ### Phase 1: 激活分布式能力 (必须做)
-1.  **修改 `options.go`**：添加 `WithRateLimiter` 选项。
-2.  **修改 `cmd/server/main.go`**：
+1.  ✅ **修改 `options.go`**：添加 `WithRateLimiter` 选项。(已完成)
+2.  ✅ **修改 `cmd/server/main.go`**：(已完成)
     *   初始化 `redis.Client`。
     *   创建 `resilience.NewRedisLimiter(redisClient)`。
     *   将其注入到 `llmux.New(..., llmux.WithRateLimiter(limiter))`。
-3.  **改造 `Router`**：
+3.  **改造 `Router`**：(待进行)
     *   定义 `ClusterStats` 接口。
     *   使用 Redis 实现该接口，替换 `internal/router/base.go` 中的 `r.stats` Map。
 
@@ -109,6 +109,8 @@ cache:
 
 **LLMux 不是一个玩具，它是一辆组装了 90% 的法拉利。**
 
-引擎（Go 并发模型）、底盘（插件系统）和轮子（Redis 客户端）都是顶级的。只是出厂时，工程师忘记把**传动轴**（分布式状态同步）接上，导致它目前只能在车库里空转（单机运行）。
+引擎（Go 并发模型）、底盘（插件系统）和轮子（Redis 客户端）都是顶级的。只是出厂时，工程师忘记把**传动轴**（分布式状态同步）接上。
 
-只要接上这根传动轴，它将立即超越 LiteLLM。
+**最新进展：** 工程师刚刚接上了**前轮传动轴**（分布式限流），车辆已经具备了在集群中安全行驶的能力。下一步是接上**后轮传动轴**（分布式路由），实现完全的四驱性能。
+
+只要完成剩下的工作，它将立即超越 LiteLLM。
