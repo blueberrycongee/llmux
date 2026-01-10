@@ -863,6 +863,9 @@ func (c *Client) executeOnce(
 			TotalTokens:      promptTokens + completionTokens,
 		}
 	}
+	if chatResp.Usage != nil && chatResp.Usage.Provider == "" {
+		chatResp.Usage.Provider = deployment.ProviderName
+	}
 
 	// Report success metrics
 	metrics := &router.ResponseMetrics{
@@ -885,7 +888,8 @@ func (c *Client) CalculateCost(model string, usage *types.Usage) float64 {
 		return 0
 	}
 
-	price, ok := c.pricing.GetPrice(model, "")
+	provider := usage.Provider
+	price, ok := c.pricing.GetPrice(model, provider)
 	if !ok {
 		return 0
 	}
