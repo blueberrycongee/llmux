@@ -212,13 +212,18 @@ func testActiveRequestsIncDec(t *testing.T, store router.StatsStore) {
 
 	// Test 1: Increment active requests
 	err := store.IncrementActiveRequests(ctx, deploymentID)
-	require.NoError(t, err)
+	require.NoError(t, err, "IncrementActiveRequests (1st call) should succeed")
 
 	err = store.IncrementActiveRequests(ctx, deploymentID)
-	require.NoError(t, err)
+	require.NoError(t, err, "IncrementActiveRequests (2nd call) should succeed")
 
 	stats, err := store.GetStats(ctx, deploymentID)
-	require.NoError(t, err)
+	if err != nil {
+		t.Logf("GetStats returned error: %v (type: %T)", err, err)
+	}
+	require.NoError(t, err, "GetStats should succeed after IncrementActiveRequests")
+	t.Logf("Stats: ActiveRequests=%d, TotalRequests=%d, SuccessCount=%d, FailureCount=%d",
+		stats.ActiveRequests, stats.TotalRequests, stats.SuccessCount, stats.FailureCount)
 	assert.Equal(t, int64(2), stats.ActiveRequests)
 
 	// Test 2: Decrement active requests
