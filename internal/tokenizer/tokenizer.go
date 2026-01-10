@@ -1,3 +1,4 @@
+// Package tokenizer provides token counting helpers for LLM requests and responses.
 package tokenizer
 
 import (
@@ -61,8 +62,8 @@ func EstimatePromptTokens(model string, req *types.ChatRequest) int {
 func EstimateCompletionTokens(model string, resp *types.ChatResponse, fallbackText string) int {
 	if resp != nil && len(resp.Choices) > 0 {
 		total := 0
-		for _, choice := range resp.Choices {
-			total += estimateMessageContentTokens(model, choice.Message)
+		for i := range resp.Choices {
+			total += estimateMessageContentTokens(model, resp.Choices[i].Message)
 		}
 		if total > 0 {
 			return total
@@ -138,8 +139,11 @@ func extractMessageText(raw json.RawMessage) string {
 
 func getEncoding(model string) *tiktoken.Tiktoken {
 	base := normalizeModelName(model)
-	if enc, ok := encodingCache.Load(base); ok {
-		return enc.(*tiktoken.Tiktoken)
+	if cached, ok := encodingCache.Load(base); ok {
+		if enc, ok := cached.(*tiktoken.Tiktoken); ok {
+			return enc
+		}
+		return getDefaultEncoding()
 	}
 
 	enc, err := tiktoken.EncodingForModel(base)
@@ -154,7 +158,10 @@ func getEncoding(model string) *tiktoken.Tiktoken {
 
 func getDefaultEncoding() *tiktoken.Tiktoken {
 	defaultOnce.Do(func() {
-		defaultEnc, _ = tiktoken.GetEncoding("cl100k_base")
+		enc, err := tiktoken.GetEncoding("cl100k_base")
+		if err == nil {
+			defaultEnc = enc
+		}
 	})
 	return defaultEnc
 }
