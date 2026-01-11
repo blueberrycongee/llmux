@@ -6,7 +6,6 @@ import (
 	"embed"
 	"flag"
 	"fmt"
-	"io/fs"
 	"log/slog"
 	"net/http"
 	"os"
@@ -15,14 +14,12 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/redis/go-redis/v9"
 
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
-	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/resilience"
 	"github.com/blueberrycongee/llmux/internal/secret"
@@ -192,146 +189,60 @@ func run() error {
 	mgmtHandler := api.NewManagementHandler(authStore, auditStore, logger)
 
 	// Setup HTTP routes
-	mux := http.NewServeMux()
-
-	// Health endpoints
-	mux.HandleFunc("GET /health/live", handler.HealthCheck)
-	mux.HandleFunc("GET /health/ready", handler.HealthCheck)
-
-	// OpenAI-compatible endpoints
-	mux.HandleFunc("POST /v1/chat/completions", handler.ChatCompletions)
-	mux.HandleFunc("POST /v1/embeddings", handler.Embeddings)
-	mux.HandleFunc("POST /embeddings", handler.Embeddings)
-	mux.HandleFunc("GET /v1/models", handler.ListModels)
-
-	// ========================================================================
-	// MANAGEMENT ENDPOINTS REGISTRATION (P0 Fix - Critical Missing Feature)
-	// Register all management routes (Key, Team, User, Organization, Audit, etc.)
-	// ========================================================================
-	mgmtHandler.RegisterRoutes(mux)
-	logger.Info("management endpoints registered",
-		"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"})
-
-	// Metrics endpoint
-	if cfg.Metrics.Enabled {
-		mux.Handle("GET "+cfg.Metrics.Path, promhttp.Handler())
-	}
-
-	// UI Static Files
-	uiFS, err := fs.Sub(uiAssets, "ui_assets")
+	muxes, err := buildMuxes(cfg, handler, mgmtHandler, logger, uiAssets)
 	if err != nil {
-		logger.Error("failed to load UI assets", "error", err)
-	} else {
-		// Serve UI at root
-		mux.Handle("/", http.FileServer(http.FS(uiFS)))
+		return fmt.Errorf("failed to build routes: %w", err)
 	}
 
-	// Apply middleware stack
-	var httpHandler http.Handler = mux
+	logger.Info("management endpoints registered",
+		"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
+		"admin_port", cfg.Server.AdminPort,
+	)
 
-	// API Key Authentication Middleware (enterprise feature)
-	// This validates API keys and performs budget checks BEFORE requests
-	if cfg.Auth.Enabled {
-		authMiddleware := auth.NewMiddleware(&auth.MiddlewareConfig{
-			Store:     authStore,
-			Logger:    logger,
-			SkipPaths: cfg.Auth.SkipPaths,
-			Enabled:   true,
-		})
-		httpHandler = authMiddleware.ModelAccessMiddleware(httpHandler)
-		httpHandler = authMiddleware.Authenticate(httpHandler)
-		logger.Info("API key authentication middleware enabled")
-		logger.Info("model access middleware enabled")
+	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer)
+	if err != nil {
+		return fmt.Errorf("failed to initialize middleware stack: %w", err)
 	}
 
-	// Gateway-level Rate Limiting Middleware (P0 Fix - Critical Security Feature)
-	// This is the FIRST line of defense against abuse, applied AFTER authentication
-	// so we have access to API Key/Team context for per-tenant limits.
-	// Note: This is separate from application-level rate limiting in client.go
-	if cfg.RateLimit.Enabled {
-		defaultRPM := int(cfg.RateLimit.RequestsPerMinute)
-		rateLimiter := auth.NewTenantRateLimiter(&auth.TenantRateLimiterConfig{
-			DefaultRPM:   defaultRPM,
-			DefaultBurst: defaultRPM / 6, // ~10 seconds burst
-			CleanupTTL:   10 * time.Minute,
-		})
+	dataHandler := middleware(muxes.Data)
 
-		// Inject distributed limiter if configured (for multi-instance deployments)
-		if cfg.RateLimit.Distributed && cfg.Cache.Redis.Addr != "" {
-			redisClient := redis.NewClient(&redis.Options{
-				Addr:         cfg.Cache.Redis.Addr,
-				Password:     cfg.Cache.Redis.Password,
-				DB:           cfg.Cache.Redis.DB,
-				DialTimeout:  cfg.Cache.Redis.DialTimeout,
-				ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
-				WriteTimeout: cfg.Cache.Redis.WriteTimeout,
-				PoolSize:     cfg.Cache.Redis.PoolSize,
-				MinIdleConns: cfg.Cache.Redis.MinIdleConns,
-				MaxRetries:   cfg.Cache.Redis.MaxRetries,
-			})
-
-			// Test connection before using
-			pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			if err := redisClient.Ping(pingCtx).Err(); err != nil {
-				logger.Warn("distributed rate limiting unavailable, using local limiter", "error", err)
-			} else {
-				distributedLimiter := resilience.NewRedisLimiter(redisClient)
-				rateLimiter.SetDistributedLimiter(distributedLimiter)
-				logger.Info("gateway rate limiting using distributed Redis backend")
-			}
-			pingCancel()
-		}
-
-		httpHandler = rateLimiter.RateLimitMiddleware(httpHandler)
-		logger.Info("gateway rate limiting enabled",
-			"default_rpm", cfg.RateLimit.RequestsPerMinute,
-			"distributed", cfg.RateLimit.Distributed,
-		)
-	}
-
-	// OIDC Middleware (SSO authentication with sync integration)
-	if cfg.Auth.Enabled && cfg.Auth.OIDC.IssuerURL != "" {
-		oidcCfg := auth.OIDCConfig{
-			IssuerURL:    cfg.Auth.OIDC.IssuerURL,
-			ClientID:     cfg.Auth.OIDC.ClientID,
-			ClientSecret: cfg.Auth.OIDC.ClientSecret,
-			RoleClaim:    cfg.Auth.OIDC.ClaimMapping.RoleClaim,
-			RolesMap:     cfg.Auth.OIDC.ClaimMapping.Roles,
-		}
-		// Use OIDCMiddlewareWithSync instead of OIDCMiddleware
-		// This injects the syncer to enable automatic user-team sync from JWT claims
-		oidcMiddleware, err := auth.OIDCMiddlewareWithSync(oidcCfg, syncer)
-		if err != nil {
-			return fmt.Errorf("failed to initialize OIDC middleware: %w", err)
-		}
-		httpHandler = oidcMiddleware(httpHandler)
-		logger.Info("OIDC authentication enabled", "issuer", cfg.Auth.OIDC.IssuerURL, "sync_enabled", syncer != nil)
-	}
-
-	httpHandler = metrics.Middleware(httpHandler)
-	httpHandler = observability.RequestIDMiddleware(httpHandler)
-
-	// CORS middleware for development (Next.js on :3000)
-	httpHandler = corsMiddleware(httpHandler)
-
-	// Create server
-	server := &http.Server{
+	// Create data server
+	dataServer := &http.Server{
 		Addr:         fmt.Sprintf(":%d", cfg.Server.Port),
-		Handler:      httpHandler,
+		Handler:      dataHandler,
 		ReadTimeout:  cfg.Server.ReadTimeout,
 		WriteTimeout: cfg.Server.WriteTimeout,
 		IdleTimeout:  cfg.Server.IdleTimeout,
 	}
 
-	// Start server in goroutine
-	serverErr := make(chan error, 1)
+	var adminServer *http.Server
+	if muxes.Admin != nil {
+		adminHandler := middleware(muxes.Admin)
+		adminServer = &http.Server{
+			Addr:         fmt.Sprintf(":%d", cfg.Server.AdminPort),
+			Handler:      adminHandler,
+			ReadTimeout:  cfg.Server.ReadTimeout,
+			WriteTimeout: cfg.Server.WriteTimeout,
+			IdleTimeout:  cfg.Server.IdleTimeout,
+		}
+	}
+
+	// Start server(s) in goroutines
+	serverErr := make(chan error, 2)
 	go func() {
 		logger.Info("server listening", "port", cfg.Server.Port)
-		if err := server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+		if err := dataServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			serverErr <- err
 		}
-		close(serverErr)
 	}()
+	if adminServer != nil {
+		go func() {
+			logger.Info("admin server listening", "port", cfg.Server.AdminPort)
+			if err := adminServer.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+				serverErr <- err
+			}
+		}()
+	}
 
 	// Wait for shutdown signal or server error
 	quit := make(chan os.Signal, 1)
@@ -348,8 +259,13 @@ func run() error {
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer shutdownCancel()
 
-	if err := server.Shutdown(shutdownCtx); err != nil {
+	if err := dataServer.Shutdown(shutdownCtx); err != nil {
 		logger.Error("server shutdown error", "error", err)
+	}
+	if adminServer != nil {
+		if err := adminServer.Shutdown(shutdownCtx); err != nil {
+			logger.Error("admin server shutdown error", "error", err)
+		}
 	}
 
 	// Shutdown tracing
