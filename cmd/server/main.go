@@ -424,6 +424,11 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 		opts = append(opts, llmux.WithPricingFile(cfg.PricingFile))
 	}
 
+	// Stream recovery mode
+	if cfg.Stream.RecoveryMode != "" {
+		opts = append(opts, llmux.WithStreamRecoveryMode(mapStreamRecoveryMode(cfg.Stream.RecoveryMode)))
+	}
+
 	// Initialize distributed routing
 	if cfg.Routing.Distributed {
 		if cfg.Cache.Redis.Addr != "" || len(cfg.Cache.Redis.ClusterAddrs) > 0 {
@@ -541,6 +546,20 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	}
 
 	return opts
+}
+
+// mapStreamRecoveryMode converts config recovery mode to llmux.StreamRecoveryMode.
+func mapStreamRecoveryMode(mode string) llmux.StreamRecoveryMode {
+	switch mode {
+	case "off":
+		return llmux.StreamRecoveryOff
+	case "append":
+		return llmux.StreamRecoveryAppend
+	case "retry":
+		return llmux.StreamRecoveryRetry
+	default:
+		return llmux.StreamRecoveryRetry
+	}
 }
 
 // mapKeyStrategy converts config key strategy string to llmux.RateLimitKeyStrategy.

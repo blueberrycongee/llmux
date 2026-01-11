@@ -10,6 +10,7 @@ import (
 	"strings"
 	"sync"
 	"time"
+	"unicode/utf8"
 
 	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -60,6 +61,8 @@ type StreamReader struct {
 	retryCount      int
 	maxRetries      int
 	fallbackEnabled bool
+	recoveryMode    StreamRecoveryMode
+	skipRemaining   int
 	seenDone        bool
 	requestEnded    bool // tracks whether ReportRequestEnd has been called for current deployment
 }
@@ -91,6 +94,7 @@ func newStreamReader(
 		originalReq:     req,
 		maxRetries:      client.config.RetryCount,
 		fallbackEnabled: client.config.FallbackEnabled,
+		recoveryMode:    client.config.StreamRecoveryMode,
 	}
 }
 
@@ -132,6 +136,18 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 		if chunk == nil {
 			// Skip non-content events
 			continue
+		}
+
+		if s.recoveryMode == StreamRecoveryRetry && s.skipRemaining > 0 && len(chunk.Choices) > 0 {
+			delta := &chunk.Choices[0].Delta
+			if delta.Content != "" {
+				trimmed, remaining := trimLeadingRunes(delta.Content, s.skipRemaining)
+				s.skipRemaining = remaining
+				delta.Content = trimmed
+			}
+			if delta.Content == "" && delta.Role == "" && len(delta.ToolCalls) == 0 {
+				continue
+			}
 		}
 
 		// Record Time To First Token on first content chunk
@@ -193,6 +209,9 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 
 //nolint:unparam // err parameter kept for future error classification
 func (s *StreamReader) canRecover(err error) bool {
+	if s.recoveryMode == StreamRecoveryOff {
+		return false
+	}
 	if s.retryCount >= s.maxRetries {
 		return false
 	}
@@ -214,6 +233,9 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	s.closed = false // Re-open logically
 	s.retryCount++
 	currentAccumulated := s.accumulated.String()
+	if s.recoveryMode == StreamRecoveryRetry {
+		s.skipRemaining = utf8.RuneCountInString(currentAccumulated)
+	}
 	s.mu.Unlock()
 
 	// Construct new request
@@ -222,7 +244,7 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	copy(newReq.Messages, s.originalReq.Messages)
 
 	// Append accumulated content as assistant message
-	if currentAccumulated != "" {
+	if s.recoveryMode == StreamRecoveryAppend && currentAccumulated != "" {
 		contentBytes, _ := json.Marshal(currentAccumulated)
 		newReq.Messages = append(newReq.Messages, types.ChatMessage{
 			Role:    "assistant",
@@ -287,6 +309,9 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 
 	// Update StreamReader state
 	s.mu.Lock()
+	if s.recoveryMode == StreamRecoveryRetry {
+		s.accumulated.Reset()
+	}
 	s.body = resp.Body
 	s.scanner = bufio.NewScanner(resp.Body)
 	s.scanner.Buffer(make([]byte, 4096), 4096*4)
@@ -355,4 +380,20 @@ func (s *StreamReader) finish() {
 		})
 		_ = s.close()
 	}
+}
+
+func trimLeadingRunes(value string, count int) (string, int) {
+	if count <= 0 || value == "" {
+		return value, count
+	}
+
+	seen := 0
+	for i := range value {
+		if seen == count {
+			return value[i:], 0
+		}
+		seen++
+	}
+
+	return "", count - seen
 }

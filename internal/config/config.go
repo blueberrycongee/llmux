@@ -15,6 +15,7 @@ type Config struct {
 	Server      ServerConfig     `yaml:"server"`
 	Providers   []ProviderConfig `yaml:"providers"`
 	Routing     RoutingConfig    `yaml:"routing"`
+	Stream      StreamConfig     `yaml:"stream"`
 	RateLimit   RateLimitConfig  `yaml:"rate_limit"`
 	Logging     LoggingConfig    `yaml:"logging"`
 	Metrics     MetricsConfig    `yaml:"metrics"`
@@ -196,6 +197,11 @@ type ServerConfig struct {
 	IdleTimeout  time.Duration `yaml:"idle_timeout"`
 }
 
+// StreamConfig contains stream-specific behavior.
+type StreamConfig struct {
+	RecoveryMode string `yaml:"recovery_mode"` // off, append, retry
+}
+
 // ProviderConfig defines a single LLM provider configuration.
 type ProviderConfig struct {
 	Name          string            `yaml:"name"`
@@ -266,6 +272,9 @@ func DefaultConfig() *Config {
 			FallbackEnabled: true,
 			RetryCount:      3,
 			CooldownPeriod:  60 * time.Second,
+		},
+		Stream: StreamConfig{
+			RecoveryMode: "retry",
 		},
 		RateLimit: RateLimitConfig{
 			Enabled:           false,
@@ -396,6 +405,11 @@ func (c *Config) Validate() error {
 	}
 	if c.Routing.CooldownPeriod < 0 {
 		return fmt.Errorf("routing.cooldown_period cannot be negative")
+	}
+	switch c.Stream.RecoveryMode {
+	case "", "off", "append", "retry":
+	default:
+		return fmt.Errorf("stream.recovery_mode must be one of: off, append, retry")
 	}
 
 	if c.Database.Enabled {

@@ -9,6 +9,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -100,6 +101,7 @@ func TestStreamRecovery_MidStreamFailure(t *testing.T) {
 		withTestPricing(t, "gpt-test"),
 		WithFallback(true), // Enable fallback
 		WithRetry(3, 10*time.Millisecond),
+		WithStreamRecoveryMode(StreamRecoveryAppend),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
@@ -305,6 +307,7 @@ func TestStreamReader_RecoveryRequestLifecycle(t *testing.T) {
 		withTestPricing(t, "test-model"),
 		WithFallback(true),
 		WithRetry(5, 10*time.Millisecond), // Allow enough retries
+		WithStreamRecoveryMode(StreamRecoveryAppend),
 	)
 	if err != nil {
 		t.Fatalf("Failed to create client: %v", err)
@@ -399,5 +402,218 @@ func TestStreamReader_RecoveryRequestLifecycle(t *testing.T) {
 	}
 	if endCalls[d3.ID] != 1 {
 		t.Errorf("D3 End: expected 1, got %d", endCalls[d3.ID])
+	}
+}
+
+// TestStreamRecovery_ModeOffDisablesRetry verifies that recovery is disabled when mode is off.
+func TestStreamRecovery_ModeOffDisablesRetry(t *testing.T) {
+	var fallbackRequests int32
+
+	// Server A: fails mid-stream
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "data: %s\n\n", `{"choices":[{"delta":{"content":"Hello, "}}]}`)
+		w.(http.Flusher).Flush()
+		// Close without [DONE] to simulate mid-stream failure
+	}))
+	defer serverA.Close()
+
+	// Server B: should never be called when recovery is off
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&fallbackRequests, 1)
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "data: [DONE]\n\n")
+	}))
+	defer serverB.Close()
+
+	client, err := New(
+		WithProvider(ProviderConfig{
+			Name:    "providerA",
+			Type:    "openai",
+			Models:  []string{"gpt-test"},
+			APIKey:  "test-key",
+			BaseURL: serverA.URL,
+		}),
+		WithProvider(ProviderConfig{
+			Name:    "providerB",
+			Type:    "openai",
+			Models:  []string{"gpt-test"},
+			APIKey:  "test-key",
+			BaseURL: serverB.URL,
+		}),
+		withTestPricing(t, "gpt-test"),
+		WithFallback(true),
+		WithRetry(3, 10*time.Millisecond),
+		WithStreamRecoveryMode(StreamRecoveryOff),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
+
+	trackingR := newTrackingRouter(client.router)
+	client.router = trackingR
+
+	deployments := trackingR.GetDeployments("gpt-test")
+	if len(deployments) < 2 {
+		t.Fatalf("Expected 2 deployments, got %d", len(deployments))
+	}
+
+	var depA, depB *provider.Deployment
+	for _, d := range deployments {
+		switch d.ProviderName {
+		case "providerA":
+			depA = d
+		case "providerB":
+			depB = d
+		}
+	}
+	if depA == nil || depB == nil {
+		t.Fatalf("Could not find deployments for providerA and providerB")
+	}
+
+	trackingR.pickDeployments = []*provider.Deployment{depA, depB}
+
+	ctx := context.Background()
+	req := &ChatRequest{
+		Model: "gpt-test",
+		Messages: []types.ChatMessage{
+			{Role: "user", Content: json.RawMessage(`"Say something"`)},
+		},
+	}
+
+	stream, err := client.ChatCompletionStream(ctx, req)
+	if err != nil {
+		t.Fatalf("Failed to start stream: %v", err)
+	}
+	defer stream.Close()
+
+	_, err = stream.Recv()
+	if err != nil {
+		t.Fatalf("Expected first chunk, got error: %v", err)
+	}
+
+	_, err = stream.Recv()
+	if err == nil || err == io.EOF {
+		t.Fatalf("Expected stream error with recovery off, got %v", err)
+	}
+
+	if atomic.LoadInt32(&fallbackRequests) != 0 {
+		t.Errorf("Expected no fallback requests, got %d", fallbackRequests)
+	}
+}
+
+// TestStreamRecovery_ModeRetrySkipsPrefix verifies retry mode does not append context and skips prefix.
+func TestStreamRecovery_ModeRetrySkipsPrefix(t *testing.T) {
+	var sawRecoveredContext bool
+
+	// Server A: sends partial then closes
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "data: %s\n\n", `{"choices":[{"delta":{"content":"Hello, "}}]}`)
+		w.(http.Flusher).Flush()
+	}))
+	defer serverA.Close()
+
+	// Server B: should receive original request without appended assistant context
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "Hello, ") {
+			sawRecoveredContext = true
+		}
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "data: %s\n\n", `{"choices":[{"delta":{"content":"Hello, world!"}}]}`)
+		fmt.Fprintf(w, "data: [DONE]\n\n")
+	}))
+	defer serverB.Close()
+
+	client, err := New(
+		WithProvider(ProviderConfig{
+			Name:    "providerA",
+			Type:    "openai",
+			Models:  []string{"gpt-test"},
+			APIKey:  "test-key",
+			BaseURL: serverA.URL,
+		}),
+		WithProvider(ProviderConfig{
+			Name:    "providerB",
+			Type:    "openai",
+			Models:  []string{"gpt-test"},
+			APIKey:  "test-key",
+			BaseURL: serverB.URL,
+		}),
+		withTestPricing(t, "gpt-test"),
+		WithFallback(true),
+		WithRetry(3, 10*time.Millisecond),
+		WithStreamRecoveryMode(StreamRecoveryRetry),
+	)
+	if err != nil {
+		t.Fatalf("Failed to create client: %v", err)
+	}
+
+	trackingR := newTrackingRouter(client.router)
+	client.router = trackingR
+
+	deployments := trackingR.GetDeployments("gpt-test")
+	if len(deployments) < 2 {
+		t.Fatalf("Expected 2 deployments, got %d", len(deployments))
+	}
+
+	var depA, depB *provider.Deployment
+	for _, d := range deployments {
+		switch d.ProviderName {
+		case "providerA":
+			depA = d
+		case "providerB":
+			depB = d
+		}
+	}
+	if depA == nil || depB == nil {
+		t.Fatalf("Could not find deployments for providerA and providerB")
+	}
+
+	trackingR.pickDeployments = []*provider.Deployment{depA, depB}
+
+	ctx := context.Background()
+	req := &ChatRequest{
+		Model: "gpt-test",
+		Messages: []types.ChatMessage{
+			{Role: "user", Content: json.RawMessage(`"Say something"`)},
+		},
+	}
+
+	stream, err := client.ChatCompletionStream(ctx, req)
+	if err != nil {
+		t.Fatalf("Failed to start stream: %v", err)
+	}
+	defer stream.Close()
+
+	var fullContent strings.Builder
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("Unexpected stream error: %v", err)
+		}
+		if len(chunk.Choices) > 0 {
+			fullContent.WriteString(chunk.Choices[0].Delta.Content)
+		}
+	}
+
+	if sawRecoveredContext {
+		t.Fatalf("Expected retry mode to avoid appending context")
+	}
+
+	expected := "Hello, world!"
+	if fullContent.String() != expected {
+		t.Fatalf("Expected content %q, got %q", expected, fullContent.String())
+	}
+}
+
+func TestClient_DefaultStreamRecoveryMode(t *testing.T) {
+	cfg := defaultConfig()
+	if cfg.StreamRecoveryMode != StreamRecoveryRetry {
+		t.Fatalf("default stream recovery mode = %s, want %s", cfg.StreamRecoveryMode, StreamRecoveryRetry)
 	}
 }
