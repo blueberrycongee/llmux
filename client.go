@@ -12,6 +12,7 @@ import (
 	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/internal/auth"
+	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/internal/resilience"
@@ -31,15 +32,16 @@ import (
 //
 // Client is safe for concurrent use by multiple goroutines.
 type Client struct {
-	providers   map[string]provider.Provider
-	deployments map[string][]*provider.Deployment // model -> deployments
-	router      router.Router
-	cache       cache.Cache
-	httpClient  *http.Client
-	logger      *slog.Logger
-	config      *ClientConfig
-	pricing     *pricing.Registry
-	pipeline    *plugin.Pipeline
+	providers      map[string]provider.Provider
+	deployments    map[string][]*provider.Deployment // model -> deployments
+	router         router.Router
+	cache          cache.Cache
+	cacheTypeLabel string
+	httpClient     *http.Client
+	logger         *slog.Logger
+	config         *ClientConfig
+	pricing        *pricing.Registry
+	pipeline       *plugin.Pipeline
 
 	// Provider factories for creating providers from config
 	factories map[string]provider.Factory
@@ -141,6 +143,7 @@ func New(opts ...Option) (*Client, error) {
 	// Initialize cache
 	if cfg.CacheEnabled && cfg.Cache != nil {
 		c.cache = cfg.Cache
+		c.cacheTypeLabel = cfg.CacheTypeLabel
 	}
 
 	// Initialize distributed rate limiter
@@ -1073,14 +1076,17 @@ func (c *Client) getFromCache(ctx context.Context, req *ChatRequest) (*ChatRespo
 
 	data, err := c.cache.Get(ctx, key)
 	if err != nil || data == nil {
+		metrics.CacheMisses.WithLabelValues(c.cacheTypeLabel, req.Model).Inc()
 		return nil, err
 	}
 
 	var resp ChatResponse
 	if err := json.Unmarshal(data, &resp); err != nil {
+		metrics.CacheMisses.WithLabelValues(c.cacheTypeLabel, req.Model).Inc()
 		return nil, err
 	}
 
+	metrics.CacheHits.WithLabelValues(c.cacheTypeLabel, req.Model).Inc()
 	c.logger.Debug("cache hit", "model", req.Model)
 	return &resp, nil
 }

@@ -59,9 +59,10 @@ type ClientConfig struct {
 	StatsStore router.StatsStore
 
 	// Caching
-	CacheEnabled bool
-	Cache        Cache // Custom cache implementation
-	CacheTTL     time.Duration
+	CacheEnabled   bool
+	Cache          Cache // Custom cache implementation
+	CacheTTL       time.Duration
+	CacheTypeLabel string
 
 	// HTTP
 	Timeout time.Duration
@@ -107,6 +108,7 @@ func defaultConfig() *ClientConfig {
 		CooldownPeriod:     60 * time.Second,
 		CacheEnabled:       false,
 		CacheTTL:           time.Hour,
+		CacheTypeLabel:     "unknown",
 		Timeout:            30 * time.Second,
 		Logger:             slog.Default(),
 		StreamRecoveryMode: StreamRecoveryRetry,
@@ -237,6 +239,13 @@ func WithCache(cache Cache) Option {
 func WithCacheTTL(ttl time.Duration) Option {
 	return func(c *ClientConfig) {
 		c.CacheTTL = ttl
+	}
+}
+
+// WithCacheTypeLabel sets the cache type label for metrics.
+func WithCacheTypeLabel(label string) Option {
+	return func(c *ClientConfig) {
+		c.CacheTypeLabel = label
 	}
 }
 
