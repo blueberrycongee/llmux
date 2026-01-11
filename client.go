@@ -816,10 +816,24 @@ func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimate
 
 	// Check limits
 	results, err := c.rateLimiter.CheckAllow(ctx, descriptors)
-	if err != nil {
-		// Log error but allow request (fail-open)
-		c.logger.Warn("rate limiter check failed, allowing request", "error", err)
-		return nil
+	if err != nil || len(results) != len(descriptors) {
+		if err == nil {
+			err = fmt.Errorf("rate limiter returned %d results, expected %d", len(results), len(descriptors))
+		}
+		action := "allow"
+		if !c.rateLimiterConfig.FailOpen {
+			action = "deny"
+		}
+		metrics.RateLimiterBackendErrors.WithLabelValues("client", action).Inc()
+		c.logger.Warn("rate limiter check failed",
+			"error", err,
+			"fail_open", c.rateLimiterConfig.FailOpen,
+			"action", action,
+		)
+		if c.rateLimiterConfig.FailOpen {
+			return nil
+		}
+		return errors.NewRateLimitError("llmux", model, "rate limiter backend unavailable")
 	}
 
 	// Check if any limit was exceeded

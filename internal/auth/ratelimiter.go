@@ -2,12 +2,15 @@ package auth
 
 import (
 	"context"
+	"fmt"
+	"log/slog"
 	"net/http"
 	"sync"
 	"time"
 
 	"golang.org/x/time/rate"
 
+	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/resilience"
 )
 
@@ -21,6 +24,8 @@ type TenantRateLimiter struct {
 	cleanupTTL         time.Duration
 	lastAccess         map[string]time.Time
 	distributedLimiter resilience.DistributedLimiter
+	failOpen           bool
+	logger             *slog.Logger
 }
 
 // TenantRateLimiterConfig contains configuration for the tenant rate limiter.
@@ -29,6 +34,8 @@ type TenantRateLimiterConfig struct {
 	DefaultBurst    int           // Default burst size
 	UseDefaultBurst bool          // Override burst for custom RPM limits
 	CleanupTTL      time.Duration // TTL for inactive limiters
+	FailOpen        bool          // Allow requests when limiter backend fails
+	Logger          *slog.Logger  // Optional logger for limiter events
 }
 
 // NewTenantRateLimiter creates a new per-tenant rate limiter.
@@ -42,6 +49,9 @@ func NewTenantRateLimiter(cfg *TenantRateLimiterConfig) *TenantRateLimiter {
 	if cfg.CleanupTTL <= 0 {
 		cfg.CleanupTTL = 10 * time.Minute
 	}
+	if cfg.Logger == nil {
+		cfg.Logger = slog.Default()
+	}
 
 	trl := &TenantRateLimiter{
 		limiters:        make(map[string]*rate.Limiter),
@@ -50,6 +60,8 @@ func NewTenantRateLimiter(cfg *TenantRateLimiterConfig) *TenantRateLimiter {
 		useDefaultBurst: cfg.UseDefaultBurst,
 		cleanupTTL:      cfg.CleanupTTL,
 		lastAccess:      make(map[string]time.Time),
+		failOpen:        cfg.FailOpen,
+		logger:          cfg.Logger,
 	}
 
 	// Start cleanup goroutine
@@ -66,7 +78,7 @@ func (trl *TenantRateLimiter) SetDistributedLimiter(l resilience.DistributedLimi
 }
 
 // Check checks if a request is allowed, using distributed limiter if available,
-// with fallback to local in-memory limiter.
+// with fail-open/close behavior on backend errors.
 func (trl *TenantRateLimiter) Check(ctx context.Context, tenantID string, rpm, burst int) (bool, error) {
 	// Try distributed limiter first if available
 	if trl.distributedLimiter != nil {
@@ -87,8 +99,23 @@ func (trl *TenantRateLimiter) Check(ctx context.Context, tenantID string, rpm, b
 		if err == nil && len(results) > 0 {
 			return results[0].Allowed, nil
 		}
-		// If error or no results, fall back to local
-		// TODO: Log error
+		if err == nil {
+			err = fmt.Errorf("distributed rate limiter returned no results")
+		}
+		action := "allow"
+		if !trl.failOpen {
+			action = "deny"
+		}
+		metrics.RateLimiterBackendErrors.WithLabelValues("gateway", action).Inc()
+		trl.logger.Warn("distributed rate limiter check failed",
+			"error", err,
+			"fail_open", trl.failOpen,
+			"action", action,
+		)
+		if trl.failOpen {
+			return true, err
+		}
+		return false, err
 	}
 
 	// Local fallback

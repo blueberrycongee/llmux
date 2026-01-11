@@ -191,3 +191,19 @@ var (
 		[]string{"route"},
 	)
 )
+
+// =============================================================================
+// Rate Limiter Metrics
+// =============================================================================
+
+var (
+	// RateLimiterBackendErrors tracks backend failures for rate limiting.
+	RateLimiterBackendErrors = promauto.NewCounterVec(
+		prometheus.CounterOpts{
+			Namespace: namespace,
+			Name:      "rate_limiter_backend_errors_total",
+			Help:      "Total rate limiter backend errors",
+		},
+		[]string{"component", "action"}, // component: gateway/client, action: allow/deny
+	)
+)

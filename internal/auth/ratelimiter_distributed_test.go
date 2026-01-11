@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/blueberrycongee/llmux/internal/resilience"
@@ -62,5 +63,51 @@ func TestTenantRateLimiter_Distributed(t *testing.T) {
 
 	if !called {
 		t.Error("DistributedLimiter.CheckAllow was not called")
+	}
+}
+
+func TestTenantRateLimiter_DistributedFailOpen(t *testing.T) {
+	mockLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			return nil, errors.New("redis down")
+		},
+	}
+
+	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
+		DefaultRPM:   60,
+		DefaultBurst: 5,
+		FailOpen:     true,
+	})
+	trl.SetDistributedLimiter(mockLimiter)
+
+	allowed, err := trl.Check(context.Background(), "tenant-fail-open", 60, 5)
+	if err == nil {
+		t.Error("expected error on distributed limiter failure")
+	}
+	if !allowed {
+		t.Error("expected allow on fail-open")
+	}
+}
+
+func TestTenantRateLimiter_DistributedFailClosed(t *testing.T) {
+	mockLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			return nil, errors.New("redis down")
+		},
+	}
+
+	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
+		DefaultRPM:   60,
+		DefaultBurst: 5,
+		FailOpen:     false,
+	})
+	trl.SetDistributedLimiter(mockLimiter)
+
+	allowed, err := trl.Check(context.Background(), "tenant-fail-closed", 60, 5)
+	if err == nil {
+		t.Error("expected error on distributed limiter failure")
+	}
+	if allowed {
+		t.Error("expected deny on fail-closed")
 	}
 }

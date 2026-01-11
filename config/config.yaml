@@ -76,6 +76,7 @@ rate_limit:
   requests_per_minute: 60
   burst_size: 10
   distributed: false        # use Redis for distributed rate limiting
+  fail_open: true           # allow requests when limiter backend fails
 
 logging:
   level: info   # debug, info, warn, error
