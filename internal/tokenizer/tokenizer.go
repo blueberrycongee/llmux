@@ -84,6 +84,37 @@ func EstimatePromptTokens(model string, req *types.ChatRequest) int {
 	return countChatTokens(model, req.Messages, req.Tools, req.ToolChoice, false)
 }
 
+// EstimateEmbeddingTokens estimates token usage for embedding inputs.
+// It supports string, []string, []int, and [][]int input formats.
+func EstimateEmbeddingTokens(model string, req *types.EmbeddingRequest) int {
+	if req == nil || req.Input == nil {
+		return 0
+	}
+
+	input := req.Input
+	if input.Text != nil {
+		return CountTextTokens(model, *input.Text)
+	}
+	if len(input.Texts) > 0 {
+		total := 0
+		for _, text := range input.Texts {
+			total += CountTextTokens(model, text)
+		}
+		return total
+	}
+	if len(input.Tokens) > 0 {
+		return len(input.Tokens)
+	}
+	if len(input.TokensList) > 0 {
+		total := 0
+		for _, tokens := range input.TokensList {
+			total += len(tokens)
+		}
+		return total
+	}
+	return 0
+}
+
 // EstimateCompletionTokens estimates output tokens from a response.
 // If no response choices are available, it falls back to the provided text.
 func EstimateCompletionTokens(model string, resp *types.ChatResponse, fallbackText string) int {
