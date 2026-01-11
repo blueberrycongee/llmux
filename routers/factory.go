@@ -17,6 +17,8 @@ func New(config router.Config) (router.Router, error) {
 // When store is provided, stats are shared across multiple instances (distributed mode).
 func NewWithStore(config router.Config, store router.StatsStore) (router.Router, error) {
 	switch config.Strategy {
+	case router.StrategyRoundRobin:
+		return newRoundRobinRouterWithStore(config, store), nil
 	case router.StrategySimpleShuffle, "":
 		return newShuffleRouterWithStore(config, store), nil
 	case router.StrategyLowestLatency:
@@ -46,6 +48,7 @@ func MustNew(config router.Config) router.Router {
 // AvailableStrategies returns a list of all available routing strategies.
 func AvailableStrategies() []router.Strategy {
 	return []router.Strategy{
+		router.StrategyRoundRobin,
 		router.StrategySimpleShuffle,
 		router.StrategyLowestLatency,
 		router.StrategyLeastBusy,

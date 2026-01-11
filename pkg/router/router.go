@@ -1,6 +1,6 @@
 // Package router provides public request routing and load balancing interfaces.
-// It supports multiple strategies including simple shuffle, lowest latency, least busy,
-// lowest TPM/RPM, lowest cost, and tag-based routing.
+// It supports multiple strategies including simple shuffle, round robin, lowest latency,
+// least busy, lowest TPM/RPM, lowest cost, and tag-based routing.
 package router
 
 import (
@@ -14,6 +14,9 @@ import (
 type Strategy string
 
 const (
+	// StrategyRoundRobin selects deployments in strict round-robin order.
+	StrategyRoundRobin Strategy = "round-robin"
+
 	// StrategySimpleShuffle randomly selects from available deployments.
 	// Supports weighted selection based on weight/rpm/tpm parameters.
 	StrategySimpleShuffle Strategy = "simple-shuffle"

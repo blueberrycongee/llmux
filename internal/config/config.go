@@ -211,7 +211,7 @@ type ProviderConfig struct {
 // RoutingConfig contains routing and load balancing settings.
 type RoutingConfig struct {
 	DefaultProvider string        `yaml:"default_provider"`
-	Strategy        string        `yaml:"strategy"` // simple-shuffle, lowest-latency, least-busy
+	Strategy        string        `yaml:"strategy"` // round-robin, simple-shuffle, lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
 	FallbackEnabled bool          `yaml:"fallback_enabled"`
 	RetryCount      int           `yaml:"retry_count"`
 	CooldownPeriod  time.Duration `yaml:"cooldown_period"`
