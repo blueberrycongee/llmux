@@ -2,6 +2,9 @@ package llmux
 
 import (
 	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 	"time"
@@ -226,4 +229,96 @@ func TestClient_CheckRateLimit(t *testing.T) {
 			t.Errorf("expected key 'api-key-456', got '%s'", capturedKey)
 		}
 	})
+}
+func TestClient_RateLimitKeyStrategyByModel(t *testing.T) {
+	var capturedKeys []string
+	captureLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			if len(descriptors) > 0 {
+				capturedKeys = append(capturedKeys, descriptors[0].Key)
+			}
+			results := make([]resilience.LimitResult, len(descriptors))
+			for i, desc := range descriptors {
+				results[i] = resilience.LimitResult{
+					Allowed:   true,
+					Current:   1,
+					Remaining: desc.Limit - 1,
+					ResetAt:   time.Now().Add(time.Minute).Unix(),
+				}
+			}
+			return results, nil
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := ChatResponse{
+			ID:      "test-id",
+			Object:  "chat.completion",
+			Created: time.Now().Unix(),
+			Model:   "test-model",
+			Choices: []Choice{
+				{
+					Index: 0,
+					Message: ChatMessage{
+						Role:    "assistant",
+						Content: json.RawMessage(`"ok"`),
+					},
+					FinishReason: "stop",
+				},
+			},
+			Usage: &Usage{
+				PromptTokens:     1,
+				CompletionTokens: 1,
+				TotalTokens:      2,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &httpMockProvider{
+		name:    "mock",
+		models:  []string{"model-a", "model-b"},
+		baseURL: server.URL,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock", mock, []string{"model-a", "model-b"}),
+		withTestPricing(t, "model-a", "model-b"),
+		WithRateLimiter(captureLimiter),
+		WithRateLimiterConfig(RateLimiterConfig{
+			Enabled:     true,
+			RPMLimit:    100,
+			WindowSize:  time.Minute,
+			KeyStrategy: RateLimitKeyByModel,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	defer client.Close()
+
+	_, err = client.ChatCompletion(context.Background(), &ChatRequest{
+		Model:    "model-a",
+		Messages: []ChatMessage{{Role: "user", Content: json.RawMessage(`"hello"`)}},
+	})
+	if err != nil {
+		t.Fatalf("ChatCompletion(model-a) error = %v", err)
+	}
+
+	_, err = client.ChatCompletion(context.Background(), &ChatRequest{
+		Model:    "model-b",
+		Messages: []ChatMessage{{Role: "user", Content: json.RawMessage(`"hello"`)}},
+	})
+	if err != nil {
+		t.Fatalf("ChatCompletion(model-b) error = %v", err)
+	}
+
+	if len(capturedKeys) != 2 {
+		t.Fatalf("expected 2 rate limit checks, got %d", len(capturedKeys))
+	}
+	if capturedKeys[0] != "model-a" || capturedKeys[1] != "model-b" {
+		t.Fatalf("expected keys [model-a model-b], got %v", capturedKeys)
+	}
 }

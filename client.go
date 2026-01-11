@@ -227,11 +227,7 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	}
 
 	// Check rate limit before processing request
-	// Use user ID if available, otherwise use a default key
-	rateLimitKey := "default"
-	if req.User != "" {
-		rateLimitKey = req.User
-	}
+	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, "")
 	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
 	estimatedTokens := promptEstimate
 	if req.MaxTokens > 0 {
@@ -334,10 +330,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	req.Stream = true
 
 	// Check rate limit before processing request
-	rateLimitKey := "default"
-	if req.User != "" {
-		rateLimitKey = req.User
-	}
+	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, "")
 	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
 	estimatedTokens := promptEstimate
 	if req.MaxTokens > 0 {
@@ -468,10 +461,7 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 	}
 
 	// Check rate limit before processing request
-	rateLimitKey := "default"
-	if req.User != "" {
-		rateLimitKey = req.User
-	}
+	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, "")
 	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
 		return nil, err
 	}
@@ -710,6 +700,38 @@ func (c *Client) RegisterProviderFactory(providerType string, factory ProviderFa
 }
 
 // Private methods
+
+func (c *Client) buildRateLimitKey(model, user, apiKey string) string {
+	defaultKey := "default"
+	if user != "" {
+		defaultKey = user
+	}
+	switch c.rateLimiterConfig.KeyStrategy {
+	case RateLimitKeyByAPIKey:
+		if apiKey != "" {
+			return apiKey
+		}
+		return defaultKey
+	case RateLimitKeyByModel:
+		if model != "" {
+			return model
+		}
+		return "default"
+	case RateLimitKeyByAPIKeyAndModel:
+		baseKey := defaultKey
+		if apiKey != "" {
+			baseKey = apiKey
+		}
+		if model == "" {
+			return baseKey
+		}
+		return baseKey + ":" + model
+	case RateLimitKeyByUser, "":
+		return defaultKey
+	default:
+		return defaultKey
+	}
+}
 
 func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimatedTokens int) error {
 	// Skip if rate limiting is disabled or limiter is nil
