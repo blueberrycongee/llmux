@@ -49,6 +49,8 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 			DefaultBurst:    defaultBurst,
 			UseDefaultBurst: useDefaultBurst,
 			CleanupTTL:      10 * time.Minute,
+			FailOpen:        cfg.RateLimit.FailOpen,
+			Logger:          logger,
 		})
 
 		// Inject distributed limiter if configured (for multi-instance deployments)

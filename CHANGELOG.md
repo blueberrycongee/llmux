@@ -4,6 +4,11 @@ Recent changes and project history for context.
 
 ---
 
+## 2026-01-12
+
+### Fixes
+- Wire fail_open from config into client and gateway rate limiter setup, with gateway backend-failure coverage.
+
 ## 2026-01-09
 
 ### Features

@@ -111,3 +111,26 @@ func TestTenantRateLimiter_DistributedFailClosed(t *testing.T) {
 		t.Error("expected deny on fail-closed")
 	}
 }
+
+func TestTenantRateLimiter_DistributedFailOpen_EmptyResults(t *testing.T) {
+	mockLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			return []resilience.LimitResult{}, nil
+		},
+	}
+
+	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
+		DefaultRPM:   60,
+		DefaultBurst: 5,
+		FailOpen:     true,
+	})
+	trl.SetDistributedLimiter(mockLimiter)
+
+	allowed, err := trl.Check(context.Background(), "tenant-empty-results", 60, 5)
+	if err == nil {
+		t.Error("expected error on empty distributed limiter results")
+	}
+	if !allowed {
+		t.Error("expected allow on fail-open with empty results")
+	}
+}
