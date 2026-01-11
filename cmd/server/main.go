@@ -20,6 +20,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
+	"github.com/blueberrycongee/llmux/internal/mcp"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/resilience"
 	"github.com/blueberrycongee/llmux/internal/secret"
@@ -178,10 +179,27 @@ func run() error {
 		logger.Info("user-team sync enabled", "auto_create_users", syncCfg.AutoCreateUsers)
 	}
 
+	// Initialize MCP Manager
+	var mcpManager mcp.Manager
+	if cfg.MCP.Enabled {
+		mcpCfg := mcp.FromConfig(cfg.MCP)
+		manager, mcpErr := mcp.NewManager(ctx, mcpCfg, logger)
+		if mcpErr != nil {
+			return fmt.Errorf("failed to initialize MCP manager: %w", mcpErr)
+		}
+		mcpManager = manager
+		defer func() {
+			if closeErr := mcpManager.Close(); closeErr != nil {
+				logger.Error("failed to close MCP manager", "error", closeErr)
+			}
+		}()
+	}
+
 	// Initialize API handler using ClientHandler (wraps llmux.Client)
 	// Now with Store integration for usage logging and budget tracking
 	handlerCfg := &api.ClientHandlerConfig{
-		Store: authStore,
+		Store:      authStore,
+		MCPManager: mcpManager,
 	}
 	handler := api.NewClientHandler(client, logger, handlerCfg)
 
@@ -194,6 +212,19 @@ func run() error {
 		return fmt.Errorf("failed to build routes: %w", err)
 	}
 
+	if mcpManager != nil {
+		mcpHandler := mcp.NewHTTPHandler(mcpManager)
+		if muxes.Admin != nil {
+			mcpHandler.RegisterRoutes(muxes.Admin)
+		} else {
+			mcpHandler.RegisterRoutes(muxes.Data)
+		}
+		logger.Info("MCP management endpoints registered",
+			"endpoints", []string{"/mcp/clients", "/mcp/clients/{id}", "/mcp/tools"},
+			"admin_port", cfg.Server.AdminPort,
+		)
+	}
+
 	logger.Info("management endpoints registered",
 		"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
 		"admin_port", cfg.Server.AdminPort,
@@ -202,6 +233,12 @@ func run() error {
 	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer)
 	if err != nil {
 		return fmt.Errorf("failed to initialize middleware stack: %w", err)
+	}
+	if mcpManager != nil {
+		next := middleware
+		middleware = func(h http.Handler) http.Handler {
+			return mcp.Middleware(mcpManager)(next(h))
+		}
 	}
 
 	dataHandler := middleware(muxes.Data)
