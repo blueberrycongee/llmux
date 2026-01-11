@@ -8,10 +8,13 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
 
+	"github.com/blueberrycongee/llmux/internal/resilience"
+	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/types"
 )
@@ -267,5 +270,202 @@ func TestClient_Embedding_Retry(t *testing.T) {
 	}
 	if attempts != 2 {
 		t.Errorf("expected 2 attempts, got %d", attempts)
+	}
+}
+
+func TestClient_Embedding_EstimatesUsageWhenMissing(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := types.EmbeddingResponse{
+			Object: "list",
+			Data: []types.EmbeddingObject{
+				{
+					Object:    "embedding",
+					Embedding: []float64{0.1, 0.2, 0.3},
+					Index:     0,
+				},
+			},
+			Model: "text-embedding-3-small",
+			Usage: types.Usage{},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &mockEmbeddingProvider{
+		name:              "mock-embedding",
+		models:            []string{"text-embedding-3-small"},
+		baseURL:           server.URL,
+		supportsEmbedding: true,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock-embedding", mock, []string{"text-embedding-3-small"}),
+		withTestPricing(t, "text-embedding-3-small"),
+	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer client.Close()
+
+	req := &types.EmbeddingRequest{
+		Model: "text-embedding-3-small",
+		Input: types.NewEmbeddingInputFromString("Hello embedding tokens"),
+	}
+
+	resp, err := client.Embedding(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Embedding() error = %v", err)
+	}
+
+	expected := tokenizer.EstimateEmbeddingTokens(req.Model, req)
+	if resp.Usage.PromptTokens != expected {
+		t.Errorf("PromptTokens = %d, want %d", resp.Usage.PromptTokens, expected)
+	}
+	if resp.Usage.TotalTokens != expected {
+		t.Errorf("TotalTokens = %d, want %d", resp.Usage.TotalTokens, expected)
+	}
+	if resp.Usage.CompletionTokens != 0 {
+		t.Errorf("CompletionTokens = %d, want 0", resp.Usage.CompletionTokens)
+	}
+}
+
+func TestClient_Embedding_PreservesProviderUsage(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := types.EmbeddingResponse{
+			Object: "list",
+			Data: []types.EmbeddingObject{
+				{
+					Object:    "embedding",
+					Embedding: []float64{0.1, 0.2, 0.3},
+					Index:     0,
+				},
+			},
+			Model: "text-embedding-3-small",
+			Usage: types.Usage{
+				PromptTokens: 12,
+				TotalTokens:  12,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &mockEmbeddingProvider{
+		name:              "mock-embedding",
+		models:            []string{"text-embedding-3-small"},
+		baseURL:           server.URL,
+		supportsEmbedding: true,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock-embedding", mock, []string{"text-embedding-3-small"}),
+		withTestPricing(t, "text-embedding-3-small"),
+	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer client.Close()
+
+	req := &types.EmbeddingRequest{
+		Model: "text-embedding-3-small",
+		Input: types.NewEmbeddingInputFromString("Hello embedding tokens"),
+	}
+
+	resp, err := client.Embedding(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Embedding() error = %v", err)
+	}
+
+	if resp.Usage.PromptTokens != 12 {
+		t.Errorf("PromptTokens = %d, want 12", resp.Usage.PromptTokens)
+	}
+	if resp.Usage.TotalTokens != 12 {
+		t.Errorf("TotalTokens = %d, want 12", resp.Usage.TotalTokens)
+	}
+}
+
+func TestClient_Embedding_UsesEstimatedTokensForRateLimit(t *testing.T) {
+	var capturedIncrement int64
+	captureLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			results := make([]resilience.LimitResult, len(descriptors))
+			for i, desc := range descriptors {
+				if desc.Type == resilience.LimitTypeTokens {
+					capturedIncrement = desc.Increment
+				}
+				results[i] = resilience.LimitResult{
+					Allowed:   true,
+					Current:   1,
+					Remaining: desc.Limit - 1,
+					ResetAt:   time.Now().Add(time.Minute).Unix(),
+				}
+			}
+			return results, nil
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := types.EmbeddingResponse{
+			Object: "list",
+			Data: []types.EmbeddingObject{
+				{
+					Object:    "embedding",
+					Embedding: []float64{0.1, 0.2, 0.3},
+					Index:     0,
+				},
+			},
+			Model: "text-embedding-3-small",
+			Usage: types.Usage{
+				PromptTokens: 0,
+				TotalTokens:  0,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &mockEmbeddingProvider{
+		name:              "mock-embedding",
+		models:            []string{"text-embedding-3-small"},
+		baseURL:           server.URL,
+		supportsEmbedding: true,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock-embedding", mock, []string{"text-embedding-3-small"}),
+		withTestPricing(t, "text-embedding-3-small"),
+		WithRateLimiter(captureLimiter),
+		WithRateLimiterConfig(RateLimiterConfig{
+			Enabled:     true,
+			TPMLimit:    100000,
+			WindowSize:  time.Minute,
+			KeyStrategy: RateLimitKeyByAPIKey,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("New() error = %v", err)
+	}
+	defer client.Close()
+
+	input := strings.Repeat("hello ", 64)
+	req := &types.EmbeddingRequest{
+		Model: "text-embedding-3-small",
+		Input: types.NewEmbeddingInputFromString(input),
+	}
+
+	_, err = client.Embedding(context.Background(), req)
+	if err != nil {
+		t.Fatalf("Embedding() error = %v", err)
+	}
+
+	expected := int64(tokenizer.CountTextTokens(req.Model, input))
+	if expected == 0 {
+		t.Fatal("expected non-zero token estimate for input")
+	}
+	if capturedIncrement != expected {
+		t.Errorf("rate limit increment = %d, want %d", capturedIncrement, expected)
 	}
 }

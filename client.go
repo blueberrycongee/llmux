@@ -466,7 +466,8 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 	// Check rate limit before processing request
 	apiKey := c.rateLimitAPIKey(ctx)
 	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
-	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
+	promptEstimate := tokenizer.EstimateEmbeddingTokens(req.Model, req)
+	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, promptEstimate); err != nil {
 		return nil, err
 	}
 
@@ -514,7 +515,7 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 		}
 
 		// Execute request
-		resp, err := c.executeEmbeddingOnce(ctx, prov, deployment, req)
+		resp, err := c.executeEmbeddingOnce(ctx, prov, deployment, req, promptEstimate)
 		if err == nil {
 			return resp, nil
 		}
@@ -541,6 +542,7 @@ func (c *Client) executeEmbeddingOnce(
 	prov provider.Provider,
 	deployment *provider.Deployment,
 	req *types.EmbeddingRequest,
+	promptEstimate int,
 ) (*types.EmbeddingResponse, error) {
 	start := time.Now()
 
@@ -576,6 +578,18 @@ func (c *Client) executeEmbeddingOnce(
 	if err != nil {
 		c.router.ReportFailure(deployment, err)
 		return nil, fmt.Errorf("parse response: %w", err)
+	}
+
+	if embResp.Usage.TotalTokens == 0 && embResp.Usage.PromptTokens == 0 {
+		embResp.Usage.PromptTokens = promptEstimate
+		embResp.Usage.TotalTokens = promptEstimate
+	} else if embResp.Usage.TotalTokens == 0 && embResp.Usage.PromptTokens > 0 {
+		embResp.Usage.TotalTokens = embResp.Usage.PromptTokens
+	} else if embResp.Usage.PromptTokens == 0 && embResp.Usage.TotalTokens > 0 {
+		embResp.Usage.PromptTokens = embResp.Usage.TotalTokens
+	}
+	if embResp.Usage.Provider == "" {
+		embResp.Usage.Provider = deployment.ProviderName
 	}
 
 	// Report success metrics
