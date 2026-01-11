@@ -386,6 +386,14 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 		opts = append(opts, llmux.WithStreamRecoveryMode(mapStreamRecoveryMode(cfg.Stream.RecoveryMode)))
 	}
 
+	// Initialize cache
+	cacheOpts, cacheErr := buildCacheOptions(&cfg.Cache, logger)
+	if cacheErr != nil {
+		logger.Warn("failed to initialize cache, disabling", "error", cacheErr)
+	} else if len(cacheOpts) > 0 {
+		opts = append(opts, cacheOpts...)
+	}
+
 	// Initialize distributed routing
 	if cfg.Routing.Distributed {
 		if cfg.Cache.Redis.Addr != "" || len(cfg.Cache.Redis.ClusterAddrs) > 0 {
