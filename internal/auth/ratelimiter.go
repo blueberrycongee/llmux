@@ -285,12 +285,15 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 }
 
 func (trl *TenantRateLimiter) burstForRate(rpm int, minBurst int) int {
-	if trl.useDefaultBurst && trl.defaultBurst > 0 {
-		return trl.defaultBurst
-	}
 	burst := rpm / 6
 	if burst < minBurst {
-		return minBurst
+		burst = minBurst
+	}
+	if trl.useDefaultBurst && trl.defaultBurst > 0 {
+		if trl.defaultBurst < burst {
+			return trl.defaultBurst
+		}
+		return burst
 	}
 	return burst
 }

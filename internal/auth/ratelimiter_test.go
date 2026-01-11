@@ -314,6 +314,32 @@ func TestTenantRateLimiter_MiddlewareWithAuth_DefaultBurstOverride(t *testing.T)
 	}
 }
 
+func TestTenantRateLimiter_BurstForRate_DefaultBurstCapped(t *testing.T) {
+	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
+		DefaultRPM:      60,
+		DefaultBurst:    10,
+		CleanupTTL:      time.Minute,
+		UseDefaultBurst: true,
+	})
+
+	burst := trl.burstForRate(5, 1)
+	if burst != 1 {
+		t.Errorf("burst for rpm=5 = %d, want 1", burst)
+	}
+
+	trlLowerDefault := NewTenantRateLimiter(&TenantRateLimiterConfig{
+		DefaultRPM:      60,
+		DefaultBurst:    3,
+		CleanupTTL:      time.Minute,
+		UseDefaultBurst: true,
+	})
+
+	burst = trlLowerDefault.burstForRate(60, 1)
+	if burst != 3 {
+		t.Errorf("burst for rpm=60 with lower default = %d, want 3", burst)
+	}
+}
+
 func TestTenantRateLimiter_IsolatedTenants(t *testing.T) {
 	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
 		DefaultRPM:   60,
