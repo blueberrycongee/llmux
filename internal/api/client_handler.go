@@ -28,7 +28,7 @@ import (
 // This is the recommended handler for Gateway mode as it uses the same
 // core logic as Library mode.
 type ClientHandler struct {
-	client      *llmux.Client
+	swapper     *ClientSwapper
 	logger      *slog.Logger
 	maxBodySize int64
 	store       auth.Store // Storage for usage logging and budget tracking
@@ -44,6 +44,11 @@ type ClientHandlerConfig struct {
 
 // NewClientHandler creates a new handler that wraps llmux.Client.
 func NewClientHandler(client *llmux.Client, logger *slog.Logger, cfg *ClientHandlerConfig) *ClientHandler {
+	return NewClientHandlerWithSwapper(NewClientSwapper(client), logger, cfg)
+}
+
+// NewClientHandlerWithSwapper creates a new handler that uses a hot-swappable llmux.Client.
+func NewClientHandlerWithSwapper(swapper *ClientSwapper, logger *slog.Logger, cfg *ClientHandlerConfig) *ClientHandler {
 	maxBodySize := int64(DefaultMaxBodySize)
 	var store auth.Store
 	var manager mcp.Manager
@@ -56,12 +61,19 @@ func NewClientHandler(client *llmux.Client, logger *slog.Logger, cfg *ClientHand
 	}
 
 	return &ClientHandler{
-		client:      client,
+		swapper:     swapper,
 		logger:      logger,
 		maxBodySize: maxBodySize,
 		store:       store,
 		mcpManager:  manager,
 	}
+}
+
+func (h *ClientHandler) acquireClient() (*llmux.Client, func()) {
+	if h == nil || h.swapper == nil {
+		return nil, func() {}
+	}
+	return h.swapper.Acquire()
 }
 
 func (h *ClientHandler) getMCPManager(ctx context.Context) mcp.Manager {
@@ -111,6 +123,13 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 	manager := h.getMCPManager(r.Context())
 
+	client, release := h.acquireClient()
+	defer release()
+	if client == nil {
+		h.writeError(w, llmerrors.NewInternalError("", req.Model, "client not initialized"))
+		return
+	}
+
 	// Handle streaming response
 	if req.Stream {
 		if manager != nil {
@@ -126,7 +145,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 			req.StreamOptions.IncludeUsage = true
 		}
 
-		h.handleStreamResponse(w, r, req, start, requestID)
+		h.handleStreamResponse(w, r, client, req, start, requestID)
 		return
 	}
 
@@ -135,10 +154,10 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	if manager != nil {
 		executor := mcp.NewAgentExecutor(manager, 0, h.logger)
 		resp, err = executor.Execute(r.Context(), req, func(ctx context.Context, r *llmux.ChatRequest) (*llmux.ChatResponse, error) {
-			return h.client.ChatCompletion(ctx, r)
+			return client.ChatCompletion(ctx, r)
 		})
 	} else {
-		resp, err = h.client.ChatCompletion(r.Context(), req)
+		resp, err = client.ChatCompletion(r.Context(), req)
 	}
 	if err != nil {
 		h.logger.Error("chat completion failed", "model", req.Model, "error", err)
@@ -179,8 +198,8 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Request, req *llmux.ChatRequest, start time.Time, requestID string) {
-	stream, err := h.client.ChatCompletionStream(r.Context(), req)
+func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Request, client *llmux.Client, req *llmux.ChatRequest, start time.Time, requestID string) {
+	stream, err := client.ChatCompletionStream(r.Context(), req)
 	if err != nil {
 		h.logger.Error("stream creation failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
@@ -281,6 +300,13 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	requestID := uuid.New().String()
 
+	client, release := h.acquireClient()
+	defer release()
+	if client == nil {
+		h.writeError(w, llmerrors.NewInternalError("", "", "client not initialized"))
+		return
+	}
+
 	// Limit request body size to prevent OOM
 	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
 	body, err := io.ReadAll(limitedReader)
@@ -322,11 +348,11 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 			chatReq.StreamOptions.IncludeUsage = true
 		}
 
-		h.handleCompletionStreamResponse(w, r, chatReq, start, requestID)
+		h.handleCompletionStreamResponse(w, r, client, chatReq, start, requestID)
 		return
 	}
 
-	resp, err := h.client.ChatCompletion(r.Context(), chatReq)
+	resp, err := client.ChatCompletion(r.Context(), chatReq)
 	if err != nil {
 		h.logger.Error("completion failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
@@ -365,8 +391,8 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func (h *ClientHandler) handleCompletionStreamResponse(w http.ResponseWriter, r *http.Request, req *llmux.ChatRequest, start time.Time, requestID string) {
-	stream, err := h.client.ChatCompletionStream(r.Context(), req)
+func (h *ClientHandler) handleCompletionStreamResponse(w http.ResponseWriter, r *http.Request, client *llmux.Client, req *llmux.ChatRequest, start time.Time, requestID string) {
+	stream, err := client.ChatCompletionStream(r.Context(), req)
 	if err != nil {
 		h.logger.Error("stream creation failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
@@ -510,7 +536,11 @@ func (h *ClientHandler) recordUsage(ctx context.Context, requestID, model, callT
 		log.InputTokens = usage.PromptTokens
 		log.OutputTokens = usage.CompletionTokens
 		log.TotalTokens = usage.TotalTokens
-		log.Cost = h.client.CalculateCost(model, usage)
+		client, release := h.acquireClient()
+		if client != nil {
+			log.Cost = client.CalculateCost(model, usage)
+		}
+		release()
 	}
 
 	// Set API key and team info from auth context
@@ -558,7 +588,14 @@ func (h *ClientHandler) HealthCheck(w http.ResponseWriter, r *http.Request) {
 
 // ListModels handles GET /v1/models endpoint.
 func (h *ClientHandler) ListModels(w http.ResponseWriter, r *http.Request) {
-	models, err := h.client.ListModels(r.Context())
+	client, release := h.acquireClient()
+	defer release()
+	if client == nil {
+		h.writeError(w, llmerrors.NewInternalError("", "", "client not initialized"))
+		return
+	}
+
+	models, err := client.ListModels(r.Context())
 	if err != nil {
 		h.writeError(w, llmerrors.NewInternalError("", "", "failed to list models: "+err.Error()))
 		return
@@ -605,13 +642,23 @@ func (h *ClientHandler) ListModels(w http.ResponseWriter, r *http.Request) {
 // GetClient returns the underlying llmux.Client.
 // This is useful for accessing client methods directly.
 func (h *ClientHandler) GetClient() *llmux.Client {
-	return h.client
+	if h == nil || h.swapper == nil {
+		return nil
+	}
+	return h.swapper.Current()
 }
 
 // Embeddings handles POST /v1/embeddings requests.
 func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
 	requestID := uuid.New().String()
+
+	client, release := h.acquireClient()
+	defer release()
+	if client == nil {
+		h.writeError(w, llmerrors.NewInternalError("", "", "client not initialized"))
+		return
+	}
 
 	// Limit request body size to prevent OOM
 	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
@@ -649,7 +696,7 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Call client.Embedding
-	resp, err := h.client.Embedding(r.Context(), &req)
+	resp, err := client.Embedding(r.Context(), &req)
 	if err != nil {
 		h.logger.Error("embedding failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
@@ -703,11 +750,15 @@ func (h *ClientHandler) recordEmbeddingUsage(ctx context.Context, requestID, mod
 	if usage != nil {
 		log.InputTokens = usage.PromptTokens
 		log.TotalTokens = usage.TotalTokens
-		log.Cost = h.client.CalculateCost(model, &llmux.Usage{
-			PromptTokens:     usage.PromptTokens,
-			CompletionTokens: 0,
-			TotalTokens:      usage.TotalTokens,
-		})
+		client, release := h.acquireClient()
+		if client != nil {
+			log.Cost = client.CalculateCost(model, &llmux.Usage{
+				PromptTokens:     usage.PromptTokens,
+				CompletionTokens: 0,
+				TotalTokens:      usage.TotalTokens,
+			})
+		}
+		release()
 	}
 
 	// Set API key and team info from auth context

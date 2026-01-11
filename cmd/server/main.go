@@ -125,10 +125,6 @@ func run() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	if watchErr := cfgManager.Watch(ctx); watchErr != nil {
-		logger.Warn("config hot-reload disabled", "error", watchErr)
-	}
-
 	// Build llmux.Client options from config
 	opts := buildClientOptions(cfg, logger, secretManager)
 
@@ -137,7 +133,18 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("failed to create llmux client: %w", err)
 	}
-	defer func() { _ = client.Close() }()
+	clientSwapper := api.NewClientSwapper(client)
+	defer clientSwapper.Close()
+
+	reloader := newClientReloader(logger, clientSwapper, func(nextCfg *config.Config) (*llmux.Client, error) {
+		nextOpts := buildClientOptions(nextCfg, logger, secretManager)
+		return llmux.New(nextOpts...)
+	})
+	cfgManager.OnChange(reloader.Reload)
+
+	if watchErr := cfgManager.Watch(ctx); watchErr != nil {
+		logger.Warn("config hot-reload disabled", "error", watchErr)
+	}
 
 	// ========================================================================
 	// ENTERPRISE FEATURE INTEGRATION (P0 Fix)
@@ -201,7 +208,7 @@ func run() error {
 		Store:      authStore,
 		MCPManager: mcpManager,
 	}
-	handler := api.NewClientHandler(client, logger, handlerCfg)
+	handler := api.NewClientHandlerWithSwapper(clientSwapper, logger, handlerCfg)
 
 	// Initialize ManagementHandler for enterprise API endpoints
 	mgmtHandler := api.NewManagementHandler(authStore, auditStore, logger)
