@@ -9,6 +9,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/resilience"
 )
 
@@ -320,5 +321,275 @@ func TestClient_RateLimitKeyStrategyByModel(t *testing.T) {
 	}
 	if capturedKeys[0] != "model-a" || capturedKeys[1] != "model-b" {
 		t.Fatalf("expected keys [model-a model-b], got %v", capturedKeys)
+	}
+}
+
+func TestClient_RateLimitKeyStrategyByAPIKey_NoKeyFallbacksToDefault(t *testing.T) {
+	client, err := New(
+		WithRateLimiterConfig(RateLimiterConfig{
+			Enabled:     true,
+			KeyStrategy: RateLimitKeyByAPIKey,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	defer client.Close()
+
+	key := client.buildRateLimitKey("test-model", "user-1", "")
+	if key != "default" {
+		t.Fatalf("expected default key, got %q", key)
+	}
+}
+
+func TestClient_RateLimitKeyStrategyByAPIKeyFromContext(t *testing.T) {
+	var capturedKey string
+	captureLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			if len(descriptors) > 0 {
+				capturedKey = descriptors[0].Key
+			}
+			results := make([]resilience.LimitResult, len(descriptors))
+			for i, desc := range descriptors {
+				results[i] = resilience.LimitResult{
+					Allowed:   true,
+					Current:   1,
+					Remaining: desc.Limit - 1,
+					ResetAt:   time.Now().Add(time.Minute).Unix(),
+				}
+			}
+			return results, nil
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := ChatResponse{
+			ID:      "test-id",
+			Object:  "chat.completion",
+			Created: time.Now().Unix(),
+			Model:   "test-model",
+			Choices: []Choice{
+				{
+					Index: 0,
+					Message: ChatMessage{
+						Role:    "assistant",
+						Content: json.RawMessage(`"ok"`),
+					},
+					FinishReason: "stop",
+				},
+			},
+			Usage: &Usage{
+				PromptTokens:     1,
+				CompletionTokens: 1,
+				TotalTokens:      2,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &httpMockProvider{
+		name:    "mock",
+		models:  []string{"test-model"},
+		baseURL: server.URL,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock", mock, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
+		WithRateLimiter(captureLimiter),
+		WithRateLimiterConfig(RateLimiterConfig{
+			Enabled:     true,
+			RPMLimit:    100,
+			WindowSize:  time.Minute,
+			KeyStrategy: RateLimitKeyByAPIKey,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	defer client.Close()
+
+	ctx := WithRateLimitAPIKey(context.Background(), "api-key-123")
+	_, err = client.ChatCompletion(ctx, &ChatRequest{
+		Model:    "test-model",
+		Messages: []ChatMessage{{Role: "user", Content: json.RawMessage(`"hello"`)}}},
+	)
+	if err != nil {
+		t.Fatalf("ChatCompletion error = %v", err)
+	}
+
+	if capturedKey != "api-key-123" {
+		t.Fatalf("expected key 'api-key-123', got %q", capturedKey)
+	}
+}
+
+func TestClient_RateLimitKeyStrategyByAPIKeyFromAuthContext(t *testing.T) {
+	var capturedKey string
+	captureLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			if len(descriptors) > 0 {
+				capturedKey = descriptors[0].Key
+			}
+			results := make([]resilience.LimitResult, len(descriptors))
+			for i, desc := range descriptors {
+				results[i] = resilience.LimitResult{
+					Allowed:   true,
+					Current:   1,
+					Remaining: desc.Limit - 1,
+					ResetAt:   time.Now().Add(time.Minute).Unix(),
+				}
+			}
+			return results, nil
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := ChatResponse{
+			ID:      "test-id",
+			Object:  "chat.completion",
+			Created: time.Now().Unix(),
+			Model:   "test-model",
+			Choices: []Choice{
+				{
+					Index: 0,
+					Message: ChatMessage{
+						Role:    "assistant",
+						Content: json.RawMessage(`"ok"`),
+					},
+					FinishReason: "stop",
+				},
+			},
+			Usage: &Usage{
+				PromptTokens:     1,
+				CompletionTokens: 1,
+				TotalTokens:      2,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &httpMockProvider{
+		name:    "mock",
+		models:  []string{"test-model"},
+		baseURL: server.URL,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock", mock, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
+		WithRateLimiter(captureLimiter),
+		WithRateLimiterConfig(RateLimiterConfig{
+			Enabled:     true,
+			RPMLimit:    100,
+			WindowSize:  time.Minute,
+			KeyStrategy: RateLimitKeyByAPIKey,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	defer client.Close()
+
+	authCtx := &auth.AuthContext{
+		APIKey: &auth.APIKey{ID: "key-abc"},
+	}
+	ctx := context.WithValue(context.Background(), auth.AuthContextKey, authCtx)
+	_, err = client.ChatCompletion(ctx, &ChatRequest{
+		Model:    "test-model",
+		Messages: []ChatMessage{{Role: "user", Content: json.RawMessage(`"hello"`)}}},
+	)
+	if err != nil {
+		t.Fatalf("ChatCompletion error = %v", err)
+	}
+
+	if capturedKey != "key-abc" {
+		t.Fatalf("expected key 'key-abc', got %q", capturedKey)
+	}
+}
+
+func TestClient_RateLimitKeyStrategyByUser(t *testing.T) {
+	var capturedKey string
+	captureLimiter := &mockDistributedLimiter{
+		checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+			if len(descriptors) > 0 {
+				capturedKey = descriptors[0].Key
+			}
+			results := make([]resilience.LimitResult, len(descriptors))
+			for i, desc := range descriptors {
+				results[i] = resilience.LimitResult{
+					Allowed:   true,
+					Current:   1,
+					Remaining: desc.Limit - 1,
+					ResetAt:   time.Now().Add(time.Minute).Unix(),
+				}
+			}
+			return results, nil
+		},
+	}
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		resp := ChatResponse{
+			ID:      "test-id",
+			Object:  "chat.completion",
+			Created: time.Now().Unix(),
+			Model:   "test-model",
+			Choices: []Choice{
+				{
+					Index: 0,
+					Message: ChatMessage{
+						Role:    "assistant",
+						Content: json.RawMessage(`"ok"`),
+					},
+					FinishReason: "stop",
+				},
+			},
+			Usage: &Usage{
+				PromptTokens:     1,
+				CompletionTokens: 1,
+				TotalTokens:      2,
+			},
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_ = json.NewEncoder(w).Encode(resp)
+	}))
+	defer server.Close()
+
+	mock := &httpMockProvider{
+		name:    "mock",
+		models:  []string{"test-model"},
+		baseURL: server.URL,
+	}
+
+	client, err := New(
+		WithProviderInstance("mock", mock, []string{"test-model"}),
+		withTestPricing(t, "test-model"),
+		WithRateLimiter(captureLimiter),
+		WithRateLimiterConfig(RateLimiterConfig{
+			Enabled:     true,
+			RPMLimit:    100,
+			WindowSize:  time.Minute,
+			KeyStrategy: RateLimitKeyByUser,
+		}),
+	)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+	defer client.Close()
+
+	_, err = client.ChatCompletion(context.Background(), &ChatRequest{
+		Model:    "test-model",
+		User:     "user-123",
+		Messages: []ChatMessage{{Role: "user", Content: json.RawMessage(`"hello"`)}}},
+	)
+	if err != nil {
+		t.Fatalf("ChatCompletion error = %v", err)
+	}
+
+	if capturedKey != "user-123" {
+		t.Fatalf("expected key 'user-123', got %q", capturedKey)
 	}
 }
