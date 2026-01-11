@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
@@ -14,7 +15,7 @@ import (
 // RedisStatsStore implements StatsStore using Redis for distributed statistics.
 // It uses Lua scripts to ensure atomic operations across multiple LLMux instances.
 type RedisStatsStore struct {
-	client             *redis.Client
+	client             redis.UniversalClient
 	keyPrefix          string
 	maxLatencyListSize int
 	usageTTL           time.Duration
@@ -110,7 +111,7 @@ func WithSingleDeploymentFailureThreshold(minRequests int) RedisStatsOption {
 }
 
 // NewRedisStatsStore creates a new Redis-backed stats store.
-func NewRedisStatsStore(client *redis.Client, opts ...RedisStatsOption) *RedisStatsStore {
+func NewRedisStatsStore(client redis.UniversalClient, opts ...RedisStatsOption) *RedisStatsStore {
 	defaults := router.DefaultConfig()
 	store := &RedisStatsStore{
 		client:             client,
@@ -454,43 +455,43 @@ func (r *RedisStatsStore) Close() error {
 // Key generation helpers
 
 func (r *RedisStatsStore) latencyKey(deploymentID string) string {
-	return fmt.Sprintf("%s:%s:latency", r.keyPrefix, deploymentID)
+	return fmt.Sprintf("%s:latency", r.deploymentKeyPrefix(deploymentID))
 }
 
 func (r *RedisStatsStore) ttftKey(deploymentID string) string {
-	return fmt.Sprintf("%s:%s:ttft", r.keyPrefix, deploymentID)
+	return fmt.Sprintf("%s:ttft", r.deploymentKeyPrefix(deploymentID))
 }
 
 func (r *RedisStatsStore) countersKey(deploymentID string) string {
-	return fmt.Sprintf("%s:%s:counters", r.keyPrefix, deploymentID)
+	return fmt.Sprintf("%s:counters", r.deploymentKeyPrefix(deploymentID))
 }
 
 func (r *RedisStatsStore) cooldownKey(deploymentID string) string {
-	return fmt.Sprintf("%s:%s:cooldown", r.keyPrefix, deploymentID)
+	return fmt.Sprintf("%s:cooldown", r.deploymentKeyPrefix(deploymentID))
 }
 
 func (r *RedisStatsStore) successKeyPrefix(deploymentID string) string {
-	return fmt.Sprintf("%s:%s:successes:", r.keyPrefix, deploymentID)
+	return fmt.Sprintf("%s:successes:", r.deploymentKeyPrefix(deploymentID))
 }
 
 func (r *RedisStatsStore) failureKeyPrefix(deploymentID string) string {
-	return fmt.Sprintf("%s:%s:failures:", r.keyPrefix, deploymentID)
+	return fmt.Sprintf("%s:failures:", r.deploymentKeyPrefix(deploymentID))
 }
 
 func (r *RedisStatsStore) successKey(deploymentID, minute string) string {
-	return fmt.Sprintf("%s:%s:successes:%s", r.keyPrefix, deploymentID, minute)
+	return fmt.Sprintf("%s:successes:%s", r.deploymentKeyPrefix(deploymentID), minute)
 }
 
 func (r *RedisStatsStore) failureKey(deploymentID, minute string) string {
-	return fmt.Sprintf("%s:%s:failures:%s", r.keyPrefix, deploymentID, minute)
+	return fmt.Sprintf("%s:failures:%s", r.deploymentKeyPrefix(deploymentID), minute)
 }
 
 func (r *RedisStatsStore) usageKeyPrefix(deploymentID string) string {
-	return fmt.Sprintf("%s:%s:usage:", r.keyPrefix, deploymentID)
+	return fmt.Sprintf("%s:usage:", r.deploymentKeyPrefix(deploymentID))
 }
 
 func (r *RedisStatsStore) usageKey(deploymentID, minute string) string {
-	return fmt.Sprintf("%s:%s:usage:%s", r.keyPrefix, deploymentID, minute)
+	return fmt.Sprintf("%s:usage:%s", r.deploymentKeyPrefix(deploymentID), minute)
 }
 
 func (r *RedisStatsStore) extractDeploymentID(key string) string {
@@ -509,7 +510,15 @@ func (r *RedisStatsStore) extractDeploymentID(key string) string {
 		return ""
 	}
 
-	return key[start:end]
+	deploymentID := key[start:end]
+	if strings.HasPrefix(deploymentID, "{") && strings.HasSuffix(deploymentID, "}") {
+		deploymentID = deploymentID[1 : len(deploymentID)-1]
+	}
+	return deploymentID
+}
+
+func (r *RedisStatsStore) deploymentKeyPrefix(deploymentID string) string {
+	return fmt.Sprintf("%s:{%s}", r.keyPrefix, deploymentID)
 }
 
 func (r *RedisStatsStore) failureWindowSize() int {

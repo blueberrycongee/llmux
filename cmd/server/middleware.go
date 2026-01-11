@@ -7,8 +7,6 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/redis/go-redis/v9"
-
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
@@ -54,29 +52,22 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 		})
 
 		// Inject distributed limiter if configured (for multi-instance deployments)
-		if cfg.RateLimit.Distributed && cfg.Cache.Redis.Addr != "" {
-			redisClient := redis.NewClient(&redis.Options{
-				Addr:         cfg.Cache.Redis.Addr,
-				Password:     cfg.Cache.Redis.Password,
-				DB:           cfg.Cache.Redis.DB,
-				DialTimeout:  cfg.Cache.Redis.DialTimeout,
-				ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
-				WriteTimeout: cfg.Cache.Redis.WriteTimeout,
-				PoolSize:     cfg.Cache.Redis.PoolSize,
-				MinIdleConns: cfg.Cache.Redis.MinIdleConns,
-				MaxRetries:   cfg.Cache.Redis.MaxRetries,
-			})
-
-			// Test connection before using
-			pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
-			if err := redisClient.Ping(pingCtx).Err(); err != nil {
+		if cfg.RateLimit.Distributed && (cfg.Cache.Redis.Addr != "" || len(cfg.Cache.Redis.ClusterAddrs) > 0) {
+			redisClient, isCluster, err := newRedisUniversalClient(cfg.Cache.Redis)
+			if err != nil {
 				logger.Warn("distributed rate limiting unavailable, using local limiter", "error", err)
 			} else {
-				distributedLimiter := resilience.NewRedisLimiter(redisClient)
-				rateLimiter.SetDistributedLimiter(distributedLimiter)
-				logger.Info("gateway rate limiting using distributed Redis backend")
+				// Test connection before using
+				pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := redisClient.Ping(pingCtx).Err(); err != nil {
+					logger.Warn("distributed rate limiting unavailable, using local limiter", "error", err)
+				} else {
+					distributedLimiter := resilience.NewRedisLimiter(redisClient)
+					rateLimiter.SetDistributedLimiter(distributedLimiter)
+					logger.Info("gateway rate limiting using distributed Redis backend", "cluster", isCluster)
+				}
+				pingCancel()
 			}
-			pingCancel()
 		}
 
 		logger.Info("gateway rate limiting enabled",

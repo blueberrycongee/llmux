@@ -71,3 +71,27 @@ func TestRedisStatsStore_Immediate429SingleDeploymentSkipsCooldown(t *testing.T)
 	require.NoError(t, err)
 	require.True(t, cooldownUntil.IsZero())
 }
+
+func TestRedisStatsStore_KeyHashTag(t *testing.T) {
+	s := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	store := NewRedisStatsStore(client)
+
+	deploymentID := "deployment-1"
+	minute := "2026-01-10-00-00"
+	keys := []string{
+		store.latencyKey(deploymentID),
+		store.ttftKey(deploymentID),
+		store.countersKey(deploymentID),
+		store.cooldownKey(deploymentID),
+		store.usageKey(deploymentID, minute),
+		store.successKey(deploymentID, minute),
+		store.failureKey(deploymentID, minute),
+	}
+
+	for _, key := range keys {
+		require.Contains(t, key, "{"+deploymentID+"}")
+	}
+
+	require.Equal(t, deploymentID, store.extractDeploymentID(store.countersKey(deploymentID)))
+}

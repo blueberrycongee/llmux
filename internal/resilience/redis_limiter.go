@@ -11,12 +11,12 @@ import (
 
 // RedisLimiter implements DistributedLimiter using Redis and Lua scripts.
 type RedisLimiter struct {
-	client *redis.Client
+	client redis.UniversalClient
 	script *redis.Script
 }
 
 // NewRedisLimiter creates a new RedisLimiter instance.
-func NewRedisLimiter(client *redis.Client) *RedisLimiter {
+func NewRedisLimiter(client redis.UniversalClient) *RedisLimiter {
 	// BATCH_RATE_LIMITER_SCRIPT (Ported from litellm)
 	luaScript := `
 local results = {}

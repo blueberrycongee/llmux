@@ -352,44 +352,20 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	// Initialize distributed routing
 	if cfg.Routing.Distributed {
 		if cfg.Cache.Redis.Addr != "" || len(cfg.Cache.Redis.ClusterAddrs) > 0 {
-			var redisClient *redis.Client
-
-			if len(cfg.Cache.Redis.ClusterAddrs) > 0 {
-				logger.Warn("Redis cluster mode not fully supported for routing stats, using single-node mode")
-				redisClient = redis.NewClient(&redis.Options{
-					Addr:         cfg.Cache.Redis.ClusterAddrs[0],
-					Password:     cfg.Cache.Redis.Password,
-					DB:           cfg.Cache.Redis.DB,
-					DialTimeout:  cfg.Cache.Redis.DialTimeout,
-					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
-					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
-					PoolSize:     cfg.Cache.Redis.PoolSize,
-					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
-					MaxRetries:   cfg.Cache.Redis.MaxRetries,
-				})
+			redisClient, isCluster, err := newRedisUniversalClient(cfg.Cache.Redis)
+			if err != nil {
+				logger.Error("failed to initialize Redis for distributed routing", "error", err)
 			} else {
-				redisClient = redis.NewClient(&redis.Options{
-					Addr:         cfg.Cache.Redis.Addr,
-					Password:     cfg.Cache.Redis.Password,
-					DB:           cfg.Cache.Redis.DB,
-					DialTimeout:  cfg.Cache.Redis.DialTimeout,
-					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
-					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
-					PoolSize:     cfg.Cache.Redis.PoolSize,
-					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
-					MaxRetries:   cfg.Cache.Redis.MaxRetries,
-				})
-			}
-
-			// Test Redis connection
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := redisClient.Ping(ctx).Err(); err != nil {
-				logger.Error("failed to connect to Redis for distributed routing", "error", err)
-			} else {
-				statsStore := routers.NewRedisStatsStore(redisClient)
-				opts = append(opts, llmux.WithStatsStore(statsStore))
-				logger.Info("distributed routing enabled", "redis_addr", cfg.Cache.Redis.Addr)
+				// Test Redis connection
+				pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := redisClient.Ping(pingCtx).Err(); err != nil {
+					logger.Error("failed to connect to Redis for distributed routing", "error", err)
+				} else {
+					statsStore := routers.NewRedisStatsStore(redisClient)
+					opts = append(opts, llmux.WithStatsStore(statsStore))
+					logger.Info("distributed routing enabled", "cluster", isCluster)
+				}
+				pingCancel()
 			}
 		} else {
 			logger.Warn("distributed routing enabled but no Redis configured")
@@ -400,50 +376,24 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	if cfg.RateLimit.Enabled && cfg.RateLimit.Distributed {
 		// Use Redis from Cache config for distributed rate limiting
 		if cfg.Cache.Redis.Addr != "" || len(cfg.Cache.Redis.ClusterAddrs) > 0 {
-			var redisClient *redis.Client
-
-			if len(cfg.Cache.Redis.ClusterAddrs) > 0 {
-				// For cluster mode, we need ClusterClient, but RedisLimiter uses *redis.Client
-				// For now, use single node. Full cluster support requires updating RedisLimiter.
-				logger.Warn("Redis cluster mode not fully supported for rate limiting, using single-node mode")
-				redisClient = redis.NewClient(&redis.Options{
-					Addr:         cfg.Cache.Redis.ClusterAddrs[0],
-					Password:     cfg.Cache.Redis.Password,
-					DB:           cfg.Cache.Redis.DB,
-					DialTimeout:  cfg.Cache.Redis.DialTimeout,
-					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
-					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
-					PoolSize:     cfg.Cache.Redis.PoolSize,
-					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
-					MaxRetries:   cfg.Cache.Redis.MaxRetries,
-				})
+			redisClient, isCluster, err := newRedisUniversalClient(cfg.Cache.Redis)
+			if err != nil {
+				logger.Error("failed to initialize Redis for rate limiting", "error", err)
 			} else {
-				redisClient = redis.NewClient(&redis.Options{
-					Addr:         cfg.Cache.Redis.Addr,
-					Password:     cfg.Cache.Redis.Password,
-					DB:           cfg.Cache.Redis.DB,
-					DialTimeout:  cfg.Cache.Redis.DialTimeout,
-					ReadTimeout:  cfg.Cache.Redis.ReadTimeout,
-					WriteTimeout: cfg.Cache.Redis.WriteTimeout,
-					PoolSize:     cfg.Cache.Redis.PoolSize,
-					MinIdleConns: cfg.Cache.Redis.MinIdleConns,
-					MaxRetries:   cfg.Cache.Redis.MaxRetries,
-				})
-			}
-
-			// Test Redis connection
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			defer cancel()
-			if err := redisClient.Ping(ctx).Err(); err != nil {
-				logger.Error("failed to connect to Redis for rate limiting", "error", err)
-			} else {
-				limiter := resilience.NewRedisLimiter(redisClient)
-				opts = append(opts, llmux.WithRateLimiter(limiter))
-				logger.Info("distributed rate limiting enabled",
-					"redis_addr", cfg.Cache.Redis.Addr,
-					"rpm_limit", cfg.RateLimit.RequestsPerMinute,
-					"tpm_limit", cfg.RateLimit.TokensPerMinute,
-				)
+				// Test Redis connection
+				pingCtx, pingCancel := context.WithTimeout(context.Background(), 5*time.Second)
+				if err := redisClient.Ping(pingCtx).Err(); err != nil {
+					logger.Error("failed to connect to Redis for rate limiting", "error", err)
+				} else {
+					limiter := resilience.NewRedisLimiter(redisClient)
+					opts = append(opts, llmux.WithRateLimiter(limiter))
+					logger.Info("distributed rate limiting enabled",
+						"cluster", isCluster,
+						"rpm_limit", cfg.RateLimit.RequestsPerMinute,
+						"tpm_limit", cfg.RateLimit.TokensPerMinute,
+					)
+				}
+				pingCancel()
 			}
 		} else {
 			logger.Warn("distributed rate limiting enabled but no Redis configured")
@@ -480,6 +430,34 @@ func mapStreamRecoveryMode(mode string) llmux.StreamRecoveryMode {
 	default:
 		return llmux.StreamRecoveryRetry
 	}
+}
+
+func newRedisUniversalClient(cfg config.RedisCacheConfig) (redis.UniversalClient, bool, error) {
+	addrs := cfg.ClusterAddrs
+	isCluster := len(addrs) > 0
+	if len(addrs) == 0 && cfg.Addr != "" {
+		addrs = []string{cfg.Addr}
+	}
+	if len(addrs) == 0 {
+		return nil, false, fmt.Errorf("redis address not configured")
+	}
+
+	options := &redis.UniversalOptions{
+		Addrs:        addrs,
+		Password:     cfg.Password,
+		DB:           cfg.DB,
+		DialTimeout:  cfg.DialTimeout,
+		ReadTimeout:  cfg.ReadTimeout,
+		WriteTimeout: cfg.WriteTimeout,
+		PoolSize:     cfg.PoolSize,
+		MinIdleConns: cfg.MinIdleConns,
+		MaxRetries:   cfg.MaxRetries,
+	}
+	if isCluster {
+		options.IsClusterMode = true
+	}
+
+	return redis.NewUniversalClient(options), isCluster, nil
 }
 
 // mapKeyStrategy converts config key strategy string to llmux.RateLimitKeyStrategy.
