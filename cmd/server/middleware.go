@@ -113,7 +113,7 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 		}
 		handler = metrics.Middleware(handler)
 		handler = observability.RequestIDMiddleware(handler)
-		handler = corsMiddleware(handler)
+		handler = corsMiddleware(cfg.CORS, handler)
 		return handler
 	}, nil
 }

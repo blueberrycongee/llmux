@@ -93,6 +93,41 @@ tracing:
   sample_rate: 1.0          # 1.0 = 100% sampling, 0.1 = 10% sampling
   insecure: true            # Set to false for TLS connections
 
+# CORS (production defaults: wildcard disabled)
+cors:
+  enabled: false
+  allow_all_origins: false
+  allow_credentials: false
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Content-Type
+    - Authorization
+    - X-Requested-With
+  expose_headers: []
+  max_age: 10m
+  data_origins:
+    allowlist: []
+    denylist: []
+  admin_origins:
+    allowlist: []
+    denylist: []
+  admin_path_prefixes:
+    - /key/
+    - /team/
+    - /user/
+    - /organization/
+    - /spend/
+    - /audit/
+    - /global/
+    - /invitation/
+    - /metrics
+
 # Authentication (API Key validation)
 auth:
   enabled: false            # Set to true to require API key authentication

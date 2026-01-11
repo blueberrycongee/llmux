@@ -22,6 +22,7 @@ type Config struct {
 	Logging     LoggingConfig    `yaml:"logging"`
 	Metrics     MetricsConfig    `yaml:"metrics"`
 	Tracing     TracingConfig    `yaml:"tracing"`
+	CORS        CORSConfig       `yaml:"cors"`
 	Auth        AuthConfig       `yaml:"auth"`
 	Database    DatabaseConfig   `yaml:"database"`
 	Cache       CacheConfig      `yaml:"cache"`
@@ -267,6 +268,26 @@ type TracingConfig struct {
 	Insecure    bool    `yaml:"insecure"`     // Use insecure connection (no TLS)
 }
 
+// CORSConfig defines cross-origin settings for the gateway.
+type CORSConfig struct {
+	Enabled           bool          `yaml:"enabled"`
+	AllowAllOrigins   bool          `yaml:"allow_all_origins"`
+	AllowCredentials  bool          `yaml:"allow_credentials"`
+	AllowMethods      []string      `yaml:"allow_methods"`
+	AllowHeaders      []string      `yaml:"allow_headers"`
+	ExposeHeaders     []string      `yaml:"expose_headers"`
+	MaxAge            time.Duration `yaml:"max_age"`
+	DataOrigins       CORSOrigins   `yaml:"data_origins"`
+	AdminOrigins      CORSOrigins   `yaml:"admin_origins"`
+	AdminPathPrefixes []string      `yaml:"admin_path_prefixes"`
+}
+
+// CORSOrigins contains allowlist/denylist origins.
+type CORSOrigins struct {
+	Allowlist []string `yaml:"allowlist"`
+	Denylist  []string `yaml:"denylist"`
+}
+
 // DefaultConfig returns a configuration with sensible defaults.
 func DefaultConfig() *Config {
 	return &Config{
@@ -312,6 +333,28 @@ func DefaultConfig() *Config {
 			ServiceName: "llmux",
 			SampleRate:  1.0,
 			Insecure:    true,
+		},
+		CORS: CORSConfig{
+			Enabled:          false,
+			AllowAllOrigins:  false,
+			AllowCredentials: false,
+			AllowMethods:     []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
+			AllowHeaders:     []string{"Content-Type", "Authorization", "X-Requested-With"},
+			ExposeHeaders:    []string{},
+			MaxAge:           10 * time.Minute,
+			DataOrigins:      CORSOrigins{},
+			AdminOrigins:     CORSOrigins{},
+			AdminPathPrefixes: []string{
+				"/key/",
+				"/team/",
+				"/user/",
+				"/organization/",
+				"/spend/",
+				"/audit/",
+				"/global/",
+				"/invitation/",
+				"/metrics",
+			},
 		},
 		Auth: AuthConfig{
 			Enabled:   false,
@@ -438,6 +481,18 @@ func (c *Config) Validate() error {
 		return fmt.Errorf("stream.recovery_mode must be one of: off, append, retry")
 	}
 
+	if c.CORS.MaxAge < 0 {
+		return fmt.Errorf("cors.max_age cannot be negative")
+	}
+	if !c.CORS.AllowAllOrigins {
+		if containsWildcard(c.CORS.DataOrigins.Allowlist) {
+			return fmt.Errorf("cors.data_origins.allowlist cannot include wildcard when allow_all_origins is false")
+		}
+		if containsWildcard(c.CORS.AdminOrigins.Allowlist) {
+			return fmt.Errorf("cors.admin_origins.allowlist cannot include wildcard when allow_all_origins is false")
+		}
+	}
+
 	if c.Database.Enabled {
 		if c.Database.Host == "" {
 			return fmt.Errorf("database.host is required when database is enabled")
@@ -501,4 +556,13 @@ func normalizeDeploymentMode(mode string) (string, error) {
 
 func hasRedisConfig(cfg RedisCacheConfig) bool {
 	return cfg.Addr != "" || len(cfg.ClusterAddrs) > 0
+}
+
+func containsWildcard(values []string) bool {
+	for _, value := range values {
+		if value == "*" {
+			return true
+		}
+	}
+	return false
 }
