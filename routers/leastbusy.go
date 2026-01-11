@@ -77,6 +77,7 @@ func (r *LeastBusyRouter) PickWithContext(ctx context.Context, reqCtx *router.Re
 		}
 	}
 
+	healthy = r.filterByDefaultProvider(healthy)
 	type deploymentInfo struct {
 		deployment     *ExtendedDeployment
 		activeRequests int64

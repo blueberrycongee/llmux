@@ -53,6 +53,7 @@ type ClientConfig struct {
 	RetryCount      int
 	RetryBackoff    time.Duration
 	CooldownPeriod  time.Duration
+	DefaultProvider string
 
 	// Distributed Routing Stats (for multi-instance deployments)
 	StatsStore router.StatsStore
@@ -182,6 +183,13 @@ func WithRouter(r Router) Option {
 func WithRouterStrategy(strategy Strategy) Option {
 	return func(c *ClientConfig) {
 		c.RouterStrategy = strategy
+	}
+}
+
+// WithDefaultProvider prefers a provider when multiple deployments are available.
+func WithDefaultProvider(provider string) Option {
+	return func(c *ClientConfig) {
+		c.DefaultProvider = provider
 	}
 }
 

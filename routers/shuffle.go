@@ -73,6 +73,7 @@ func (r *ShuffleRouter) PickWithContext(ctx context.Context, reqCtx *router.Requ
 		}
 	}
 
+	healthy = r.filterByDefaultProvider(healthy)
 	healthyCopy := make([]*ExtendedDeployment, len(healthy))
 	copy(healthyCopy, healthy)
 

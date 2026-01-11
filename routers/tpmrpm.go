@@ -90,10 +90,7 @@ func (r *TPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *router.Reque
 		candidates[i], candidates[j] = candidates[j], candidates[i]
 	})
 
-	// Filter by TPM/RPM limits and find lowest usage
-	var bestDeployment *ExtendedDeployment
-	lowestTPM := int64(-1)
-
+	eligible := make([]deploymentInfo, 0, len(candidates))
 	for _, c := range candidates {
 		estimatedTokens := int64(reqCtx.EstimatedInputTokens)
 		if estimatedTokens == 0 {
@@ -109,8 +106,36 @@ func (r *TPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *router.Reque
 		if c.deployment.Config.RPMLimit > 0 && c.currentRPM+1 >= c.deployment.Config.RPMLimit {
 			continue
 		}
+		eligible = append(eligible, c)
+	}
 
-		// Select deployment with lowest TPM
+	if len(eligible) == 0 {
+		return nil, ErrNoAvailableDeployment
+	}
+
+	eligibleDeployments := make([]*ExtendedDeployment, 0, len(eligible))
+	for _, c := range eligible {
+		eligibleDeployments = append(eligibleDeployments, c.deployment)
+	}
+	preferredDeployments := r.filterByDefaultProvider(eligibleDeployments)
+
+	var allowed map[string]struct{}
+	if len(preferredDeployments) < len(eligibleDeployments) {
+		allowed = make(map[string]struct{}, len(preferredDeployments))
+		for _, d := range preferredDeployments {
+			allowed[d.ID] = struct{}{}
+		}
+	}
+
+	// Select deployment with lowest TPM
+	var bestDeployment *ExtendedDeployment
+	lowestTPM := int64(-1)
+	for _, c := range eligible {
+		if allowed != nil {
+			if _, ok := allowed[c.deployment.ID]; !ok {
+				continue
+			}
+		}
 		if lowestTPM < 0 || c.currentTPM < lowestTPM {
 			lowestTPM = c.currentTPM
 			bestDeployment = c.deployment
@@ -120,6 +145,5 @@ func (r *TPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *router.Reque
 	if bestDeployment == nil {
 		return nil, ErrNoAvailableDeployment
 	}
-
 	return bestDeployment.Deployment, nil
 }

@@ -497,6 +497,26 @@ func (r *BaseRouter) filterByTags(deployments []*ExtendedDeployment, tags []stri
 	return nil
 }
 
+func (r *BaseRouter) filterByDefaultProvider(deployments []*ExtendedDeployment) []*ExtendedDeployment {
+	if len(deployments) == 0 {
+		return deployments
+	}
+	if r.config.DefaultProvider == "" {
+		return deployments
+	}
+
+	preferred := make([]*ExtendedDeployment, 0, len(deployments))
+	for _, d := range deployments {
+		if d.ProviderName == r.config.DefaultProvider {
+			preferred = append(preferred, d)
+		}
+	}
+	if len(preferred) > 0 {
+		return preferred
+	}
+	return deployments
+}
+
 func (r *BaseRouter) filterByTPMRPM(deployments []*ExtendedDeployment, statsByID map[string]*router.DeploymentStats, inputTokens int) []*ExtendedDeployment {
 	filtered := make([]*ExtendedDeployment, 0, len(deployments))
 
@@ -684,5 +704,6 @@ func (r *BaseRouter) PickWithContext(ctx context.Context, reqCtx *router.Request
 		}
 	}
 
+	healthy = r.filterByDefaultProvider(healthy)
 	return healthy[r.randIntn(len(healthy))].Deployment, nil
 }
