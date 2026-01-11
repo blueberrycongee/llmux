@@ -30,6 +30,76 @@ type ChatRequest struct {
 	Extra map[string]json.RawMessage `json:"-"`
 }
 
+var chatRequestKnownFields = map[string]struct{}{
+	"model":             {},
+	"messages":          {},
+	"stream":            {},
+	"max_tokens":        {},
+	"temperature":       {},
+	"top_p":             {},
+	"n":                 {},
+	"stop":              {},
+	"presence_penalty":  {},
+	"frequency_penalty": {},
+	"user":              {},
+	"tools":             {},
+	"tool_choice":       {},
+	"response_format":   {},
+	"stream_options":    {},
+	"tags":              {},
+}
+
+// MarshalJSON merges Extra fields without overriding explicitly set fields.
+func (r ChatRequest) MarshalJSON() ([]byte, error) {
+	type Alias ChatRequest
+
+	base, err := json.Marshal(Alias(r))
+	if err != nil || len(r.Extra) == 0 {
+		return base, err
+	}
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(base, &payload); err != nil {
+		return nil, err
+	}
+
+	for key, value := range r.Extra {
+		if _, exists := payload[key]; !exists {
+			payload[key] = value
+		}
+	}
+
+	return json.Marshal(payload)
+}
+
+// UnmarshalJSON captures unknown fields into Extra for passthrough.
+func (r *ChatRequest) UnmarshalJSON(data []byte) error {
+	type Alias ChatRequest
+
+	var payload map[string]json.RawMessage
+	if err := json.Unmarshal(data, &payload); err != nil {
+		return err
+	}
+
+	var parsed Alias
+	if err := json.Unmarshal(data, &parsed); err != nil {
+		return err
+	}
+
+	*r = ChatRequest(parsed)
+	for key := range chatRequestKnownFields {
+		delete(payload, key)
+	}
+
+	if len(payload) == 0 {
+		r.Extra = nil
+	} else {
+		r.Extra = payload
+	}
+
+	return nil
+}
+
 // ChatMessage represents a single message in the conversation.
 type ChatMessage struct {
 	Role       string          `json:"role"`

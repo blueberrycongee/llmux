@@ -14,6 +14,10 @@ func TestDefaultConfig(t *testing.T) {
 		t.Errorf("default port = %d, want 8080", cfg.Server.Port)
 	}
 
+	if cfg.Server.AdminPort != 0 {
+		t.Errorf("default admin port = %d, want 0", cfg.Server.AdminPort)
+	}
+
 	if cfg.Server.ReadTimeout != 30*time.Second {
 		t.Errorf("default read timeout = %v, want 30s", cfg.Server.ReadTimeout)
 	}
@@ -57,6 +61,36 @@ func TestConfigValidation(t *testing.T) {
 			name: "invalid port too high",
 			cfg: &Config{
 				Server: ServerConfig{Port: 70000},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid admin port negative",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080, AdminPort: -1},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "invalid admin port too high",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080, AdminPort: 70000},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "admin port matches server port",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080, AdminPort: 8080},
 				Providers: []ProviderConfig{
 					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 				},

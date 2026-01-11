@@ -26,6 +26,7 @@ var (
 
 // Re-export constants
 const (
+	StrategyRoundRobin    = router.StrategyRoundRobin
 	StrategySimpleShuffle = router.StrategySimpleShuffle
 	StrategyLowestLatency = router.StrategyLowestLatency
 	StrategyLeastBusy     = router.StrategyLeastBusy

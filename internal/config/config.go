@@ -191,6 +191,7 @@ type DatabaseConfig struct {
 // ServerConfig contains HTTP server settings.
 type ServerConfig struct {
 	Port         int           `yaml:"port"`
+	AdminPort    int           `yaml:"admin_port"`
 	ReadTimeout  time.Duration `yaml:"read_timeout"`
 	WriteTimeout time.Duration `yaml:"write_timeout"`
 	IdleTimeout  time.Duration `yaml:"idle_timeout"`
@@ -211,7 +212,7 @@ type ProviderConfig struct {
 // RoutingConfig contains routing and load balancing settings.
 type RoutingConfig struct {
 	DefaultProvider string        `yaml:"default_provider"`
-	Strategy        string        `yaml:"strategy"` // simple-shuffle, lowest-latency, least-busy
+	Strategy        string        `yaml:"strategy"` // round-robin, simple-shuffle, lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
 	FallbackEnabled bool          `yaml:"fallback_enabled"`
 	RetryCount      int           `yaml:"retry_count"`
 	CooldownPeriod  time.Duration `yaml:"cooldown_period"`
@@ -257,6 +258,7 @@ func DefaultConfig() *Config {
 	return &Config{
 		Server: ServerConfig{
 			Port:         8080,
+			AdminPort:    0,
 			ReadTimeout:  30 * time.Second,
 			WriteTimeout: 120 * time.Second,
 			IdleTimeout:  60 * time.Second,
@@ -363,6 +365,14 @@ func LoadFromFile(path string) (*Config, error) {
 func (c *Config) Validate() error {
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("invalid server port: %d", c.Server.Port)
+	}
+	if c.Server.AdminPort != 0 {
+		if c.Server.AdminPort <= 0 || c.Server.AdminPort > 65535 {
+			return fmt.Errorf("invalid admin port: %d", c.Server.AdminPort)
+		}
+		if c.Server.AdminPort == c.Server.Port {
+			return fmt.Errorf("admin port must differ from server port: %d", c.Server.AdminPort)
+		}
 	}
 
 	if len(c.Providers) == 0 {

@@ -174,8 +174,8 @@ const (
 	// StrategyShuffle is an alias for StrategySimpleShuffle.
 	StrategyShuffle = router.StrategySimpleShuffle
 
-	// StrategyRoundRobin is an alias for StrategySimpleShuffle (Go doesn't have true round-robin).
-	StrategyRoundRobin = router.StrategySimpleShuffle
+	// StrategyRoundRobin selects deployments in strict round-robin order.
+	StrategyRoundRobin = router.StrategyRoundRobin
 
 	// StrategyLowestLatency selects the deployment with lowest average latency.
 	StrategyLowestLatency = router.StrategyLowestLatency

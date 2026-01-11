@@ -11,6 +11,7 @@ import (
 
 	"github.com/goccy/go-json"
 
+	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/internal/resilience"
@@ -143,9 +144,9 @@ func New(opts ...Option) (*Client, error) {
 	}
 
 	// Initialize distributed rate limiter
+	c.rateLimiterConfig = cfg.RateLimiterConfig
 	if cfg.RateLimiter != nil {
 		c.rateLimiter = cfg.RateLimiter
-		c.rateLimiterConfig = cfg.RateLimiterConfig
 	}
 
 	c.logger.Info("llmux client initialized",
@@ -227,7 +228,8 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	}
 
 	// Check rate limit before processing request
-	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, "")
+	apiKey := c.rateLimitAPIKey(ctx)
+	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
 	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
 	estimatedTokens := promptEstimate
 	if req.MaxTokens > 0 {
@@ -330,7 +332,8 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	req.Stream = true
 
 	// Check rate limit before processing request
-	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, "")
+	apiKey := c.rateLimitAPIKey(ctx)
+	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
 	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
 	estimatedTokens := promptEstimate
 	if req.MaxTokens > 0 {
@@ -461,7 +464,8 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 	}
 
 	// Check rate limit before processing request
-	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, "")
+	apiKey := c.rateLimitAPIKey(ctx)
+	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
 	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, 0); err != nil {
 		return nil, err
 	}
@@ -703,9 +707,6 @@ func (c *Client) RegisterProviderFactory(providerType string, factory ProviderFa
 
 func (c *Client) buildRateLimitKey(model, user, apiKey string) string {
 	defaultKey := "default"
-	if user != "" {
-		defaultKey = user
-	}
 	switch c.rateLimiterConfig.KeyStrategy {
 	case RateLimitKeyByAPIKey:
 		if apiKey != "" {
@@ -716,7 +717,7 @@ func (c *Client) buildRateLimitKey(model, user, apiKey string) string {
 		if model != "" {
 			return model
 		}
-		return "default"
+		return defaultKey
 	case RateLimitKeyByAPIKeyAndModel:
 		baseKey := defaultKey
 		if apiKey != "" {
@@ -727,10 +728,27 @@ func (c *Client) buildRateLimitKey(model, user, apiKey string) string {
 		}
 		return baseKey + ":" + model
 	case RateLimitKeyByUser, "":
+		if user != "" {
+			return user
+		}
 		return defaultKey
 	default:
+		if user != "" {
+			return user
+		}
 		return defaultKey
 	}
+}
+
+func (c *Client) rateLimitAPIKey(ctx context.Context) string {
+	apiKey := rateLimitAPIKeyFromContext(ctx)
+	if apiKey != "" {
+		return apiKey
+	}
+	if authCtx := auth.GetAuthContext(ctx); authCtx != nil && authCtx.APIKey != nil {
+		return authCtx.APIKey.ID
+	}
+	return ""
 }
 
 func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimatedTokens int) error {
