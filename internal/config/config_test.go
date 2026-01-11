@@ -34,6 +34,10 @@ func TestDefaultConfig(t *testing.T) {
 	if cfg.Stream.RecoveryMode != "retry" {
 		t.Errorf("default stream recovery mode = %s, want retry", cfg.Stream.RecoveryMode)
 	}
+
+	if cfg.CORS.AllowAllOrigins {
+		t.Error("cors allow_all_origins should be disabled by default")
+	}
 }
 
 func TestConfigValidation(t *testing.T) {
@@ -232,6 +236,22 @@ func TestConfigValidation(t *testing.T) {
 					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 				},
 				Stream: StreamConfig{RecoveryMode: "unknown"},
+			},
+			wantErr: true,
+		},
+		{
+			name: "cors wildcard without allow_all",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				CORS: CORSConfig{
+					Enabled: true,
+					DataOrigins: CORSOrigins{
+						Allowlist: []string{"*"},
+					},
+				},
 			},
 			wantErr: true,
 		},
