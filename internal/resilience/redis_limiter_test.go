@@ -19,9 +19,10 @@ func TestRedisLimiter_CheckAllow(t *testing.T) {
 	rdb := redis.NewClient(&redis.Options{
 		Addr: s.Addr(),
 	})
+	var client redis.UniversalClient = rdb
 
 	// Initialize RedisLimiter
-	limiter := NewRedisLimiter(rdb)
+	limiter := NewRedisLimiter(client)
 
 	ctx := context.Background()
 
@@ -118,4 +119,38 @@ func TestRedisLimiter_CheckAllow(t *testing.T) {
 		require.NoError(t, err)
 		assert.Equal(t, int64(1), results[0].Current)
 	})
+}
+
+func TestRedisLimiter_KeyHashTagAndScript(t *testing.T) {
+	s := miniredis.RunT(t)
+	rdb := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	var client redis.UniversalClient = rdb
+
+	limiter := NewRedisLimiter(client)
+	ctx := context.Background()
+
+	desc := Descriptor{
+		Key:    "user-1",
+		Value:  "model-a",
+		Limit:  5,
+		Type:   LimitTypeRequests,
+		Window: time.Minute,
+	}
+
+	_, err := limiter.CheckAllow(ctx, []Descriptor{desc})
+	require.NoError(t, err)
+
+	tag := "{user-1:model-a}"
+	windowKey := tag + ":requests:window"
+	counterKey := tag + ":requests:count"
+
+	require.ElementsMatch(t, []string{counterKey, windowKey}, s.Keys())
+
+	counterVal, err := client.Get(ctx, counterKey).Result()
+	require.NoError(t, err)
+	require.Equal(t, "1", counterVal)
+
+	windowVal, err := client.Get(ctx, windowKey).Result()
+	require.NoError(t, err)
+	require.NotEmpty(t, windowVal)
 }
