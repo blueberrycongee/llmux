@@ -14,6 +14,7 @@ import (
 type dataHandler interface {
 	HealthCheck(http.ResponseWriter, *http.Request)
 	ChatCompletions(http.ResponseWriter, *http.Request)
+	Completions(http.ResponseWriter, *http.Request)
 	Embeddings(http.ResponseWriter, *http.Request)
 	ListModels(http.ResponseWriter, *http.Request)
 }
@@ -63,6 +64,7 @@ func registerDataRoutes(mux *http.ServeMux, handler dataHandler, cfg *config.Con
 
 	// OpenAI-compatible endpoints
 	mux.HandleFunc("POST /v1/chat/completions", handler.ChatCompletions)
+	mux.HandleFunc("POST /v1/completions", handler.Completions)
 	mux.HandleFunc("POST /v1/embeddings", handler.Embeddings)
 	mux.HandleFunc("POST /embeddings", handler.Embeddings)
 	mux.HandleFunc("GET /v1/models", handler.ListModels)
