@@ -269,6 +269,51 @@ func TestTenantRateLimiter_MiddlewareWithAuth(t *testing.T) {
 	}
 }
 
+func TestTenantRateLimiter_MiddlewareWithAuth_DefaultBurstOverride(t *testing.T) {
+	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
+		DefaultRPM:      60,
+		DefaultBurst:    3,
+		CleanupTTL:      time.Minute,
+		UseDefaultBurst: true,
+	})
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	rpm := int64(60)
+	authCtx := &AuthContext{
+		APIKey: &APIKey{
+			ID:       "key-override",
+			RPMLimit: &rpm,
+		},
+	}
+
+	for i := 0; i < 3; i++ {
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		ctx := context.WithValue(req.Context(), AuthContextKey, authCtx)
+		req = req.WithContext(ctx)
+
+		rr := httptest.NewRecorder()
+		trl.RateLimitMiddleware(handler).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Errorf("request %d: expected 200, got %d", i+1, rr.Code)
+		}
+	}
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	ctx := context.WithValue(req.Context(), AuthContextKey, authCtx)
+	req = req.WithContext(ctx)
+
+	rr := httptest.NewRecorder()
+	trl.RateLimitMiddleware(handler).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusTooManyRequests {
+		t.Errorf("4th request: expected 429, got %d", rr.Code)
+	}
+}
+
 func TestTenantRateLimiter_IsolatedTenants(t *testing.T) {
 	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
 		DefaultRPM:   60,

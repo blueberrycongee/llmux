@@ -17,6 +17,7 @@ type TenantRateLimiter struct {
 	limiters           map[string]*rate.Limiter
 	defaultRate        rate.Limit
 	defaultBurst       int
+	useDefaultBurst    bool
 	cleanupTTL         time.Duration
 	lastAccess         map[string]time.Time
 	distributedLimiter resilience.DistributedLimiter
@@ -24,9 +25,10 @@ type TenantRateLimiter struct {
 
 // TenantRateLimiterConfig contains configuration for the tenant rate limiter.
 type TenantRateLimiterConfig struct {
-	DefaultRPM   int           // Default requests per minute
-	DefaultBurst int           // Default burst size
-	CleanupTTL   time.Duration // TTL for inactive limiters
+	DefaultRPM      int           // Default requests per minute
+	DefaultBurst    int           // Default burst size
+	UseDefaultBurst bool          // Override burst for custom RPM limits
+	CleanupTTL      time.Duration // TTL for inactive limiters
 }
 
 // NewTenantRateLimiter creates a new per-tenant rate limiter.
@@ -42,11 +44,12 @@ func NewTenantRateLimiter(cfg *TenantRateLimiterConfig) *TenantRateLimiter {
 	}
 
 	trl := &TenantRateLimiter{
-		limiters:     make(map[string]*rate.Limiter),
-		defaultRate:  rate.Limit(float64(cfg.DefaultRPM) / 60.0),
-		defaultBurst: cfg.DefaultBurst,
-		cleanupTTL:   cfg.CleanupTTL,
-		lastAccess:   make(map[string]time.Time),
+		limiters:        make(map[string]*rate.Limiter),
+		defaultRate:     rate.Limit(float64(cfg.DefaultRPM) / 60.0),
+		defaultBurst:    cfg.DefaultBurst,
+		useDefaultBurst: cfg.UseDefaultBurst,
+		cleanupTTL:      cfg.CleanupTTL,
+		lastAccess:      make(map[string]time.Time),
 	}
 
 	// Start cleanup goroutine
@@ -240,16 +243,13 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 		if authCtx.APIKey.RPMLimit != nil {
 			rpm = int(*authCtx.APIKey.RPMLimit)
 		}
-		burst := rpm / 6 // Default burst = 10% of RPM
-		if burst < 1 {
-			burst = 1
-		}
+		burst := trl.burstForRate(rpm, 1)
 
 		// Check team rate limit if applicable
 		if authCtx.Team != nil && authCtx.Team.RPMLimit != nil && *authCtx.Team.RPMLimit > 0 {
 			teamID := "team:" + authCtx.Team.ID
 			teamRPM := int(*authCtx.Team.RPMLimit)
-			allowed, _ := trl.Check(r.Context(), teamID, teamRPM, teamRPM/6)
+			allowed, _ := trl.Check(r.Context(), teamID, teamRPM, trl.burstForRate(teamRPM, 0))
 			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
 				w.Header().Set("Retry-After", "60")
@@ -282,4 +282,15 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 
 		next.ServeHTTP(w, r)
 	})
+}
+
+func (trl *TenantRateLimiter) burstForRate(rpm int, minBurst int) int {
+	if trl.useDefaultBurst && trl.defaultBurst > 0 {
+		return trl.defaultBurst
+	}
+	burst := rpm / 6
+	if burst < minBurst {
+		return minBurst
+	}
+	return burst
 }

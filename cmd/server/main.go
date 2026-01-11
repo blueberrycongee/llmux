@@ -250,10 +250,21 @@ func run() error {
 	// Note: This is separate from application-level rate limiting in client.go
 	if cfg.RateLimit.Enabled {
 		defaultRPM := int(cfg.RateLimit.RequestsPerMinute)
+		defaultBurst := cfg.RateLimit.BurstSize
+		useDefaultBurst := false
+		if defaultBurst <= 0 {
+			defaultBurst = defaultRPM / 6
+			if defaultBurst < 1 {
+				defaultBurst = 1
+			}
+		} else {
+			useDefaultBurst = true
+		}
 		rateLimiter := auth.NewTenantRateLimiter(&auth.TenantRateLimiterConfig{
-			DefaultRPM:   defaultRPM,
-			DefaultBurst: defaultRPM / 6, // ~10 seconds burst
-			CleanupTTL:   10 * time.Minute,
+			DefaultRPM:      defaultRPM,
+			DefaultBurst:    defaultBurst,
+			UseDefaultBurst: useDefaultBurst,
+			CleanupTTL:      10 * time.Minute,
 		})
 
 		// Inject distributed limiter if configured (for multi-instance deployments)
@@ -285,6 +296,7 @@ func run() error {
 		httpHandler = rateLimiter.RateLimitMiddleware(httpHandler)
 		logger.Info("gateway rate limiting enabled",
 			"default_rpm", cfg.RateLimit.RequestsPerMinute,
+			"default_burst", defaultBurst,
 			"distributed", cfg.RateLimit.Distributed,
 		)
 	}
