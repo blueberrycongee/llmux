@@ -79,25 +79,26 @@ func (r *CostRouter) Pick(ctx context.Context, model string) (*provider.Deployme
 
 // PickWithContext selects the deployment with lowest cost per token.
 func (r *CostRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
-	r.mu.RLock()
-	healthy := r.getHealthyDeployments(reqCtx.Model)
+	deployments := r.snapshotDeployments(reqCtx.Model)
+	if len(deployments) == 0 {
+		return nil, ErrNoAvailableDeployment
+	}
+	statsByID := r.statsSnapshot(ctx, deployments)
+	healthy := r.getHealthyDeployments(deployments, statsByID)
 	if len(healthy) == 0 {
-		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
 
 	if reqCtx.EstimatedInputTokens > 0 {
-		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
+		healthy = r.filterByTPMRPM(healthy, statsByID, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
@@ -135,7 +136,6 @@ func (r *CostRouter) PickWithContext(ctx context.Context, reqCtx *router.Request
 			cost:       totalCost,
 		})
 	}
-	r.mu.RUnlock()
 
 	// Shuffle first to randomize order for equal costs
 	r.randShuffle(len(candidates), func(i, j int) {

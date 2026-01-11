@@ -53,17 +53,19 @@ func (r *TPMRPMRouter) Pick(ctx context.Context, model string) (*provider.Deploy
 
 // PickWithContext selects the deployment with lowest TPM/RPM usage.
 func (r *TPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
-	r.mu.RLock()
-	healthy := r.getHealthyDeployments(reqCtx.Model)
+	deployments := r.snapshotDeployments(reqCtx.Model)
+	if len(deployments) == 0 {
+		return nil, ErrNoAvailableDeployment
+	}
+	statsByID := r.statsSnapshot(ctx, deployments)
+	healthy := r.getHealthyDeployments(deployments, statsByID)
 	if len(healthy) == 0 {
-		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
@@ -76,13 +78,12 @@ func (r *TPMRPMRouter) PickWithContext(ctx context.Context, reqCtx *router.Reque
 	candidates := make([]deploymentInfo, len(healthy))
 	for i, d := range healthy {
 		var currentTPM, currentRPM int64
-		if stats := r.stats[d.ID]; stats != nil {
+		if stats := statsByID[d.ID]; stats != nil {
 			currentTPM = stats.CurrentMinuteTPM
 			currentRPM = stats.CurrentMinuteRPM
 		}
 		candidates[i] = deploymentInfo{deployment: d, currentTPM: currentTPM, currentRPM: currentRPM}
 	}
-	r.mu.RUnlock()
 
 	// Shuffle first to randomize selection among equal candidates
 	r.randShuffle(len(candidates), func(i, j int) {

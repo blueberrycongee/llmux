@@ -49,32 +49,32 @@ func (r *ShuffleRouter) Pick(ctx context.Context, model string) (*provider.Deplo
 
 // PickWithContext selects a deployment using weighted random selection if weights are configured.
 func (r *ShuffleRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
-	r.mu.RLock()
-	healthy := r.getHealthyDeployments(reqCtx.Model)
+	deployments := r.snapshotDeployments(reqCtx.Model)
+	if len(deployments) == 0 {
+		return nil, ErrNoAvailableDeployment
+	}
+	statsByID := r.statsSnapshot(ctx, deployments)
+	healthy := r.getHealthyDeployments(deployments, statsByID)
 	if len(healthy) == 0 {
-		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
 
 	if reqCtx.EstimatedInputTokens > 0 {
-		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
+		healthy = r.filterByTPMRPM(healthy, statsByID, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
 
 	healthyCopy := make([]*ExtendedDeployment, len(healthy))
 	copy(healthyCopy, healthy)
-	r.mu.RUnlock()
 
 	// Try weighted selection by weight, rpm, or tpm (in that order)
 	if deployment := r.weightedPick(healthyCopy, "weight"); deployment != nil {
