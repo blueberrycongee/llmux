@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 )
@@ -329,6 +330,114 @@ server:
 		_, err := LoadFromFile(path)
 		if err == nil {
 			t.Error("expected error for invalid yaml")
+		}
+	})
+}
+
+func TestConfigValidation_DistributedMode(t *testing.T) {
+	baseConfig := func() *Config {
+		return &Config{
+			Server: ServerConfig{Port: 8080},
+			Providers: []ProviderConfig{
+				{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+			},
+			Deployment: DeploymentConfig{Mode: "distributed"},
+			Database: DatabaseConfig{
+				Enabled:  true,
+				Host:     "localhost",
+				Port:     5432,
+				User:     "llmux",
+				Database: "llmux",
+				SSLMode:  "disable",
+			},
+			Routing: RoutingConfig{
+				Distributed: true,
+			},
+			Cache: CacheConfig{
+				Redis: RedisCacheConfig{Addr: "localhost:6379"},
+			},
+		}
+	}
+
+	t.Run("requires postgres when distributed", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Database.Enabled = false
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Fatal("expected validation error")
+		}
+		if !strings.Contains(err.Error(), "database.enabled") {
+			t.Fatalf("expected database.enabled error, got %v", err)
+		}
+	})
+
+	t.Run("requires routing.distributed when distributed", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Routing.Distributed = false
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Fatal("expected validation error")
+		}
+		if !strings.Contains(err.Error(), "routing.distributed") {
+			t.Fatalf("expected routing.distributed error, got %v", err)
+		}
+	})
+
+	t.Run("requires redis for distributed routing", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Cache.Redis.Addr = ""
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Fatal("expected validation error")
+		}
+		if !strings.Contains(err.Error(), "cache.redis") {
+			t.Fatalf("expected cache.redis error, got %v", err)
+		}
+	})
+
+	t.Run("requires distributed rate limiting when enabled", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.RateLimit.Enabled = true
+		cfg.RateLimit.Distributed = false
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Fatal("expected validation error")
+		}
+		if !strings.Contains(err.Error(), "rate_limit.distributed") {
+			t.Fatalf("expected rate_limit.distributed error, got %v", err)
+		}
+	})
+
+	t.Run("distributed rate limiting requires redis", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.RateLimit.Enabled = true
+		cfg.RateLimit.Distributed = true
+		cfg.Cache.Redis.Addr = ""
+
+		err := cfg.Validate()
+		if err == nil {
+			t.Fatal("expected validation error")
+		}
+		if !strings.Contains(err.Error(), "cache.redis") {
+			t.Fatalf("expected cache.redis error, got %v", err)
+		}
+	})
+
+	t.Run("development mode skips distributed checks", func(t *testing.T) {
+		cfg := baseConfig()
+		cfg.Deployment.Mode = "development"
+		cfg.Database.Enabled = false
+		cfg.Routing.Distributed = false
+		cfg.Cache.Redis.Addr = ""
+		cfg.RateLimit.Enabled = true
+		cfg.RateLimit.Distributed = false
+
+		if err := cfg.Validate(); err != nil {
+			t.Fatalf("expected no error, got %v", err)
 		}
 	})
 }

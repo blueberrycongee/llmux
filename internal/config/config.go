@@ -5,6 +5,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"gopkg.in/yaml.v3"
@@ -13,6 +14,7 @@ import (
 // Config represents the complete gateway configuration.
 type Config struct {
 	Server      ServerConfig     `yaml:"server"`
+	Deployment  DeploymentConfig `yaml:"deployment"`
 	Providers   []ProviderConfig `yaml:"providers"`
 	Routing     RoutingConfig    `yaml:"routing"`
 	Stream      StreamConfig     `yaml:"stream"`
@@ -26,6 +28,12 @@ type Config struct {
 	MCP         MCPConfig        `yaml:"mcp"`
 	Vault       VaultConfig      `yaml:"vault"`
 	PricingFile string           `yaml:"pricing_file"`
+}
+
+// DeploymentConfig contains deployment mode settings.
+// Modes: standalone, distributed, development.
+type DeploymentConfig struct {
+	Mode string `yaml:"mode"`
 }
 
 // VaultConfig contains HashiCorp Vault settings.
@@ -269,6 +277,9 @@ func DefaultConfig() *Config {
 			WriteTimeout: 120 * time.Second,
 			IdleTimeout:  60 * time.Second,
 		},
+		Deployment: DeploymentConfig{
+			Mode: "standalone",
+		},
 		Routing: RoutingConfig{
 			Strategy:        "simple-shuffle",
 			FallbackEnabled: true,
@@ -372,6 +383,11 @@ func LoadFromFile(path string) (*Config, error) {
 
 // Validate checks the configuration for errors.
 func (c *Config) Validate() error {
+	mode, err := normalizeDeploymentMode(c.Deployment.Mode)
+	if err != nil {
+		return err
+	}
+
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {
 		return fmt.Errorf("invalid server port: %d", c.Server.Port)
 	}
@@ -449,5 +465,40 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if mode == "distributed" {
+		if !c.Database.Enabled {
+			return fmt.Errorf("deployment.mode=distributed requires database.enabled=true for auth and usage storage")
+		}
+		if !c.Routing.Distributed {
+			return fmt.Errorf("deployment.mode=distributed requires routing.distributed=true for shared routing stats")
+		}
+		if c.Routing.Distributed && !hasRedisConfig(c.Cache.Redis) {
+			return fmt.Errorf("deployment.mode=distributed requires cache.redis.addr or cache.redis.cluster_addrs for routing stats")
+		}
+		if c.RateLimit.Enabled && !c.RateLimit.Distributed {
+			return fmt.Errorf("deployment.mode=distributed requires rate_limit.distributed=true when rate_limit.enabled")
+		}
+		if c.RateLimit.Enabled && c.RateLimit.Distributed && !hasRedisConfig(c.Cache.Redis) {
+			return fmt.Errorf("deployment.mode=distributed requires cache.redis.addr or cache.redis.cluster_addrs for rate limiting")
+		}
+	}
+
 	return nil
+}
+
+func normalizeDeploymentMode(mode string) (string, error) {
+	normalized := strings.ToLower(strings.TrimSpace(mode))
+	if normalized == "" {
+		return "standalone", nil
+	}
+	switch normalized {
+	case "standalone", "distributed", "development":
+		return normalized, nil
+	default:
+		return "", fmt.Errorf("deployment.mode must be one of: standalone, distributed, development")
+	}
+}
+
+func hasRedisConfig(cfg RedisCacheConfig) bool {
+	return cfg.Addr != "" || len(cfg.ClusterAddrs) > 0
 }
