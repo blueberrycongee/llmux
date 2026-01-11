@@ -486,6 +486,7 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 			TPMLimit:    cfg.RateLimit.TokensPerMinute,
 			WindowSize:  windowSize,
 			KeyStrategy: mapKeyStrategy(cfg.RateLimit.KeyStrategy),
+			FailOpen:    cfg.RateLimit.FailOpen,
 		}))
 	}
 
