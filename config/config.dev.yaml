@@ -38,6 +38,9 @@ metrics:
 tracing:
   enabled: false
 
+observability:
+  enabled_callbacks: []
+
 auth:
   enabled: false
   skip_paths:

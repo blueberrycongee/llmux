@@ -8,27 +8,29 @@ import (
 	"strings"
 	"time"
 
+	"github.com/blueberrycongee/llmux/internal/observability"
 	"gopkg.in/yaml.v3"
 )
 
 // Config represents the complete gateway configuration.
 type Config struct {
-	Server      ServerConfig     `yaml:"server"`
-	Deployment  DeploymentConfig `yaml:"deployment"`
-	Providers   []ProviderConfig `yaml:"providers"`
-	Routing     RoutingConfig    `yaml:"routing"`
-	Stream      StreamConfig     `yaml:"stream"`
-	RateLimit   RateLimitConfig  `yaml:"rate_limit"`
-	Logging     LoggingConfig    `yaml:"logging"`
-	Metrics     MetricsConfig    `yaml:"metrics"`
-	Tracing     TracingConfig    `yaml:"tracing"`
-	CORS        CORSConfig       `yaml:"cors"`
-	Auth        AuthConfig       `yaml:"auth"`
-	Database    DatabaseConfig   `yaml:"database"`
-	Cache       CacheConfig      `yaml:"cache"`
-	MCP         MCPConfig        `yaml:"mcp"`
-	Vault       VaultConfig      `yaml:"vault"`
-	PricingFile string           `yaml:"pricing_file"`
+	Server        ServerConfig                      `yaml:"server"`
+	Deployment    DeploymentConfig                  `yaml:"deployment"`
+	Providers     []ProviderConfig                  `yaml:"providers"`
+	Routing       RoutingConfig                     `yaml:"routing"`
+	Stream        StreamConfig                      `yaml:"stream"`
+	RateLimit     RateLimitConfig                   `yaml:"rate_limit"`
+	Logging       LoggingConfig                     `yaml:"logging"`
+	Metrics       MetricsConfig                     `yaml:"metrics"`
+	Tracing       TracingConfig                     `yaml:"tracing"`
+	Observability observability.ObservabilityConfig `yaml:"observability"`
+	CORS          CORSConfig                        `yaml:"cors"`
+	Auth          AuthConfig                        `yaml:"auth"`
+	Database      DatabaseConfig                    `yaml:"database"`
+	Cache         CacheConfig                       `yaml:"cache"`
+	MCP           MCPConfig                         `yaml:"mcp"`
+	Vault         VaultConfig                       `yaml:"vault"`
+	PricingFile   string                            `yaml:"pricing_file"`
 }
 
 // DeploymentConfig contains deployment mode settings.
@@ -336,6 +338,7 @@ func DefaultConfig() *Config {
 			SampleRate:  1.0,
 			Insecure:    true,
 		},
+		Observability: observability.DefaultObservabilityConfig(),
 		CORS: CORSConfig{
 			Enabled:          false,
 			AllowAllOrigins:  false,

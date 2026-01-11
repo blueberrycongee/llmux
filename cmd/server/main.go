@@ -106,19 +106,27 @@ func run() error {
 		logger.Info("vault provider disabled")
 	}
 
-	// Initialize OpenTelemetry tracing
-	tracingCfg := observability.TracingConfig{
-		Enabled:     cfg.Tracing.Enabled,
-		Endpoint:    cfg.Tracing.Endpoint,
-		ServiceName: cfg.Tracing.ServiceName,
-		SampleRate:  cfg.Tracing.SampleRate,
-		Insecure:    cfg.Tracing.Insecure,
+	// Initialize observability manager
+	obsCfg := cfg.Observability
+	if cfg.Tracing.Enabled && !obsCfg.OpenTelemetry.Enabled {
+		obsCfg.OpenTelemetry = observability.TracingConfig{
+			Enabled:      true,
+			Endpoint:     cfg.Tracing.Endpoint,
+			ExporterType: observability.ExporterGRPC,
+			ServiceName:  cfg.Tracing.ServiceName,
+			SampleRate:   cfg.Tracing.SampleRate,
+			Insecure:     cfg.Tracing.Insecure,
+		}
 	}
-	tracerProvider, err := observability.InitTracing(context.Background(), tracingCfg)
+	if obsCfg.OpenTelemetry.Enabled && !hasCallback(obsCfg.EnabledCallbacks, "otel", "opentelemetry") {
+		obsCfg.EnabledCallbacks = append(obsCfg.EnabledCallbacks, "otel")
+	}
+	obsMgr, err := observability.NewObservabilityManager(obsCfg)
 	if err != nil {
-		logger.Error("failed to initialize tracing", "error", err)
-	} else if cfg.Tracing.Enabled {
-		logger.Info("tracing enabled", "endpoint", cfg.Tracing.Endpoint)
+		return fmt.Errorf("failed to initialize observability: %w", err)
+	}
+	if len(obsCfg.EnabledCallbacks) > 0 {
+		logger.Info("observability callbacks enabled", "callbacks", obsCfg.EnabledCallbacks)
 	}
 
 	// Start config watcher
@@ -205,8 +213,9 @@ func run() error {
 	// Initialize API handler using ClientHandler (wraps llmux.Client)
 	// Now with Store integration for usage logging and budget tracking
 	handlerCfg := &api.ClientHandlerConfig{
-		Store:      authStore,
-		MCPManager: mcpManager,
+		Store:         authStore,
+		MCPManager:    mcpManager,
+		Observability: obsMgr,
 	}
 	handler := api.NewClientHandlerWithSwapper(clientSwapper, logger, handlerCfg)
 
@@ -249,6 +258,7 @@ func run() error {
 	}
 
 	dataHandler := middleware(muxes.Data)
+	dataHandler = observability.RequestIDMiddleware(dataHandler)
 
 	// Create data server
 	dataServer := &http.Server{
@@ -262,6 +272,7 @@ func run() error {
 	var adminServer *http.Server
 	if muxes.Admin != nil {
 		adminHandler := middleware(muxes.Admin)
+		adminHandler = observability.RequestIDMiddleware(adminHandler)
 		adminServer = &http.Server{
 			Addr:         fmt.Sprintf(":%d", cfg.Server.AdminPort),
 			Handler:      adminHandler,
@@ -312,15 +323,26 @@ func run() error {
 		}
 	}
 
-	// Shutdown tracing
-	if tracerProvider != nil {
-		if err := tracerProvider.Shutdown(shutdownCtx); err != nil {
-			logger.Error("tracer shutdown error", "error", err)
+	// Shutdown observability
+	if obsMgr != nil {
+		if err := obsMgr.Shutdown(shutdownCtx); err != nil {
+			logger.Error("observability shutdown error", "error", err)
 		}
 	}
 
 	logger.Info("server stopped")
 	return nil
+}
+
+func hasCallback(callbacks []string, names ...string) bool {
+	for _, cb := range callbacks {
+		for _, name := range names {
+			if strings.EqualFold(cb, name) {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 const routingRetryBackoff = 100 * time.Millisecond

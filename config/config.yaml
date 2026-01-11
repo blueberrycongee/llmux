@@ -94,6 +94,10 @@ tracing:
   sample_rate: 1.0          # 1.0 = 100% sampling, 0.1 = 10% sampling
   insecure: true            # Set to false for TLS connections
 
+# Observability callbacks (prometheus, otel, otel_metrics, otel_logs, langfuse, s3, slack, datadog, datadog_llm_obs)
+observability:
+  enabled_callbacks: []
+
 # CORS (production defaults: wildcard disabled)
 cors:
   enabled: false

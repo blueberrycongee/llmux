@@ -5,6 +5,7 @@ import (
 	"context"
 	"io"
 	"log/slog"
+	"os"
 )
 
 // Logger wraps slog.Logger with redaction and request ID support.
@@ -23,6 +24,9 @@ type LoggerConfig struct {
 
 // NewLogger creates a new logger with redaction support.
 func NewLogger(cfg LoggerConfig, redactor *Redactor) *Logger {
+	if cfg.Output == nil {
+		cfg.Output = os.Stdout
+	}
 	opts := &slog.HandlerOptions{
 		Level:     cfg.Level,
 		AddSource: cfg.AddSource,

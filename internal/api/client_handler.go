@@ -4,19 +4,21 @@ package api //nolint:revive // package name is intentional
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log/slog"
+	"net"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/goccy/go-json"
-	"github.com/google/uuid"
 
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/mcp"
 	"github.com/blueberrycongee/llmux/internal/metrics"
+	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/streaming"
 	"github.com/blueberrycongee/llmux/internal/tokenizer"
@@ -33,13 +35,15 @@ type ClientHandler struct {
 	maxBodySize int64
 	store       auth.Store // Storage for usage logging and budget tracking
 	mcpManager  mcp.Manager
+	obs         *observability.ObservabilityManager
 }
 
 // ClientHandlerConfig contains configuration for ClientHandler.
 type ClientHandlerConfig struct {
-	MaxBodySize int64      // Maximum request body size in bytes
-	Store       auth.Store // Storage for usage logging (optional)
-	MCPManager  mcp.Manager
+	MaxBodySize   int64      // Maximum request body size in bytes
+	Store         auth.Store // Storage for usage logging (optional)
+	MCPManager    mcp.Manager
+	Observability *observability.ObservabilityManager
 }
 
 // NewClientHandler creates a new handler that wraps llmux.Client.
@@ -52,12 +56,14 @@ func NewClientHandlerWithSwapper(swapper *ClientSwapper, logger *slog.Logger, cf
 	maxBodySize := int64(DefaultMaxBodySize)
 	var store auth.Store
 	var manager mcp.Manager
+	var obs *observability.ObservabilityManager
 	if cfg != nil {
 		if cfg.MaxBodySize > 0 {
 			maxBodySize = cfg.MaxBodySize
 		}
 		store = cfg.Store
 		manager = cfg.MCPManager
+		obs = cfg.Observability
 	}
 
 	return &ClientHandler{
@@ -66,6 +72,7 @@ func NewClientHandlerWithSwapper(swapper *ClientSwapper, logger *slog.Logger, cf
 		maxBodySize: maxBodySize,
 		store:       store,
 		mcpManager:  manager,
+		obs:         obs,
 	}
 }
 
@@ -86,7 +93,7 @@ func (h *ClientHandler) getMCPManager(ctx context.Context) mcp.Manager {
 // ChatCompletions handles POST /v1/chat/completions requests.
 func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	requestID := uuid.New().String()
+	r, requestID := h.ensureRequestID(r)
 
 	// Limit request body size to prevent OOM
 	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
@@ -121,12 +128,19 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	manager := h.getMCPManager(r.Context())
+	payload := h.buildChatObservabilityPayload(r, req, start, requestID)
+	ctx, endSpan := h.startSpan(r.Context(), payload)
+	defer endSpan()
+	h.observePre(ctx, payload)
+
+	manager := h.getMCPManager(ctx)
 
 	client, release := h.acquireClient()
 	defer release()
 	if client == nil {
-		h.writeError(w, llmerrors.NewInternalError("", req.Model, "client not initialized"))
+		err := llmerrors.NewInternalError("", req.Model, "client not initialized")
+		h.observePost(ctx, payload, err)
+		h.writeError(w, err)
 		return
 	}
 
@@ -134,7 +148,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	if req.Stream {
 		if manager != nil {
 			if injector, ok := manager.(mcp.ToolInjector); ok {
-				injector.InjectTools(r.Context(), req)
+				injector.InjectTools(ctx, req)
 			}
 		}
 
@@ -145,7 +159,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 			req.StreamOptions.IncludeUsage = true
 		}
 
-		h.handleStreamResponse(w, r, client, req, start, requestID)
+		h.handleStreamResponse(ctx, w, r, client, req, start, requestID, payload)
 		return
 	}
 
@@ -153,13 +167,14 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	var resp *llmux.ChatResponse
 	if manager != nil {
 		executor := mcp.NewAgentExecutor(manager, 0, h.logger)
-		resp, err = executor.Execute(r.Context(), req, func(ctx context.Context, r *llmux.ChatRequest) (*llmux.ChatResponse, error) {
-			return client.ChatCompletion(ctx, r)
+		resp, err = executor.Execute(ctx, req, func(execCtx context.Context, r *llmux.ChatRequest) (*llmux.ChatResponse, error) {
+			return client.ChatCompletion(execCtx, r)
 		})
 	} else {
-		resp, err = client.ChatCompletion(r.Context(), req)
+		resp, err = client.ChatCompletion(ctx, req)
 	}
 	if err != nil {
+		h.observePost(ctx, payload, err)
 		h.logger.Error("chat completion failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
@@ -189,7 +204,30 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 	// === USAGE LOGGING AND SPEND TRACKING (P0 Fix) ===
 	// Record usage and update spent budget for budget control
-	h.recordUsage(r.Context(), requestID, req.Model, "chat_completion", resp.Usage, start, latency)
+	modelName := req.Model
+	if resp.Model != "" {
+		modelName = resp.Model
+	}
+	h.recordUsage(ctx, requestID, modelName, "chat_completion", resp.Usage, start, latency)
+
+	if resp.Usage != nil {
+		payload.PromptTokens = resp.Usage.PromptTokens
+		payload.CompletionTokens = resp.Usage.CompletionTokens
+		payload.TotalTokens = resp.Usage.TotalTokens
+		payload.ResponseCost = client.CalculateCost(modelName, resp.Usage)
+		if resp.Usage.Provider != "" {
+			payload.APIProvider = resp.Usage.Provider
+		}
+	}
+	if payload.APIProvider == "" {
+		payload.APIProvider = "llmux"
+	}
+	if resp.Model != "" {
+		payload.Model = resp.Model
+	}
+	payload.ID = resp.ID
+	payload.Response = resp
+	h.observePost(ctx, payload, nil)
 
 	// Write response
 	w.Header().Set("Content-Type", "application/json")
@@ -198,9 +236,10 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	}
 }
 
-func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Request, client *llmux.Client, req *llmux.ChatRequest, start time.Time, requestID string) {
-	stream, err := client.ChatCompletionStream(r.Context(), req)
+func (h *ClientHandler) handleStreamResponse(ctx context.Context, w http.ResponseWriter, r *http.Request, client *llmux.Client, req *llmux.ChatRequest, start time.Time, requestID string, payload *observability.StandardLoggingPayload) {
+	stream, err := client.ChatCompletionStream(ctx, req)
 	if err != nil {
+		h.observePost(ctx, payload, err)
 		h.logger.Error("stream creation failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
@@ -225,6 +264,7 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 
 	var finalUsage *llmux.Usage
 	var completionContent strings.Builder
+	var streamErr error
 
 	// Forward stream chunks
 	for {
@@ -238,6 +278,7 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 			break
 		}
 		if err != nil {
+			streamErr = err
 			// Client disconnect is not an error worth logging at error level
 			if r.Context().Err() != nil {
 				h.logger.Debug("client disconnected during stream", "model", req.Model)
@@ -246,6 +287,8 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 			}
 			break
 		}
+
+		h.observeStreamEvent(ctx, payload, chunk)
 
 		// Capture usage if present (OpenAI standard puts it in the last chunk)
 		if chunk.Usage != nil {
@@ -265,12 +308,15 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 		}
 
 		if _, writeErr := w.Write([]byte("data: ")); writeErr != nil {
+			streamErr = writeErr
 			break
 		}
 		if _, writeErr := w.Write(data); writeErr != nil {
+			streamErr = writeErr
 			break
 		}
 		if _, writeErr := w.Write([]byte("\n\n")); writeErr != nil {
+			streamErr = writeErr
 			break
 		}
 		flusher.Flush()
@@ -292,13 +338,30 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Record usage and update spent budget
-	h.recordUsage(r.Context(), requestID, req.Model, "chat_completion", finalUsage, start, latency)
+	h.recordUsage(ctx, requestID, req.Model, "chat_completion", finalUsage, start, latency)
+
+	if payload != nil {
+		if finalUsage != nil {
+			payload.PromptTokens = finalUsage.PromptTokens
+			payload.CompletionTokens = finalUsage.CompletionTokens
+			payload.TotalTokens = finalUsage.TotalTokens
+			payload.ResponseCost = client.CalculateCost(req.Model, finalUsage)
+			if finalUsage.Provider != "" {
+				payload.APIProvider = finalUsage.Provider
+			}
+		}
+		if payload.APIProvider == "" {
+			payload.APIProvider = "llmux"
+		}
+		payload.Response = completionContent.String()
+	}
+	h.observePost(ctx, payload, streamErr)
 }
 
 // Completions handles POST /v1/completions requests.
 func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	requestID := uuid.New().String()
+	r, requestID := h.ensureRequestID(r)
 
 	client, release := h.acquireClient()
 	defer release()
@@ -651,14 +714,7 @@ func (h *ClientHandler) GetClient() *llmux.Client {
 // Embeddings handles POST /v1/embeddings requests.
 func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
-	requestID := uuid.New().String()
-
-	client, release := h.acquireClient()
-	defer release()
-	if client == nil {
-		h.writeError(w, llmerrors.NewInternalError("", "", "client not initialized"))
-		return
-	}
+	r, requestID := h.ensureRequestID(r)
 
 	// Limit request body size to prevent OOM
 	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
@@ -695,9 +751,24 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	payload := h.buildEmbeddingObservabilityPayload(r, &req, start, requestID)
+	ctx, endSpan := h.startSpan(r.Context(), payload)
+	defer endSpan()
+	h.observePre(ctx, payload)
+
+	client, release := h.acquireClient()
+	defer release()
+	if client == nil {
+		err := llmerrors.NewInternalError("", req.Model, "client not initialized")
+		h.observePost(ctx, payload, err)
+		h.writeError(w, err)
+		return
+	}
+
 	// Call client.Embedding
-	resp, err := client.Embedding(r.Context(), &req)
+	resp, err := client.Embedding(ctx, &req)
 	if err != nil {
+		h.observePost(ctx, payload, err)
 		h.logger.Error("embedding failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
@@ -716,7 +787,28 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Record usage for budget tracking
-	h.recordEmbeddingUsage(r.Context(), requestID, req.Model, &resp.Usage, start, latency)
+	modelName := req.Model
+	if resp.Model != "" {
+		modelName = resp.Model
+	}
+	h.recordEmbeddingUsage(ctx, requestID, modelName, &resp.Usage, start, latency)
+
+	if payload != nil {
+		payload.PromptTokens = resp.Usage.PromptTokens
+		payload.TotalTokens = resp.Usage.TotalTokens
+		payload.ResponseCost = client.CalculateCost(modelName, &resp.Usage)
+		if resp.Usage.Provider != "" {
+			payload.APIProvider = resp.Usage.Provider
+		}
+		if payload.APIProvider == "" {
+			payload.APIProvider = "llmux"
+		}
+		if resp.Model != "" {
+			payload.Model = resp.Model
+		}
+		payload.Response = resp
+	}
+	h.observePost(ctx, payload, nil)
 
 	// Write response
 	w.Header().Set("Content-Type", "application/json")
@@ -793,6 +885,223 @@ func (h *ClientHandler) recordEmbeddingUsage(ctx context.Context, requestID, mod
 			}
 		}
 	}()
+}
+
+func (h *ClientHandler) startSpan(ctx context.Context, payload *observability.StandardLoggingPayload) (context.Context, func()) {
+	if h.obs == nil || payload == nil {
+		return ctx, func() {}
+	}
+	tp := h.obs.TracerProvider()
+	if tp == nil {
+		return ctx, func() {}
+	}
+	tracer := tp.Tracer()
+	if tracer == nil {
+		return ctx, func() {}
+	}
+	if payload.APIProvider == "" {
+		payload.APIProvider = "llmux"
+	}
+	spanCtx, span := observability.StartLLMSpanWithPayload(ctx, tracer, payload)
+	return spanCtx, func() { span.End() }
+}
+
+func (h *ClientHandler) ensureRequestID(r *http.Request) (*http.Request, string) {
+	ctx, requestID := observability.GetOrCreateRequestID(r.Context())
+	if ctx != r.Context() {
+		r = r.WithContext(ctx)
+	}
+	return r, requestID
+}
+
+func (h *ClientHandler) observePre(ctx context.Context, payload *observability.StandardLoggingPayload) {
+	if h.obs == nil || payload == nil {
+		return
+	}
+	h.obs.CallbackManager().LogPreAPICall(ctx, payload)
+}
+
+func (h *ClientHandler) observePost(ctx context.Context, payload *observability.StandardLoggingPayload, err error) {
+	if h.obs == nil || payload == nil {
+		return
+	}
+	payload.EndTime = time.Now()
+	if err != nil {
+		payload.Status = observability.RequestStatusFailure
+		errStr := err.Error()
+		payload.ErrorStr = &errStr
+		exceptionClass := errorClass(err)
+		payload.ExceptionClass = &exceptionClass
+	} else {
+		payload.Status = observability.RequestStatusSuccess
+	}
+	h.obs.CallbackManager().LogPostAPICall(ctx, payload)
+	if err != nil {
+		h.obs.LogFailure(ctx, payload, err)
+		return
+	}
+	h.obs.LogSuccess(ctx, payload)
+}
+
+func (h *ClientHandler) observeStreamEvent(ctx context.Context, payload *observability.StandardLoggingPayload, chunk any) {
+	if h.obs == nil || payload == nil {
+		return
+	}
+	h.obs.CallbackManager().LogStreamEvent(ctx, payload, chunk)
+}
+
+func (h *ClientHandler) buildChatObservabilityPayload(r *http.Request, req *llmux.ChatRequest, start time.Time, requestID string) *observability.StandardLoggingPayload {
+	payload := &observability.StandardLoggingPayload{
+		RequestID:      requestID,
+		CallType:       observability.CallTypeChatCompletion,
+		RequestedModel: req.Model,
+		Model:          req.Model,
+		StartTime:      start,
+		Messages:       req.Messages,
+	}
+	if params := chatModelParameters(req); len(params) > 0 {
+		payload.ModelParameters = params
+	}
+	if len(req.Tags) > 0 {
+		payload.RequestTags = append([]string(nil), req.Tags...)
+	}
+	h.applyAuthContext(payload, auth.GetAuthContext(r.Context()), req.User)
+	if ip := requesterIP(r.RemoteAddr); ip != "" {
+		payload.RequesterIPAddress = &ip
+	}
+	return payload
+}
+
+func (h *ClientHandler) buildEmbeddingObservabilityPayload(r *http.Request, req *types.EmbeddingRequest, start time.Time, requestID string) *observability.StandardLoggingPayload {
+	payload := &observability.StandardLoggingPayload{
+		RequestID:      requestID,
+		CallType:       observability.CallTypeEmbedding,
+		RequestedModel: req.Model,
+		Model:          req.Model,
+		StartTime:      start,
+		Messages:       req.Input,
+	}
+	if params := embeddingModelParameters(req); len(params) > 0 {
+		payload.ModelParameters = params
+	}
+	h.applyAuthContext(payload, auth.GetAuthContext(r.Context()), req.User)
+	if ip := requesterIP(r.RemoteAddr); ip != "" {
+		payload.RequesterIPAddress = &ip
+	}
+	return payload
+}
+
+func chatModelParameters(req *llmux.ChatRequest) map[string]any {
+	params := map[string]any{
+		"stream": req.Stream,
+	}
+	if req.MaxTokens > 0 {
+		params["max_tokens"] = req.MaxTokens
+	}
+	if req.Temperature != nil {
+		params["temperature"] = *req.Temperature
+	}
+	if req.TopP != nil {
+		params["top_p"] = *req.TopP
+	}
+	if req.N > 0 {
+		params["n"] = req.N
+	}
+	if len(req.Stop) > 0 {
+		params["stop"] = req.Stop
+	}
+	if req.PresencePenalty != nil {
+		params["presence_penalty"] = *req.PresencePenalty
+	}
+	if req.FrequencyPenalty != nil {
+		params["frequency_penalty"] = *req.FrequencyPenalty
+	}
+	if req.ResponseFormat != nil {
+		params["response_format"] = req.ResponseFormat.Type
+	}
+	return params
+}
+
+func embeddingModelParameters(req *types.EmbeddingRequest) map[string]any {
+	params := map[string]any{}
+	if req.EncodingFormat != "" {
+		params["encoding_format"] = req.EncodingFormat
+	}
+	if req.Dimensions > 0 {
+		params["dimensions"] = req.Dimensions
+	}
+	return params
+}
+
+func (h *ClientHandler) applyAuthContext(payload *observability.StandardLoggingPayload, authCtx *auth.AuthContext, requestUser string) {
+	if requestUser != "" {
+		payload.EndUser = stringPtr(requestUser)
+	}
+	if authCtx == nil {
+		return
+	}
+	if payload.EndUser == nil && authCtx.EndUserID != "" {
+		payload.EndUser = stringPtr(authCtx.EndUserID)
+	}
+	if authCtx.User != nil {
+		if authCtx.User.ID != "" {
+			payload.User = stringPtr(authCtx.User.ID)
+		}
+		if authCtx.User.Email != nil {
+			payload.UserEmail = authCtx.User.Email
+		}
+	} else if authCtx.APIKey != nil && authCtx.APIKey.UserID != nil {
+		payload.User = authCtx.APIKey.UserID
+	}
+	if authCtx.APIKey != nil {
+		if authCtx.APIKey.KeyHash != "" {
+			payload.HashedAPIKey = stringPtr(authCtx.APIKey.KeyHash)
+		}
+		if authCtx.APIKey.KeyAlias != nil {
+			payload.APIKeyAlias = authCtx.APIKey.KeyAlias
+		}
+		if authCtx.APIKey.TeamID != nil {
+			payload.Team = authCtx.APIKey.TeamID
+		}
+		if authCtx.APIKey.OrganizationID != nil {
+			payload.Organization = authCtx.APIKey.OrganizationID
+		}
+	}
+	if authCtx.Team != nil {
+		payload.Team = stringPtr(authCtx.Team.ID)
+		if authCtx.Team.Alias != nil {
+			payload.TeamAlias = authCtx.Team.Alias
+		}
+		if authCtx.Team.OrganizationID != nil && payload.Organization == nil {
+			payload.Organization = authCtx.Team.OrganizationID
+		}
+	}
+}
+
+func requesterIP(addr string) string {
+	if addr == "" {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(addr)
+	if err != nil {
+		return addr
+	}
+	return host
+}
+
+func stringPtr(value string) *string {
+	if value == "" {
+		return nil
+	}
+	return &value
+}
+
+func errorClass(err error) string {
+	var llmErr *llmerrors.LLMError
+	if errors.As(err, &llmErr) && llmErr.Type != "" {
+		return llmErr.Type
+	}
+	return "error"
 }
 
 // Ensure streaming package is imported for parser registration
