@@ -36,10 +36,21 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 	var rateLimiter *auth.TenantRateLimiter
 	if cfg.RateLimit.Enabled {
 		defaultRPM := int(cfg.RateLimit.RequestsPerMinute)
+		defaultBurst := cfg.RateLimit.BurstSize
+		useDefaultBurst := false
+		if defaultBurst <= 0 {
+			defaultBurst = defaultRPM / 6
+			if defaultBurst < 1 {
+				defaultBurst = 1
+			}
+		} else {
+			useDefaultBurst = true
+		}
 		rateLimiter = auth.NewTenantRateLimiter(&auth.TenantRateLimiterConfig{
-			DefaultRPM:   defaultRPM,
-			DefaultBurst: defaultRPM / 6, // ~10 seconds burst
-			CleanupTTL:   10 * time.Minute,
+			DefaultRPM:      defaultRPM,
+			DefaultBurst:    defaultBurst,
+			UseDefaultBurst: useDefaultBurst,
+			CleanupTTL:      10 * time.Minute,
 		})
 
 		// Inject distributed limiter if configured (for multi-instance deployments)
@@ -70,6 +81,7 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 
 		logger.Info("gateway rate limiting enabled",
 			"default_rpm", cfg.RateLimit.RequestsPerMinute,
+			"default_burst", defaultBurst,
 			"distributed", cfg.RateLimit.Distributed,
 		)
 	}
