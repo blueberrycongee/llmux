@@ -12,6 +12,7 @@ type fakeDataHandler struct{}
 
 func (fakeDataHandler) HealthCheck(http.ResponseWriter, *http.Request)     {}
 func (fakeDataHandler) ChatCompletions(http.ResponseWriter, *http.Request) {}
+func (fakeDataHandler) Completions(http.ResponseWriter, *http.Request)     {}
 func (fakeDataHandler) Embeddings(http.ResponseWriter, *http.Request)      {}
 func (fakeDataHandler) ListModels(http.ResponseWriter, *http.Request)      {}
 
@@ -40,6 +41,10 @@ func TestBuildMuxes_AdminPortDisabled_RegistersAllOnDataMux(t *testing.T) {
 		t.Fatalf("data mux missing chat route, got pattern %q", got)
 	}
 
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/completions"); got != "POST /v1/completions" {
+		t.Fatalf("data mux missing completions route, got pattern %q", got)
+	}
+
 	if got := routePattern(muxes.Data, http.MethodGet, "/key/list"); got != "GET /key/list" {
 		t.Fatalf("data mux missing management route, got pattern %q", got)
 	}
@@ -66,6 +71,10 @@ func TestBuildMuxes_AdminPortEnabled_SplitsRoutes(t *testing.T) {
 
 	if got := routePattern(muxes.Data, http.MethodPost, "/v1/chat/completions"); got != "POST /v1/chat/completions" {
 		t.Fatalf("data mux missing chat route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/completions"); got != "POST /v1/completions" {
+		t.Fatalf("data mux missing completions route, got pattern %q", got)
 	}
 
 	if got := routePattern(muxes.Admin, http.MethodPost, "/v1/chat/completions"); got != "" {

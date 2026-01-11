@@ -158,6 +158,52 @@ func TestModelAccessMiddleware_AllowsAndPreservesBody(t *testing.T) {
 	}
 }
 
+func TestModelAccessMiddleware_AllowsCompletionsBody(t *testing.T) {
+	store := NewMemoryStore()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	fullKey, hash, _ := GenerateAPIKey()
+	key := &APIKey{
+		ID:        "key-allow-completions",
+		KeyHash:   hash,
+		KeyPrefix: ExtractKeyPrefix(fullKey),
+		IsActive:  true,
+		CreatedAt: time.Now(),
+	}
+	if err := store.CreateAPIKey(context.Background(), key); err != nil {
+		t.Fatalf("CreateAPIKey: %v", err)
+	}
+
+	middleware := NewMiddleware(&MiddlewareConfig{
+		Store:   store,
+		Logger:  logger,
+		Enabled: true,
+	})
+
+	expectedBody := `{"model":"gpt-4","prompt":"hi"}`
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read body: %v", err)
+		}
+		if string(body) != expectedBody {
+			t.Fatalf("unexpected body: %s", string(body))
+		}
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/completions", strings.NewReader(expectedBody))
+	req.Header.Set("Authorization", "Bearer "+fullKey)
+
+	rr := httptest.NewRecorder()
+	chain := middleware.Authenticate(middleware.ModelAccessMiddleware(handler))
+	chain.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+}
+
 func TestModelAccessMiddleware_DeniesDisallowedModel(t *testing.T) {
 	store := NewMemoryStore()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))

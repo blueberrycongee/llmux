@@ -234,7 +234,7 @@ func isModelAccessRequest(r *http.Request) bool {
 		return false
 	}
 	switch r.URL.Path {
-	case "/v1/chat/completions", "/v1/embeddings", "/embeddings":
+	case "/v1/chat/completions", "/v1/completions", "/v1/embeddings", "/embeddings":
 		return true
 	default:
 		return false

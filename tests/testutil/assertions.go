@@ -68,6 +68,33 @@ func AssertHasUsage(t *testing.T, resp *ChatCompletionResponse) {
 		"total_tokens should equal prompt_tokens + completion_tokens")
 }
 
+// AssertCompletionResponse validates a completion response.
+func AssertCompletionResponse(t *testing.T, resp *CompletionResponse) {
+	t.Helper()
+	require.NotNil(t, resp, "response should not be nil")
+	assert.NotEmpty(t, resp.ID, "response ID should not be empty")
+	assert.Equal(t, "text_completion", resp.Object, "object should be text_completion")
+	assert.NotZero(t, resp.Created, "created timestamp should not be zero")
+	assert.NotEmpty(t, resp.Model, "model should not be empty")
+	assert.NotEmpty(t, resp.Choices, "choices should not be empty")
+
+	if len(resp.Choices) > 0 {
+		choice := resp.Choices[0]
+		assert.NotEmpty(t, choice.Text, "text should not be empty")
+		assert.NotEmpty(t, choice.FinishReason, "finish_reason should not be empty")
+	}
+}
+
+// AssertCompletionHasUsage validates that usage information is present.
+func AssertCompletionHasUsage(t *testing.T, resp *CompletionResponse) {
+	t.Helper()
+	require.NotNil(t, resp.Usage, "usage should not be nil")
+	assert.Greater(t, resp.Usage.PromptTokens, 0, "prompt_tokens should be > 0")
+	assert.Greater(t, resp.Usage.CompletionTokens, 0, "completion_tokens should be > 0")
+	assert.Equal(t, resp.Usage.PromptTokens+resp.Usage.CompletionTokens, resp.Usage.TotalTokens,
+		"total_tokens should equal prompt_tokens + completion_tokens")
+}
+
 // AssertRequestRecorded checks that a request was recorded by the mock server.
 // Path matching is flexible - matches if the recorded path contains the expected path.
 func AssertRequestRecorded(t *testing.T, mock *MockLLMServer, method, path string) {

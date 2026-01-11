@@ -170,7 +170,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 
 	// === USAGE LOGGING AND SPEND TRACKING (P0 Fix) ===
 	// Record usage and update spent budget for budget control
-	h.recordUsage(r.Context(), requestID, req.Model, resp.Usage, start, latency)
+	h.recordUsage(r.Context(), requestID, req.Model, "chat_completion", resp.Usage, start, latency)
 
 	// Write response
 	w.Header().Set("Content-Type", "application/json")
@@ -273,7 +273,192 @@ func (h *ClientHandler) handleStreamResponse(w http.ResponseWriter, r *http.Requ
 	}
 
 	// Record usage and update spent budget
-	h.recordUsage(r.Context(), requestID, req.Model, finalUsage, start, latency)
+	h.recordUsage(r.Context(), requestID, req.Model, "chat_completion", finalUsage, start, latency)
+}
+
+// Completions handles POST /v1/completions requests.
+func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
+	start := time.Now()
+	requestID := uuid.New().String()
+
+	// Limit request body size to prevent OOM
+	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
+	body, err := io.ReadAll(limitedReader)
+	if err != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "failed to read request body"))
+		return
+	}
+	defer func() { _ = r.Body.Close() }()
+
+	// Check if body exceeded limit
+	if int64(len(body)) > h.maxBodySize {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "request body too large"))
+		return
+	}
+
+	var req types.CompletionRequest
+	if unmarshalErr := json.Unmarshal(body, &req); unmarshalErr != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "invalid JSON: "+unmarshalErr.Error()))
+		return
+	}
+
+	if validateErr := req.Validate(); validateErr != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, validateErr.Error()))
+		return
+	}
+
+	chatReq, err := req.ToChatRequest()
+	if err != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, err.Error()))
+		return
+	}
+
+	// Handle streaming response
+	if chatReq.Stream {
+		// Force include_usage to get accurate token counts from supported providers (e.g. OpenAI)
+		if chatReq.StreamOptions == nil {
+			chatReq.StreamOptions = &llmux.StreamOptions{IncludeUsage: true}
+		} else {
+			chatReq.StreamOptions.IncludeUsage = true
+		}
+
+		h.handleCompletionStreamResponse(w, r, chatReq, start, requestID)
+		return
+	}
+
+	resp, err := h.client.ChatCompletion(r.Context(), chatReq)
+	if err != nil {
+		h.logger.Error("completion failed", "model", req.Model, "error", err)
+		if llmErr, ok := err.(*llmerrors.LLMError); ok {
+			h.writeError(w, llmErr)
+		} else {
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+		}
+		return
+	}
+
+	latency := time.Since(start)
+	completionResp := types.CompletionResponseFromChat(resp)
+
+	if completionResp.Usage == nil || completionResp.Usage.TotalTokens == 0 {
+		promptTokens := tokenizer.EstimatePromptTokens(chatReq.Model, chatReq)
+		completionTokens := tokenizer.EstimateCompletionTokensFromText(chatReq.Model, firstCompletionText(completionResp))
+		completionResp.Usage = &llmux.Usage{
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
+		}
+	}
+
+	// Record metrics
+	metrics.RecordRequest("llmux", req.Model, http.StatusOK, latency)
+	if completionResp.Usage != nil {
+		metrics.RecordTokens("llmux", req.Model, completionResp.Usage.PromptTokens, completionResp.Usage.CompletionTokens)
+	}
+
+	// Record usage and update spent budget for budget control
+	h.recordUsage(r.Context(), requestID, req.Model, "completion", completionResp.Usage, start, latency)
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(completionResp); err != nil {
+		h.logger.Error("failed to encode response", "error", err)
+	}
+}
+
+func (h *ClientHandler) handleCompletionStreamResponse(w http.ResponseWriter, r *http.Request, req *llmux.ChatRequest, start time.Time, requestID string) {
+	stream, err := h.client.ChatCompletionStream(r.Context(), req)
+	if err != nil {
+		h.logger.Error("stream creation failed", "model", req.Model, "error", err)
+		if llmErr, ok := err.(*llmerrors.LLMError); ok {
+			h.writeError(w, llmErr)
+		} else {
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+		}
+		return
+	}
+	defer func() { _ = stream.Close() }()
+
+	// Set SSE headers
+	w.Header().Set("Content-Type", "text/event-stream")
+	w.Header().Set("Cache-Control", "no-cache")
+	w.Header().Set("Connection", "keep-alive")
+	w.Header().Set("X-Accel-Buffering", "no")
+
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		h.writeError(w, llmerrors.NewInternalError("", req.Model, "streaming not supported"))
+		return
+	}
+
+	var finalUsage *llmux.Usage
+	var completionContent strings.Builder
+
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			if _, writeErr := w.Write([]byte("data: [DONE]\n\n")); writeErr != nil {
+				h.logger.Debug("failed to write done marker", "error", writeErr)
+			}
+			flusher.Flush()
+			break
+		}
+		if err != nil {
+			if r.Context().Err() != nil {
+				h.logger.Debug("client disconnected during stream", "model", req.Model)
+			} else {
+				h.logger.Error("stream recv error", "error", err, "model", req.Model)
+			}
+			break
+		}
+
+		if chunk.Usage != nil {
+			finalUsage = chunk.Usage
+		}
+
+		if len(chunk.Choices) > 0 {
+			completionContent.WriteString(chunk.Choices[0].Delta.Content)
+		}
+
+		converted := types.CompletionStreamChunkFromChat(chunk)
+		data, marshalErr := json.Marshal(converted)
+		if marshalErr != nil {
+			h.logger.Error("failed to marshal chunk", "error", marshalErr)
+			continue
+		}
+
+		if _, writeErr := w.Write([]byte("data: ")); writeErr != nil {
+			break
+		}
+		if _, writeErr := w.Write(data); writeErr != nil {
+			break
+		}
+		if _, writeErr := w.Write([]byte("\n\n")); writeErr != nil {
+			break
+		}
+		flusher.Flush()
+	}
+
+	latency := time.Since(start)
+	metrics.RecordRequest("llmux", req.Model, http.StatusOK, latency)
+
+	if finalUsage == nil {
+		promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+		completionTokens := tokenizer.EstimateCompletionTokensFromText(req.Model, completionContent.String())
+		finalUsage = &llmux.Usage{
+			PromptTokens:     promptTokens,
+			CompletionTokens: completionTokens,
+			TotalTokens:      promptTokens + completionTokens,
+		}
+	}
+
+	h.recordUsage(r.Context(), requestID, req.Model, "completion", finalUsage, start, latency)
+}
+
+func firstCompletionText(resp *types.CompletionResponse) string {
+	if resp == nil || len(resp.Choices) == 0 {
+		return ""
+	}
+	return resp.Choices[0].Text
 }
 
 func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
@@ -300,7 +485,7 @@ func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
 
 // recordUsage logs API usage to the store and updates spend budgets.
 // This is called after successful completion (streaming or non-streaming).
-func (h *ClientHandler) recordUsage(ctx context.Context, requestID, model string, usage *llmux.Usage, start time.Time, latency time.Duration) {
+func (h *ClientHandler) recordUsage(ctx context.Context, requestID, model, callType string, usage *llmux.Usage, start time.Time, latency time.Duration) {
 	if h.store == nil {
 		return
 	}
@@ -313,7 +498,7 @@ func (h *ClientHandler) recordUsage(ctx context.Context, requestID, model string
 		RequestID: requestID,
 		Model:     model,
 		Provider:  "llmux",
-		CallType:  "chat_completion",
+		CallType:  callType,
 		StartTime: start,
 		EndTime:   time.Now(),
 		LatencyMs: int(latency.Milliseconds()),

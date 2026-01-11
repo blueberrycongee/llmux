@@ -69,6 +69,19 @@ type ChatCompletionRequest struct {
 	Seed           *int              `json:"seed,omitempty"`
 }
 
+// CompletionRequest represents a completion request.
+type CompletionRequest struct {
+	Model       string   `json:"model"`
+	Prompt      any      `json:"prompt"`
+	Stream      bool     `json:"stream,omitempty"`
+	MaxTokens   int      `json:"max_tokens,omitempty"`
+	Temperature *float64 `json:"temperature,omitempty"`
+	TopP        *float64 `json:"top_p,omitempty"`
+	N           int      `json:"n,omitempty"`
+	Stop        []string `json:"stop,omitempty"`
+	User        string   `json:"user,omitempty"`
+}
+
 // ResponseFormat specifies the output format.
 type ResponseFormat struct {
 	Type       string      `json:"type"` // "text", "json_object", "json_schema"
@@ -116,6 +129,20 @@ type ChatCompletionResponse struct {
 			Content   string         `json:"content"`
 			ToolCalls []ToolCallResp `json:"tool_calls,omitempty"`
 		} `json:"message"`
+		FinishReason string `json:"finish_reason"`
+	} `json:"choices"`
+	Usage *types.Usage `json:"usage,omitempty"`
+}
+
+// CompletionResponse represents a completion response.
+type CompletionResponse struct {
+	ID      string `json:"id"`
+	Object  string `json:"object"`
+	Created int64  `json:"created"`
+	Model   string `json:"model"`
+	Choices []struct {
+		Index        int    `json:"index"`
+		Text         string `json:"text"`
 		FinishReason string `json:"finish_reason"`
 	} `json:"choices"`
 	Usage *types.Usage `json:"usage,omitempty"`
@@ -190,6 +217,42 @@ func (c *TestClient) ChatCompletion(ctx context.Context, req *ChatCompletionRequ
 	resp.Body.Close()
 
 	return &chatResp, resp, nil
+}
+
+// Completion sends a completion request.
+func (c *TestClient) Completion(ctx context.Context, req *CompletionRequest) (*CompletionResponse, *http.Response, error) {
+	body, err := json.Marshal(req)
+	if err != nil {
+		return nil, nil, fmt.Errorf("marshal request: %w", err)
+	}
+
+	httpReq, err := http.NewRequestWithContext(ctx, "POST", c.baseURL+"/v1/completions", bytes.NewReader(body))
+	if err != nil {
+		return nil, nil, fmt.Errorf("create request: %w", err)
+	}
+
+	httpReq.Header.Set("Content-Type", "application/json")
+	if c.apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
+	resp, err := c.httpClient.Do(httpReq)
+	if err != nil {
+		return nil, nil, fmt.Errorf("do request: %w", err)
+	}
+
+	if resp.StatusCode >= 400 {
+		return nil, resp, nil
+	}
+
+	var completionResp CompletionResponse
+	if err := json.NewDecoder(resp.Body).Decode(&completionResp); err != nil {
+		resp.Body.Close()
+		return nil, resp, fmt.Errorf("decode response: %w", err)
+	}
+	resp.Body.Close()
+
+	return &completionResp, resp, nil
 }
 
 // ChatCompletionWithTools sends a chat completion request with tools/function calling.
