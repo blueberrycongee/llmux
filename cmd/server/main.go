@@ -22,6 +22,9 @@ import (
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
+	"github.com/blueberrycongee/llmux/internal/memory"
+	"github.com/blueberrycongee/llmux/internal/memory/inmem"
+	memory_qdrant "github.com/blueberrycongee/llmux/internal/memory/qdrant"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/resilience"
@@ -150,18 +153,36 @@ func run() error {
 	var authStore auth.Store
 	var auditStore auth.AuditLogStore
 
-	// TODO: Add PostgresStore initialization when cfg.Database.Enabled is true.
-	// PostgresStore fully implements Store interface (see postgres.go, postgres_ext.go, postgres_ext2.go).
-	// TODO: [Real Data Fetching] - Switch to PostgresStore in production for persistent data.
-	// Currently hardcoded to use MemoryStore even if DB is enabled.
 	if cfg.Database.Enabled {
-		logger.Warn("database.enabled is true but PostgresStore is not wired up yet; using MemoryStore")
-	}
+		logger.Info("initializing postgres auth store",
+			"host", cfg.Database.Host,
+			"port", cfg.Database.Port,
+			"user", cfg.Database.User,
+			"db", cfg.Database.Database)
 
-	// Use in-memory store for development/testing
-	authStore = auth.NewMemoryStore()
-	auditStore = auth.NewMemoryAuditLogStore()
-	logger.Info("using in-memory auth store (for development only)")
+		pgConfig := &auth.PostgresConfig{
+			Host:         cfg.Database.Host,
+			Port:         cfg.Database.Port,
+			User:         cfg.Database.User,
+			Password:     cfg.Database.Password,
+			Database:     cfg.Database.Database,
+			SSLMode:      cfg.Database.SSLMode,
+			MaxOpenConns: cfg.Database.MaxOpenConns,
+			MaxIdleConns: cfg.Database.MaxIdleConns,
+			ConnLifetime: cfg.Database.ConnLifetime,
+		}
+
+		pgStore, err := auth.NewPostgresStore(pgConfig)
+		if err != nil {
+			return fmt.Errorf("failed to initialize postgres store: %w", err)
+		}
+		authStore = pgStore
+		auditStore = auth.NewPostgresAuditLogStore(pgStore.DB())
+	} else {
+		logger.Warn("database disabled, using in-memory auth store (development only)")
+		authStore = auth.NewMemoryStore()
+		auditStore = auth.NewMemoryAuditLogStore()
+	}
 
 	// Ensure store is closed on shutdown
 	defer func() {
@@ -171,6 +192,40 @@ func run() error {
 			}
 		}
 	}()
+
+	// Initialize Memory System
+	var vectorStore memory.VectorStore
+	if cfg.Qdrant.Address != "" {
+		logger.Info("initializing qdrant vector store", "address", cfg.Qdrant.Address)
+		qStore, err := memory_qdrant.NewStore(memory_qdrant.Config{
+			Address:    cfg.Qdrant.Address,
+			APIKey:     cfg.Qdrant.APIKey,
+			Collection: "llmux_memory", // Default collection
+		})
+		if err != nil {
+			logger.Error("failed to initialize qdrant", "error", err)
+			// Fallback
+			vectorStore = inmem.NewMemoryVectorStore()
+		} else {
+			// Ensure collection exists
+			if err := qStore.EnsureCollection(context.Background()); err != nil {
+				logger.Error("failed to ensure qdrant collection", "error", err)
+			}
+			vectorStore = qStore
+		}
+	} else {
+		vectorStore = inmem.NewMemoryVectorStore()
+	}
+
+	// Create Memory Manager
+	// TODO: Wire up real Embedder and LLMClient
+	memManager := memory.NewMemoryManager(
+		inmem.NewMemorySessionStore(),
+		vectorStore,
+		&inmem.SimpleEmbedder{},
+		inmem.NewRealLLMClientSimulator(),
+	)
+	_ = memManager // Keep it alive
 
 	// Create AuditLogger
 	auditLogger := auth.NewAuditLogger(auditStore, true)

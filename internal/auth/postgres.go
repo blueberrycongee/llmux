@@ -68,6 +68,11 @@ func NewPostgresStore(cfg *PostgresConfig) (*PostgresStore, error) {
 	return &PostgresStore{db: db}, nil
 }
 
+// DB returns the underlying sql.DB.
+func (s *PostgresStore) DB() *sql.DB {
+	return s.db
+}
+
 // Ping checks database connectivity.
 func (s *PostgresStore) Ping(ctx context.Context) error {
 	return s.db.PingContext(ctx)

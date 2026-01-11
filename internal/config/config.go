@@ -24,7 +24,14 @@ type Config struct {
 	Cache       CacheConfig      `yaml:"cache"`
 	MCP         MCPConfig        `yaml:"mcp"`
 	Vault       VaultConfig      `yaml:"vault"`
+	Qdrant      QdrantConfig     `yaml:"qdrant"`
 	PricingFile string           `yaml:"pricing_file"`
+}
+
+// QdrantConfig contains Qdrant vector database settings.
+type QdrantConfig struct {
+	Address string `yaml:"address"`
+	APIKey  string `yaml:"api_key"`
 }
 
 // VaultConfig contains HashiCorp Vault settings.

@@ -31,23 +31,27 @@ type ClientHandler struct {
 	logger      *slog.Logger
 	maxBodySize int64
 	store       auth.Store // Storage for usage logging and budget tracking
+	mcpManager  mcp.Manager
 }
 
 // ClientHandlerConfig contains configuration for ClientHandler.
 type ClientHandlerConfig struct {
 	MaxBodySize int64      // Maximum request body size in bytes
 	Store       auth.Store // Storage for usage logging (optional)
+	MCPManager  mcp.Manager
 }
 
 // NewClientHandler creates a new handler that wraps llmux.Client.
 func NewClientHandler(client *llmux.Client, logger *slog.Logger, cfg *ClientHandlerConfig) *ClientHandler {
 	maxBodySize := int64(DefaultMaxBodySize)
 	var store auth.Store
+	var mcpManager mcp.Manager
 	if cfg != nil {
 		if cfg.MaxBodySize > 0 {
 			maxBodySize = cfg.MaxBodySize
 		}
 		store = cfg.Store
+		mcpManager = cfg.MCPManager
 	}
 
 	return &ClientHandler{
@@ -55,6 +59,7 @@ func NewClientHandler(client *llmux.Client, logger *slog.Logger, cfg *ClientHand
 		logger:      logger,
 		maxBodySize: maxBodySize,
 		store:       store,
+		mcpManager:  mcpManager,
 	}
 }
 
