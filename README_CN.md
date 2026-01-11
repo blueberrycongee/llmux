@@ -129,6 +129,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8080
 ```yaml
 server:
   port: 8080
+  admin_port: 0 # 可选：设置后将管理/UI 挂在独立端口
   read_timeout: 30s
   write_timeout: 120s
 
