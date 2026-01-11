@@ -15,6 +15,7 @@ import (
 
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/auth"
+	"github.com/blueberrycongee/llmux/internal/mcp"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/pool"
 	"github.com/blueberrycongee/llmux/internal/streaming"
@@ -31,23 +32,27 @@ type ClientHandler struct {
 	logger      *slog.Logger
 	maxBodySize int64
 	store       auth.Store // Storage for usage logging and budget tracking
+	mcpManager  mcp.Manager
 }
 
 // ClientHandlerConfig contains configuration for ClientHandler.
 type ClientHandlerConfig struct {
 	MaxBodySize int64      // Maximum request body size in bytes
 	Store       auth.Store // Storage for usage logging (optional)
+	MCPManager  mcp.Manager
 }
 
 // NewClientHandler creates a new handler that wraps llmux.Client.
 func NewClientHandler(client *llmux.Client, logger *slog.Logger, cfg *ClientHandlerConfig) *ClientHandler {
 	maxBodySize := int64(DefaultMaxBodySize)
 	var store auth.Store
+	var manager mcp.Manager
 	if cfg != nil {
 		if cfg.MaxBodySize > 0 {
 			maxBodySize = cfg.MaxBodySize
 		}
 		store = cfg.Store
+		manager = cfg.MCPManager
 	}
 
 	return &ClientHandler{
@@ -55,7 +60,15 @@ func NewClientHandler(client *llmux.Client, logger *slog.Logger, cfg *ClientHand
 		logger:      logger,
 		maxBodySize: maxBodySize,
 		store:       store,
+		mcpManager:  manager,
 	}
+}
+
+func (h *ClientHandler) getMCPManager(ctx context.Context) mcp.Manager {
+	if h.mcpManager != nil {
+		return h.mcpManager
+	}
+	return mcp.GetManager(ctx)
 }
 
 // ChatCompletions handles POST /v1/chat/completions requests.
@@ -96,8 +109,16 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
+	manager := h.getMCPManager(r.Context())
+
 	// Handle streaming response
 	if req.Stream {
+		if manager != nil {
+			if injector, ok := manager.(mcp.ToolInjector); ok {
+				injector.InjectTools(r.Context(), req)
+			}
+		}
+
 		// Force include_usage to get accurate token counts from supported providers (e.g. OpenAI)
 		if req.StreamOptions == nil {
 			req.StreamOptions = &llmux.StreamOptions{IncludeUsage: true}
@@ -110,7 +131,15 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// Non-streaming request - use Client.ChatCompletion
-	resp, err := h.client.ChatCompletion(r.Context(), req)
+	var resp *llmux.ChatResponse
+	if manager != nil {
+		executor := mcp.NewAgentExecutor(manager, 0, h.logger)
+		resp, err = executor.Execute(r.Context(), req, func(ctx context.Context, r *llmux.ChatRequest) (*llmux.ChatResponse, error) {
+			return h.client.ChatCompletion(ctx, r)
+		})
+	} else {
+		resp, err = h.client.ChatCompletion(r.Context(), req)
+	}
 	if err != nil {
 		h.logger.Error("chat completion failed", "model", req.Model, "error", err)
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {

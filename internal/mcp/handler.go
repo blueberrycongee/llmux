@@ -16,6 +16,16 @@ func NewHTTPHandler(manager Manager) *HTTPHandler {
 	return &HTTPHandler{manager: manager}
 }
 
+// RegisterRoutes registers MCP management endpoints on the given mux.
+func (h *HTTPHandler) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("GET /mcp/clients", h.ListClients)
+	mux.HandleFunc("GET /mcp/clients/{id}", h.GetClient)
+	mux.HandleFunc("POST /mcp/clients", h.AddClient)
+	mux.HandleFunc("DELETE /mcp/clients/{id}", h.RemoveClient)
+	mux.HandleFunc("POST /mcp/clients/{id}/reconnect", h.ReconnectClient)
+	mux.HandleFunc("GET /mcp/tools", h.ListTools)
+}
+
 // ListClients handles GET /mcp/clients
 func (h *HTTPHandler) ListClients(w http.ResponseWriter, r *http.Request) {
 	clients := h.manager.GetClients()
