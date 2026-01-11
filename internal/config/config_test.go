@@ -29,6 +29,10 @@ func TestDefaultConfig(t *testing.T) {
 	if !cfg.Metrics.Enabled {
 		t.Error("metrics should be enabled by default")
 	}
+
+	if cfg.Stream.RecoveryMode != "retry" {
+		t.Errorf("default stream recovery mode = %s, want retry", cfg.Stream.RecoveryMode)
+	}
 }
 
 func TestConfigValidation(t *testing.T) {
@@ -218,6 +222,17 @@ func TestConfigValidation(t *testing.T) {
 				},
 			},
 			wantErr: false,
+		},
+		{
+			name: "invalid stream recovery mode",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Stream: StreamConfig{RecoveryMode: "unknown"},
+			},
+			wantErr: true,
 		},
 	}
 

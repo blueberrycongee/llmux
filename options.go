@@ -75,6 +75,9 @@ type ClientConfig struct {
 	// Pricing
 	PricingFile string
 
+	// Stream recovery
+	StreamRecoveryMode StreamRecoveryMode
+
 	// Observability
 	OTelMetricsConfig observability.OTelMetricsConfig
 
@@ -96,17 +99,27 @@ type Option func(*ClientConfig)
 // defaultConfig returns sensible defaults.
 func defaultConfig() *ClientConfig {
 	return &ClientConfig{
-		RouterStrategy:  StrategySimpleShuffle,
-		FallbackEnabled: true,
-		RetryCount:      3,
-		RetryBackoff:    time.Second,
-		CooldownPeriod:  60 * time.Second,
-		CacheEnabled:    false,
-		CacheTTL:        time.Hour,
-		Timeout:         30 * time.Second,
-		Logger:          slog.Default(),
+		RouterStrategy:     StrategySimpleShuffle,
+		FallbackEnabled:    true,
+		RetryCount:         3,
+		RetryBackoff:       time.Second,
+		CooldownPeriod:     60 * time.Second,
+		CacheEnabled:       false,
+		CacheTTL:           time.Hour,
+		Timeout:            30 * time.Second,
+		Logger:             slog.Default(),
+		StreamRecoveryMode: StreamRecoveryRetry,
 	}
 }
+
+// StreamRecoveryMode controls how stream recovery behaves after a mid-stream failure.
+type StreamRecoveryMode string
+
+const (
+	StreamRecoveryOff    StreamRecoveryMode = "off"
+	StreamRecoveryAppend StreamRecoveryMode = "append"
+	StreamRecoveryRetry  StreamRecoveryMode = "retry"
+)
 
 // WithProvider adds a provider configuration.
 // The provider will be created automatically based on the Type field.
@@ -309,5 +322,12 @@ func WithRateLimiterConfig(config RateLimiterConfig) Option {
 func WithStatsStore(store router.StatsStore) Option {
 	return func(c *ClientConfig) {
 		c.StatsStore = store
+	}
+}
+
+// WithStreamRecoveryMode configures how streaming recovery behaves after a mid-stream failure.
+func WithStreamRecoveryMode(mode StreamRecoveryMode) Option {
+	return func(c *ClientConfig) {
+		c.StreamRecoveryMode = mode
 	}
 }

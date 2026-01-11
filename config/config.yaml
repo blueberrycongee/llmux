@@ -64,6 +64,9 @@ routing:
   retry_count: 3
   cooldown_period: 60s
 
+stream:
+  recovery_mode: retry  # off, append, retry
+
 rate_limit:
   enabled: false
   requests_per_minute: 60
