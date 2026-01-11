@@ -189,6 +189,9 @@ type Config struct {
 	// EnableTagFiltering enables tag-based deployment filtering
 	EnableTagFiltering bool
 
+	// DefaultProvider prefers deployments from this provider when available.
+	DefaultProvider string
+
 	// PricingFile is the path to the custom pricing JSON file
 	PricingFile string
 

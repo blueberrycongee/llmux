@@ -75,6 +75,7 @@ func (r *LatencyRouter) PickWithContext(ctx context.Context, reqCtx *router.Requ
 		}
 	}
 
+	healthy = r.filterByDefaultProvider(healthy)
 	type deploymentLatency struct {
 		deployment *ExtendedDeployment
 		latency    float64

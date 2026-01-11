@@ -372,6 +372,10 @@ func buildRoutingOptions(cfg *config.Config) []llmux.Option {
 	strategy := mapRoutingStrategy(cfg.Routing.Strategy)
 	opts = append(opts, llmux.WithRouterStrategy(strategy))
 
+	if cfg.Routing.DefaultProvider != "" {
+		opts = append(opts, llmux.WithDefaultProvider(cfg.Routing.DefaultProvider))
+	}
+
 	if cfg.Routing.CooldownPeriod > 0 {
 		opts = append(opts, llmux.WithCooldown(cfg.Routing.CooldownPeriod))
 	}

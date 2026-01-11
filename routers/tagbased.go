@@ -89,5 +89,6 @@ func (r *TagBasedRouter) PickWithContext(ctx context.Context, reqCtx *router.Req
 		}
 	}
 
+	filtered = r.filterByDefaultProvider(filtered)
 	return filtered[r.randIntn(len(filtered))].Deployment, nil
 }

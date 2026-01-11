@@ -103,6 +103,7 @@ func (r *CostRouter) PickWithContext(ctx context.Context, reqCtx *router.Request
 		}
 	}
 
+	healthy = r.filterByDefaultProvider(healthy)
 	type deploymentCost struct {
 		deployment *ExtendedDeployment
 		cost       float64
