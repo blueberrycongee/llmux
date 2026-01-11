@@ -363,6 +363,31 @@ func run() error {
 	return nil
 }
 
+const routingRetryBackoff = 100 * time.Millisecond
+
+// buildRoutingOptions converts routing-related config to llmux.Option slice.
+func buildRoutingOptions(cfg *config.Config) []llmux.Option {
+	opts := make([]llmux.Option, 0, 4)
+
+	strategy := mapRoutingStrategy(cfg.Routing.Strategy)
+	opts = append(opts, llmux.WithRouterStrategy(strategy))
+
+	if cfg.Routing.CooldownPeriod > 0 {
+		opts = append(opts, llmux.WithCooldown(cfg.Routing.CooldownPeriod))
+	}
+
+	if cfg.Server.WriteTimeout > 0 {
+		opts = append(opts, llmux.WithTimeout(cfg.Server.WriteTimeout))
+	}
+
+	opts = append(opts,
+		llmux.WithRetry(cfg.Routing.RetryCount, routingRetryBackoff),
+		llmux.WithFallback(cfg.Routing.FallbackEnabled),
+	)
+
+	return opts
+}
+
 // buildClientOptions converts config.Config to llmux.Option slice.
 func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *secret.Manager) []llmux.Option {
 	// Pre-allocate with estimated capacity
@@ -392,25 +417,7 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 		opts = append(opts, llmux.WithProvider(pCfg))
 	}
 
-	// Set routing strategy
-	strategy := mapRoutingStrategy(cfg.Routing.Strategy)
-	opts = append(opts, llmux.WithRouterStrategy(strategy))
-
-	// Set cooldown period
-	if cfg.Routing.CooldownPeriod > 0 {
-		opts = append(opts, llmux.WithCooldown(cfg.Routing.CooldownPeriod))
-	}
-
-	// Set timeout
-	if cfg.Server.WriteTimeout > 0 {
-		opts = append(opts, llmux.WithTimeout(cfg.Server.WriteTimeout))
-	}
-
-	// Enable retry and fallback
-	opts = append(opts,
-		llmux.WithRetry(3, 100*time.Millisecond),
-		llmux.WithFallback(true),
-	)
+	opts = append(opts, buildRoutingOptions(cfg)...)
 
 	// Set pricing file
 	if cfg.PricingFile != "" {
