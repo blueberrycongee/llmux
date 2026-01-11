@@ -51,25 +51,26 @@ func (r *LatencyRouter) Pick(ctx context.Context, model string) (*provider.Deplo
 
 // PickWithContext selects the deployment with lowest latency, considering streaming mode.
 func (r *LatencyRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
-	r.mu.RLock()
-	healthy := r.getHealthyDeployments(reqCtx.Model)
+	deployments := r.snapshotDeployments(reqCtx.Model)
+	if len(deployments) == 0 {
+		return nil, ErrNoAvailableDeployment
+	}
+	statsByID := r.statsSnapshot(ctx, deployments)
+	healthy := r.getHealthyDeployments(deployments, statsByID)
 	if len(healthy) == 0 {
-		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
 
 	if reqCtx.EstimatedInputTokens > 0 {
-		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
+		healthy = r.filterByTPMRPM(healthy, statsByID, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
@@ -82,7 +83,7 @@ func (r *LatencyRouter) PickWithContext(ctx context.Context, reqCtx *router.Requ
 	candidates := make([]deploymentLatency, 0, len(healthy))
 
 	for _, d := range healthy {
-		stats := r.stats[d.ID]
+		stats := statsByID[d.ID]
 		var latency float64
 
 		switch {
@@ -103,7 +104,6 @@ func (r *LatencyRouter) PickWithContext(ctx context.Context, reqCtx *router.Requ
 	}
 
 	latencyBuffer := r.config.LatencyBuffer
-	r.mu.RUnlock()
 
 	// Shuffle first to randomize order for equal latencies
 	r.randShuffle(len(candidates), func(i, j int) {

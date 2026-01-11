@@ -167,27 +167,103 @@ func (r *BaseRouter) GetDeployments(model string) []*provider.Deployment {
 	return result
 }
 
-// GetStats returns the current stats for a deployment.
-func (r *BaseRouter) GetStats(deploymentID string) *router.DeploymentStats {
+func (r *BaseRouter) snapshotDeployments(model string) []*ExtendedDeployment {
 	r.mu.RLock()
-	defer r.mu.RUnlock()
-
-	stats, ok := r.stats[deploymentID]
-	if !ok {
+	deps := r.deployments[model]
+	if len(deps) == 0 {
+		r.mu.RUnlock()
 		return nil
 	}
-	return &router.DeploymentStats{
-		TotalRequests:    stats.TotalRequests,
-		SuccessCount:     stats.SuccessCount,
-		FailureCount:     stats.FailureCount,
-		ActiveRequests:   stats.ActiveRequests,
-		AvgLatencyMs:     stats.AvgLatencyMs,
-		AvgTTFTMs:        stats.AvgTTFTMs,
-		CurrentMinuteTPM: stats.CurrentMinuteTPM,
-		CurrentMinuteRPM: stats.CurrentMinuteRPM,
-		LastRequestTime:  stats.LastRequestTime,
-		CooldownUntil:    stats.CooldownUntil,
+	copyDeps := make([]*ExtendedDeployment, len(deps))
+	copy(copyDeps, deps)
+	r.mu.RUnlock()
+	return copyDeps
+}
+
+// GetStats returns the current stats for a deployment.
+func (r *BaseRouter) GetStats(deploymentID string) *router.DeploymentStats {
+	if r.statsStore != nil {
+		stats, err := r.statsStore.GetStats(context.Background(), deploymentID)
+		if err == nil {
+			return stats
+		}
+		if !errors.Is(err, router.ErrStatsNotFound) {
+			if local := r.localStatsSnapshot(deploymentID); local != nil {
+				return local
+			}
+		}
+		return nil
 	}
+
+	return r.localStatsSnapshot(deploymentID)
+}
+
+func (r *BaseRouter) localStatsSnapshot(deploymentID string) *router.DeploymentStats {
+	r.mu.RLock()
+	stats := r.stats[deploymentID]
+	snapshot := r.statsEntrySnapshot(stats)
+	r.mu.RUnlock()
+	return snapshot
+}
+
+func (r *BaseRouter) statsEntrySnapshot(stats *statsEntry) *router.DeploymentStats {
+	if stats == nil {
+		return nil
+	}
+	latencyHistory := append([]float64{}, stats.LatencyHistory...)
+	ttftHistory := append([]float64{}, stats.TTFTHistory...)
+	return &router.DeploymentStats{
+		TotalRequests:      stats.TotalRequests,
+		SuccessCount:       stats.SuccessCount,
+		FailureCount:       stats.FailureCount,
+		ActiveRequests:     stats.ActiveRequests,
+		LatencyHistory:     latencyHistory,
+		TTFTHistory:        ttftHistory,
+		AvgLatencyMs:       stats.AvgLatencyMs,
+		AvgTTFTMs:          stats.AvgTTFTMs,
+		MaxLatencyListSize: stats.MaxLatencyListSize,
+		CurrentMinuteTPM:   stats.CurrentMinuteTPM,
+		CurrentMinuteRPM:   stats.CurrentMinuteRPM,
+		CurrentMinuteKey:   stats.CurrentMinuteKey,
+		LastRequestTime:    stats.LastRequestTime,
+		CooldownUntil:      stats.CooldownUntil,
+	}
+}
+
+func (r *BaseRouter) statsSnapshot(ctx context.Context, deployments []*ExtendedDeployment) map[string]*router.DeploymentStats {
+	if len(deployments) == 0 {
+		return nil
+	}
+	if ctx == nil {
+		ctx = context.Background()
+	}
+
+	statsByID := make(map[string]*router.DeploymentStats, len(deployments))
+	if r.statsStore != nil {
+		for _, d := range deployments {
+			stats, err := r.statsStore.GetStats(ctx, d.ID)
+			if err != nil {
+				if errors.Is(err, router.ErrStatsNotFound) {
+					continue
+				}
+				if local := r.localStatsSnapshot(d.ID); local != nil {
+					statsByID[d.ID] = local
+				}
+				continue
+			}
+			statsByID[d.ID] = stats
+		}
+		return statsByID
+	}
+
+	r.mu.RLock()
+	for _, d := range deployments {
+		if stats := r.stats[d.ID]; stats != nil {
+			statsByID[d.ID] = r.statsEntrySnapshot(stats)
+		}
+	}
+	r.mu.RUnlock()
+	return statsByID
 }
 
 // IsCircuitOpen checks if the deployment is in cooldown.
@@ -367,16 +443,15 @@ func (r *BaseRouter) shouldCooldownByFailureRate(stats *statsEntry, now time.Tim
 	return failureRate > r.config.FailureThresholdPercent
 }
 
-func (r *BaseRouter) getHealthyDeployments(model string) []*ExtendedDeployment {
-	deps, ok := r.deployments[model]
-	if !ok || len(deps) == 0 {
+func (r *BaseRouter) getHealthyDeployments(deployments []*ExtendedDeployment, statsByID map[string]*router.DeploymentStats) []*ExtendedDeployment {
+	if len(deployments) == 0 {
 		return nil
 	}
 
 	now := time.Now()
-	healthy := make([]*ExtendedDeployment, 0, len(deps))
-	for _, d := range deps {
-		stats := r.stats[d.ID]
+	healthy := make([]*ExtendedDeployment, 0, len(deployments))
+	for _, d := range deployments {
+		stats := statsByID[d.ID]
 		if stats == nil || now.After(stats.CooldownUntil) {
 			healthy = append(healthy, d)
 		}
@@ -422,11 +497,11 @@ func (r *BaseRouter) filterByTags(deployments []*ExtendedDeployment, tags []stri
 	return nil
 }
 
-func (r *BaseRouter) filterByTPMRPM(deployments []*ExtendedDeployment, inputTokens int) []*ExtendedDeployment {
+func (r *BaseRouter) filterByTPMRPM(deployments []*ExtendedDeployment, statsByID map[string]*router.DeploymentStats, inputTokens int) []*ExtendedDeployment {
 	filtered := make([]*ExtendedDeployment, 0, len(deployments))
 
 	for _, d := range deployments {
-		stats := r.stats[d.ID]
+		stats := statsByID[d.ID]
 		if stats == nil {
 			filtered = append(filtered, d)
 			continue
@@ -592,23 +667,22 @@ func (r *BaseRouter) Pick(ctx context.Context, model string) (*provider.Deployme
 
 // PickWithContext implements basic random selection with context.
 func (r *BaseRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
-	r.mu.RLock()
-	healthy := r.getHealthyDeployments(reqCtx.Model)
+	deployments := r.snapshotDeployments(reqCtx.Model)
+	if len(deployments) == 0 {
+		return nil, ErrNoAvailableDeployment
+	}
+	statsByID := r.statsSnapshot(ctx, deployments)
+	healthy := r.getHealthyDeployments(deployments, statsByID)
 	if len(healthy) == 0 {
-		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
 
-	n := len(healthy)
-	r.mu.RUnlock()
-
-	return healthy[r.randIntn(n)].Deployment, nil
+	return healthy[r.randIntn(len(healthy))].Deployment, nil
 }

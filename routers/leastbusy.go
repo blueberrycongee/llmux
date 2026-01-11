@@ -53,25 +53,26 @@ func (r *LeastBusyRouter) Pick(ctx context.Context, model string) (*provider.Dep
 
 // PickWithContext selects the deployment with fewest active requests.
 func (r *LeastBusyRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
-	r.mu.RLock()
-	healthy := r.getHealthyDeployments(reqCtx.Model)
+	deployments := r.snapshotDeployments(reqCtx.Model)
+	if len(deployments) == 0 {
+		return nil, ErrNoAvailableDeployment
+	}
+	statsByID := r.statsSnapshot(ctx, deployments)
+	healthy := r.getHealthyDeployments(deployments, statsByID)
 	if len(healthy) == 0 {
-		r.mu.RUnlock()
 		return nil, ErrNoAvailableDeployment
 	}
 
 	if r.config.EnableTagFiltering && len(reqCtx.Tags) > 0 {
 		healthy = r.filterByTags(healthy, reqCtx.Tags)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoDeploymentsWithTag
 		}
 	}
 
 	if reqCtx.EstimatedInputTokens > 0 {
-		healthy = r.filterByTPMRPM(healthy, reqCtx.EstimatedInputTokens)
+		healthy = r.filterByTPMRPM(healthy, statsByID, reqCtx.EstimatedInputTokens)
 		if len(healthy) == 0 {
-			r.mu.RUnlock()
 			return nil, ErrNoAvailableDeployment
 		}
 	}
@@ -83,12 +84,11 @@ func (r *LeastBusyRouter) PickWithContext(ctx context.Context, reqCtx *router.Re
 	candidates := make([]deploymentInfo, len(healthy))
 	for i, d := range healthy {
 		var activeRequests int64
-		if stats := r.stats[d.ID]; stats != nil {
+		if stats := statsByID[d.ID]; stats != nil {
 			activeRequests = stats.ActiveRequests
 		}
 		candidates[i] = deploymentInfo{deployment: d, activeRequests: activeRequests}
 	}
-	r.mu.RUnlock()
 
 	// Shuffle first to randomize selection among equal candidates
 	r.randShuffle(len(candidates), func(i, j int) {
