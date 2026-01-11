@@ -36,6 +36,8 @@ type RateLimiterConfig struct {
 	WindowSize time.Duration
 	// KeyStrategy defines how to derive the rate limit key.
 	KeyStrategy RateLimitKeyStrategy
+	// FailOpen allows requests when the rate limiter backend fails.
+	FailOpen bool
 }
 
 // ClientConfig holds all configuration for the LLMux client.

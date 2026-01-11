@@ -3,6 +3,7 @@ package llmux
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -48,6 +49,62 @@ func TestClient_CheckRateLimit(t *testing.T) {
 		err = client.checkRateLimit(context.Background(), "test-key", "gpt-4", 0)
 		if err != nil {
 			t.Errorf("expected nil error when limiter is nil, got: %v", err)
+		}
+	})
+
+	t.Run("allows request on limiter error when fail-open enabled", func(t *testing.T) {
+		errorLimiter := &mockDistributedLimiter{
+			checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+				return nil, errors.New("redis down")
+			},
+		}
+
+		client, err := New(
+			WithRateLimiter(errorLimiter),
+			WithRateLimiterConfig(RateLimiterConfig{
+				Enabled:     true,
+				RPMLimit:    100,
+				WindowSize:  time.Minute,
+				KeyStrategy: RateLimitKeyByAPIKey,
+				FailOpen:    true,
+			}),
+		)
+		if err != nil {
+			t.Fatalf("failed to create client: %v", err)
+		}
+		defer client.Close()
+
+		err = client.checkRateLimit(context.Background(), "test-key", "gpt-4", 0)
+		if err != nil {
+			t.Errorf("expected nil error on fail-open, got: %v", err)
+		}
+	})
+
+	t.Run("rejects request on limiter error when fail-open disabled", func(t *testing.T) {
+		errorLimiter := &mockDistributedLimiter{
+			checkAllowFunc: func(ctx context.Context, descriptors []resilience.Descriptor) ([]resilience.LimitResult, error) {
+				return nil, errors.New("redis down")
+			},
+		}
+
+		client, err := New(
+			WithRateLimiter(errorLimiter),
+			WithRateLimiterConfig(RateLimiterConfig{
+				Enabled:     true,
+				RPMLimit:    100,
+				WindowSize:  time.Minute,
+				KeyStrategy: RateLimitKeyByAPIKey,
+				FailOpen:    false,
+			}),
+		)
+		if err != nil {
+			t.Fatalf("failed to create client: %v", err)
+		}
+		defer client.Close()
+
+		err = client.checkRateLimit(context.Background(), "test-key", "gpt-4", 0)
+		if err == nil {
+			t.Error("expected error on fail-closed, got nil")
 		}
 	})
 

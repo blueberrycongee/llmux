@@ -25,6 +25,7 @@ routing:
 
 rate_limit:
   enabled: false
+  fail_open: true
 
 logging:
   level: info
