@@ -132,6 +132,9 @@ server:
   read_timeout: 30s
   write_timeout: 120s
 
+deployment:
+  mode: standalone  # standalone, distributed, development
+
 providers:
   - name: openai
     type: openai
@@ -151,11 +154,16 @@ routing:
   strategy: simple-shuffle  # 可选: lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
   fallback_enabled: true
   retry_count: 3
+  distributed: false
 
 cache:
   enabled: true
   type: local  # local, redis, dual
   ttl: 1h
+
+rate_limit:
+  enabled: false
+  distributed: false
 
 metrics:
   enabled: true
@@ -165,6 +173,12 @@ tracing:
   enabled: false
   endpoint: localhost:4317
 ```
+
+### 部署模式与一致性
+
+- `standalone`（默认）：使用内存状态，适合单实例运行。
+- `distributed`：需要 PostgreSQL 保存认证/用量状态，Redis 保存路由统计与限流；缺失则启动失败。
+- `development`：显式允许内存状态用于多实例测试（不保证一致性）。
 
 ### OpenAI 兼容提供商
 

@@ -7,6 +7,9 @@ server:
   write_timeout: 120s
   idle_timeout: 60s
 
+deployment:
+  mode: standalone  # standalone, distributed (requires Postgres + Redis), development (allow in-memory)
+
 providers:
   - name: openai
     type: openai
@@ -62,11 +65,13 @@ routing:
   fallback_enabled: true
   retry_count: 3
   cooldown_period: 60s
+  distributed: false        # use Redis stats store for multi-instance routing
 
 rate_limit:
   enabled: false
   requests_per_minute: 60
   burst_size: 10
+  distributed: false        # use Redis for distributed rate limiting
 
 logging:
   level: info   # debug, info, warn, error

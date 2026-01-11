@@ -132,6 +132,9 @@ server:
   read_timeout: 30s
   write_timeout: 120s
 
+deployment:
+  mode: standalone  # standalone, distributed, development
+
 providers:
   - name: openai
     type: openai
@@ -151,11 +154,16 @@ routing:
   strategy: simple-shuffle  # or: lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
   fallback_enabled: true
   retry_count: 3
+  distributed: false
 
 cache:
   enabled: true
   type: local  # local, redis, dual
   ttl: 1h
+
+rate_limit:
+  enabled: false
+  distributed: false
 
 metrics:
   enabled: true
@@ -165,6 +173,12 @@ tracing:
   enabled: false
   endpoint: localhost:4317
 ```
+
+### Deployment Modes & Consistency
+
+- `standalone` (default): in-memory state, intended for single-instance runs.
+- `distributed`: requires PostgreSQL for auth/usage state and Redis for routing stats + rate limiting; startup fails if missing.
+- `development`: explicit override that allows in-memory state for multi-instance testing (not consistent).
 
 ### OpenAI-Compatible Providers
 
