@@ -373,9 +373,9 @@ func (h *ClientHandler) handleStreamResponse(ctx context.Context, w http.Respons
 		cost = client.CalculateCost(req.Model, finalUsage)
 	}
 	h.accountUsage(ctx, governance.AccountInput{
-		RequestID: requestID,
-		Model:     req.Model,
-		CallType:  governance.CallTypeChatCompletion,
+		RequestID:   requestID,
+		Model:       req.Model,
+		CallType:    governance.CallTypeChatCompletion,
 		EndUserID:   req.User,
 		RequestTags: req.Tags,
 		Usage: governance.Usage{
@@ -686,19 +686,19 @@ func (h *ClientHandler) accountUsage(ctx context.Context, input governance.Accou
 
 	authCtx := auth.GetAuthContext(ctx)
 	log := &auth.UsageLog{
-		RequestID:   input.RequestID,
-		Model:       input.Model,
-		Provider:    input.Usage.Provider,
-		CallType:    input.CallType,
-		InputTokens: input.Usage.PromptTokens,
+		RequestID:    input.RequestID,
+		Model:        input.Model,
+		Provider:     input.Usage.Provider,
+		CallType:     input.CallType,
+		InputTokens:  input.Usage.PromptTokens,
 		OutputTokens: input.Usage.CompletionTokens,
-		TotalTokens: input.Usage.TotalTokens,
-		Cost:        input.Usage.Cost,
-		StartTime:   input.Start,
-		EndTime:     time.Now(),
-		LatencyMs:   int(input.Latency.Milliseconds()),
-		RequestTags: append([]string(nil), input.RequestTags...),
-		CacheHit:    nil,
+		TotalTokens:  input.Usage.TotalTokens,
+		Cost:         input.Usage.Cost,
+		StartTime:    input.Start,
+		EndTime:      time.Now(),
+		LatencyMs:    int(input.Latency.Milliseconds()),
+		RequestTags:  append([]string(nil), input.RequestTags...),
+		CacheHit:     nil,
 	}
 	if log.Provider == "" {
 		log.Provider = "llmux"

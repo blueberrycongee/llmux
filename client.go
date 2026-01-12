@@ -33,16 +33,16 @@ import (
 //
 // Client is safe for concurrent use by multiple goroutines.
 type Client struct {
-	providers      map[string]provider.Provider
-	deployments    map[string][]*provider.Deployment // model -> deployments
-	router         router.Router
-	cache          cache.Cache
-	cacheTypeLabel string
-	httpClient     *http.Client
-	logger         *slog.Logger
-	config         *ClientConfig
-	pricing        *pricing.Registry
-	pipeline       *plugin.Pipeline
+	providers        map[string]provider.Provider
+	deployments      map[string][]*provider.Deployment // model -> deployments
+	router           router.Router
+	cache            cache.Cache
+	cacheTypeLabel   string
+	httpClient       *http.Client
+	logger           *slog.Logger
+	config           *ClientConfig
+	pricing          *pricing.Registry
+	pipeline         *plugin.Pipeline
 	fallbackReporter FallbackReporter
 
 	// Provider factories for creating providers from config
@@ -84,15 +84,15 @@ func New(opts ...Option) (*Client, error) {
 	}
 
 	c := &Client{
-		providers:   make(map[string]provider.Provider),
-		deployments: make(map[string][]*provider.Deployment),
-		factories:   make(map[string]provider.Factory),
-		config:      cfg,
-		logger:      cfg.Logger,
-		pricing:     pricing.NewRegistry(),
-		fallbackReporter: cfg.FallbackReporter,
+		providers:         make(map[string]provider.Provider),
+		deployments:       make(map[string][]*provider.Deployment),
+		factories:         make(map[string]provider.Factory),
+		config:            cfg,
+		logger:            cfg.Logger,
+		pricing:           pricing.NewRegistry(),
+		fallbackReporter:  cfg.FallbackReporter,
 		resilienceManager: resilience.NewManager(resilience.DefaultManagerConfig()),
-		backoffRand: rand.New(rand.NewSource(time.Now().UnixNano())),
+		backoffRand:       rand.New(rand.NewSource(time.Now().UnixNano())),
 		requestPool: sync.Pool{
 			New: func() any { return new(types.ChatRequest) },
 		},
@@ -1306,9 +1306,9 @@ func (c *Client) addProviderInstanceWithConfig(name string, prov provider.Provid
 	// Create deployments for each model
 	for _, model := range models {
 		deployment := &provider.Deployment{
-			ID:           fmt.Sprintf("%s-%s", name, model),
-			ProviderName: name,
-			ModelName:    model,
+			ID:            fmt.Sprintf("%s-%s", name, model),
+			ProviderName:  name,
+			ModelName:     model,
 			MaxConcurrent: maxConcurrent,
 		}
 		c.deployments[model] = append(c.deployments[model], deployment)

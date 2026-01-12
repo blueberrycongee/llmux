@@ -88,10 +88,10 @@ func TestEngineEvaluate_BudgetExceeded(t *testing.T) {
 
 func TestEngineEvaluate_RateLimitFailCloseDenies(t *testing.T) {
 	limiter := auth.NewTenantRateLimiter(&auth.TenantRateLimiterConfig{
-		DefaultRPM:  60,
+		DefaultRPM:   60,
 		DefaultBurst: 10,
-		FailOpen:   false,
-		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		FailOpen:     false,
+		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 	limiter.SetDistributedLimiter(errorLimiter{})
 	engine := NewEngine(Config{Enabled: true}, WithRateLimiter(limiter))
@@ -117,10 +117,10 @@ func TestEngineEvaluate_RateLimitFailCloseDenies(t *testing.T) {
 
 func TestEngineEvaluate_RateLimitFailOpenAllows(t *testing.T) {
 	limiter := auth.NewTenantRateLimiter(&auth.TenantRateLimiterConfig{
-		DefaultRPM:  60,
+		DefaultRPM:   60,
 		DefaultBurst: 10,
-		FailOpen:   true,
-		Logger:     slog.New(slog.NewTextHandler(io.Discard, nil)),
+		FailOpen:     true,
+		Logger:       slog.New(slog.NewTextHandler(io.Discard, nil)),
 	})
 	limiter.SetDistributedLimiter(errorLimiter{})
 	engine := NewEngine(Config{Enabled: true}, WithRateLimiter(limiter))
@@ -164,9 +164,9 @@ func TestEngineAccount_Idempotent(t *testing.T) {
 	store := newCountingStore()
 	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
 	engine := NewEngine(Config{
-		Enabled:            true,
-		AsyncAccounting:    false,
-		IdempotencyWindow:  5 * time.Minute,
+		Enabled:           true,
+		AsyncAccounting:   false,
+		IdempotencyWindow: 5 * time.Minute,
 	}, WithStore(store), WithLogger(logger), WithIdempotencyStore(NewMemoryIdempotencyStore()))
 
 	apiKey := &auth.APIKey{

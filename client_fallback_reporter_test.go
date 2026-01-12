@@ -22,10 +22,10 @@ type retryableHTTPProvider struct {
 	baseURL string
 }
 
-func (p *retryableHTTPProvider) Name() string                     { return p.name }
-func (p *retryableHTTPProvider) SupportedModels() []string        { return p.models }
-func (p *retryableHTTPProvider) SupportsModel(model string) bool   { return model == p.models[0] }
-func (p *retryableHTTPProvider) SupportEmbedding() bool            { return false }
+func (p *retryableHTTPProvider) Name() string                    { return p.name }
+func (p *retryableHTTPProvider) SupportedModels() []string       { return p.models }
+func (p *retryableHTTPProvider) SupportsModel(model string) bool { return model == p.models[0] }
+func (p *retryableHTTPProvider) SupportEmbedding() bool          { return false }
 func (p *retryableHTTPProvider) ParseStreamChunk([]byte) (*StreamChunk, error) {
 	return nil, nil
 }

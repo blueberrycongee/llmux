@@ -121,18 +121,18 @@ func (e *Engine) account(ctx context.Context, input AccountInput) {
 	}
 
 	log := &auth.UsageLog{
-		RequestID:   input.RequestID,
-		Model:       input.Model,
-		Provider:    providerLabel(input.Usage.Provider),
-		CallType:    input.CallType,
-		InputTokens: input.Usage.PromptTokens,
+		RequestID:    input.RequestID,
+		Model:        input.Model,
+		Provider:     providerLabel(input.Usage.Provider),
+		CallType:     input.CallType,
+		InputTokens:  input.Usage.PromptTokens,
 		OutputTokens: input.Usage.CompletionTokens,
-		TotalTokens: input.Usage.TotalTokens,
-		Cost:        input.Usage.Cost,
-		StartTime:   input.Start,
-		EndTime:     endTime,
-		LatencyMs:   int(latency.Milliseconds()),
-		RequestTags: append([]string(nil), input.RequestTags...),
+		TotalTokens:  input.Usage.TotalTokens,
+		Cost:         input.Usage.Cost,
+		StartTime:    input.Start,
+		EndTime:      endTime,
+		LatencyMs:    int(latency.Milliseconds()),
+		RequestTags:  append([]string(nil), input.RequestTags...),
 	}
 	if input.StatusCode != nil {
 		log.StatusCode = input.StatusCode
@@ -237,10 +237,10 @@ func (e *Engine) account(ctx context.Context, input AccountInput) {
 }
 
 type resolvedEntities struct {
-	team     *auth.Team
-	user     *auth.User
-	org      *auth.Organization
-	endUser  *auth.EndUser
+	team    *auth.Team
+	user    *auth.User
+	org     *auth.Organization
+	endUser *auth.EndUser
 }
 
 func (e *Engine) resolveEntities(ctx context.Context, authCtx *auth.AuthContext, endUserID string) (resolvedEntities, error) {

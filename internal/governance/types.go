@@ -14,10 +14,10 @@ const (
 
 // Config controls governance behavior.
 type Config struct {
-	Enabled            bool
-	AsyncAccounting    bool
-	IdempotencyWindow  time.Duration
-	AuditEnabled       bool
+	Enabled           bool
+	AsyncAccounting   bool
+	IdempotencyWindow time.Duration
+	AuditEnabled      bool
 }
 
 // RequestInput captures request context for governance evaluation.

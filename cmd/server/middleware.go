@@ -48,13 +48,13 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 	}
 
 	return func(next http.Handler) http.Handler {
-	if next == nil {
-		return nil
-	}
-	handler := next
-	if authMiddleware != nil {
-		handler = authMiddleware.Authenticate(handler)
-	}
+		if next == nil {
+			return nil
+		}
+		handler := next
+		if authMiddleware != nil {
+			handler = authMiddleware.Authenticate(handler)
+		}
 		if oidcMiddleware != nil {
 			handler = oidcMiddleware(handler)
 		}

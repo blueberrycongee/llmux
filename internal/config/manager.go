@@ -2,21 +2,27 @@ package config
 
 import (
 	"context"
+	"crypto/sha256"
+	"encoding/hex"
 	"log/slog"
 	"sync/atomic"
 	"time"
 
 	"github.com/fsnotify/fsnotify"
+	"gopkg.in/yaml.v3"
 )
 
 // Manager handles configuration loading and hot-reload.
 // It uses atomic pointer swaps to ensure thread-safe config updates.
 type Manager struct {
-	config   atomic.Pointer[Config]
-	path     string
-	watcher  *fsnotify.Watcher
-	onChange []func(*Config)
-	logger   *slog.Logger
+	config      atomic.Pointer[Config]
+	path        string
+	watcher     *fsnotify.Watcher
+	onChange    []func(*Config)
+	logger      *slog.Logger
+	checksum    atomic.Value
+	loadedAt    atomic.Value
+	reloadCount atomic.Uint64
 }
 
 // NewManager creates a new configuration manager.
@@ -30,7 +36,9 @@ func NewManager(path string, logger *slog.Logger) (*Manager, error) {
 		path:   path,
 		logger: logger,
 	}
-	m.config.Store(cfg)
+	if err := m.storeConfig(cfg); err != nil {
+		return nil, err
+	}
 
 	return m, nil
 }
@@ -44,6 +52,29 @@ func (m *Manager) Get() *Config {
 // OnChange registers a callback to be invoked when configuration changes.
 func (m *Manager) OnChange(fn func(*Config)) {
 	m.onChange = append(m.onChange, fn)
+}
+
+// ConfigStatus contains the current config metadata.
+type ConfigStatus struct {
+	Path        string    `json:"path"`
+	Checksum    string    `json:"checksum"`
+	LoadedAt    time.Time `json:"loaded_at"`
+	ReloadCount uint64    `json:"reload_count"`
+}
+
+// Status returns metadata about the active configuration.
+func (m *Manager) Status() ConfigStatus {
+	status := ConfigStatus{
+		Path:        m.path,
+		ReloadCount: m.reloadCount.Load(),
+	}
+	if value, ok := m.checksum.Load().(string); ok {
+		status.Checksum = value
+	}
+	if value, ok := m.loadedAt.Load().(time.Time); ok {
+		status.LoadedAt = value
+	}
+	return status
 }
 
 // Watch starts watching the configuration file for changes.
@@ -89,7 +120,9 @@ func (m *Manager) watchLoop(ctx context.Context) {
 					debounceTimer.Stop()
 				}
 				debounceTimer = time.AfterFunc(debounceDelay, func() {
-					m.reload()
+					if err := m.Reload(); err != nil {
+						m.logger.Error("failed to reload config, keeping current", "error", err)
+					}
 				})
 			}
 
@@ -102,23 +135,24 @@ func (m *Manager) watchLoop(ctx context.Context) {
 	}
 }
 
-func (m *Manager) reload() {
+// Reload forces a configuration reload from disk.
+func (m *Manager) Reload() error {
 	newCfg, err := LoadFromFile(m.path)
 	if err != nil {
-		m.logger.Error("failed to reload config, keeping current",
-			"error", err,
-		)
-		return
+		return err
 	}
 
 	// Atomic swap
-	m.config.Store(newCfg)
+	if err := m.storeConfig(newCfg); err != nil {
+		return err
+	}
 	m.logger.Info("configuration reloaded successfully")
 
 	// Notify listeners
 	for _, fn := range m.onChange {
 		fn(newCfg)
 	}
+	return nil
 }
 
 // Close stops the configuration watcher.
@@ -127,4 +161,25 @@ func (m *Manager) Close() error {
 		return m.watcher.Close()
 	}
 	return nil
+}
+
+func (m *Manager) storeConfig(cfg *Config) error {
+	checksum, err := configChecksum(cfg)
+	if err != nil {
+		return err
+	}
+	m.config.Store(cfg)
+	m.checksum.Store(checksum)
+	m.loadedAt.Store(time.Now().UTC())
+	m.reloadCount.Add(1)
+	return nil
+}
+
+func configChecksum(cfg *Config) (string, error) {
+	data, err := yaml.Marshal(cfg)
+	if err != nil {
+		return "", err
+	}
+	sum := sha256.Sum256(data)
+	return hex.EncodeToString(sum[:]), nil
 }

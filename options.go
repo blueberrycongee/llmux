@@ -53,15 +53,15 @@ type ClientConfig struct {
 	ProviderInstances []providerInstance
 
 	// Routing
-	RouterStrategy  Strategy
-	Router          Router // Custom router (overrides RouterStrategy)
-	FallbackEnabled bool
-	RetryCount      int
-	RetryBackoff    time.Duration
-	RetryMaxBackoff time.Duration
-	RetryJitter     float64
-	CooldownPeriod  time.Duration
-	DefaultProvider string
+	RouterStrategy   Strategy
+	Router           Router // Custom router (overrides RouterStrategy)
+	FallbackEnabled  bool
+	RetryCount       int
+	RetryBackoff     time.Duration
+	RetryMaxBackoff  time.Duration
+	RetryJitter      float64
+	CooldownPeriod   time.Duration
+	DefaultProvider  string
 	FallbackReporter FallbackReporter
 
 	// Distributed Routing Stats (for multi-instance deployments)
