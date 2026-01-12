@@ -67,6 +67,10 @@ type Router interface {
 	// IsCircuitOpen checks if the circuit breaker is open for a deployment.
 	IsCircuitOpen(deployment *provider.Deployment) bool
 
+	// SetCooldown updates the cooldown expiration time for a deployment.
+	// A zero time clears any active cooldown.
+	SetCooldown(deploymentID string, until time.Time) error
+
 	// AddDeployment registers a new deployment with the router.
 	AddDeployment(deployment *provider.Deployment)
 

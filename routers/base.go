@@ -289,6 +289,21 @@ func (r *BaseRouter) IsCircuitOpen(deployment *provider.Deployment) bool {
 	return time.Now().Before(stats.CooldownUntil)
 }
 
+// SetCooldown updates the cooldown expiration time for a deployment.
+// A zero time clears any active cooldown.
+func (r *BaseRouter) SetCooldown(deploymentID string, until time.Time) error {
+	if r.statsStore != nil {
+		return r.statsStore.SetCooldown(context.Background(), deploymentID, until)
+	}
+
+	r.mu.Lock()
+	defer r.mu.Unlock()
+
+	stats := r.getOrCreateStats(deploymentID)
+	stats.CooldownUntil = until
+	return nil
+}
+
 // ReportRequestStart increments the active request count.
 func (r *BaseRouter) ReportRequestStart(deployment *provider.Deployment) {
 	// Distributed mode: delegate to StatsStore

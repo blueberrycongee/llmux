@@ -707,6 +707,45 @@ func (c *Client) GetStats(deploymentID string) *DeploymentStats {
 	return c.router.GetStats(deploymentID)
 }
 
+// SetCooldown updates the cooldown expiration time for a deployment.
+// A zero time clears any active cooldown.
+func (c *Client) SetCooldown(deploymentID string, until time.Time) error {
+	return c.router.SetCooldown(deploymentID, until)
+}
+
+// ListDeployments returns a snapshot of all deployments.
+func (c *Client) ListDeployments() []*provider.Deployment {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	total := 0
+	for _, deployments := range c.deployments {
+		total += len(deployments)
+	}
+
+	result := make([]*provider.Deployment, 0, total)
+	for _, deployments := range c.deployments {
+		for _, d := range deployments {
+			if d == nil {
+				continue
+			}
+			copied := *d
+			result = append(result, &copied)
+		}
+	}
+
+	return result
+}
+
+// GetProvider returns the provider instance by name.
+func (c *Client) GetProvider(name string) (Provider, bool) {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+
+	prov, ok := c.providers[name]
+	return prov, ok
+}
+
 // GetProviders returns the names of all registered providers.
 func (c *Client) GetProviders() []string {
 	c.mu.RLock()
