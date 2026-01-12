@@ -344,11 +344,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	pCtx.Model = req.Model
 	if sc != nil {
 		if sc.Error != nil {
-			if !sc.AllowFallback {
-				c.pipeline.PutContext(pCtx)
-				return nil, sc.Error
-			}
-			// Fallback logic could go here, but for now just return error
+			_ = c.pipeline.RunStreamPostHooks(pCtx, sc.Error, runFrom)
 			c.pipeline.PutContext(pCtx)
 			return nil, sc.Error
 		}
