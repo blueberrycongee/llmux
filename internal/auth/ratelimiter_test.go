@@ -2,6 +2,7 @@ package auth
 
 import (
 	"context"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -222,6 +223,90 @@ func TestTenantRateLimiter_Middleware(t *testing.T) {
 	}
 }
 
+func TestTenantRateLimiter_Middleware_AnonymousKeyStable(t *testing.T) {
+	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
+		DefaultRPM:   60,
+		DefaultBurst: 2,
+		CleanupTTL:   time.Minute,
+	})
+
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req.RemoteAddr = "192.168.1.1:1111"
+	rr := httptest.NewRecorder()
+	trl.RateLimitMiddleware(handler).ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("first request: expected 200, got %d", rr.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req.RemoteAddr = "192.168.1.1:2222"
+	rr = httptest.NewRecorder()
+	trl.RateLimitMiddleware(handler).ServeHTTP(rr, req)
+	if rr.Code != http.StatusOK {
+		t.Fatalf("second request: expected 200, got %d", rr.Code)
+	}
+
+	req = httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+	req.RemoteAddr = "192.168.1.1:3333"
+	rr = httptest.NewRecorder()
+	trl.RateLimitMiddleware(handler).ServeHTTP(rr, req)
+	if rr.Code != http.StatusTooManyRequests {
+		t.Fatalf("third request: expected 429, got %d", rr.Code)
+	}
+}
+
+func TestAnonymousRateLimitKey_TrustedProxy_XForwardedFor(t *testing.T) {
+	trusted := mustTrustedProxyCIDRs(t, []string{"10.0.0.0/8"})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "10.1.2.3:1234"
+	req.Header.Set("X-Forwarded-For", "203.0.113.10, 10.1.2.3")
+
+	key := anonymousRateLimitKey(req, trusted)
+	if key != "203.0.113.10" {
+		t.Fatalf("expected client ip 203.0.113.10, got %q", key)
+	}
+}
+
+func TestAnonymousRateLimitKey_IgnoreSpoofedForwardedFor(t *testing.T) {
+	trusted := mustTrustedProxyCIDRs(t, []string{"10.0.0.0/8"})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "203.0.113.5:1234"
+	req.Header.Set("X-Forwarded-For", "198.51.100.1")
+
+	key := anonymousRateLimitKey(req, trusted)
+	if key != "203.0.113.5" {
+		t.Fatalf("expected remote ip 203.0.113.5, got %q", key)
+	}
+}
+
+func TestAnonymousRateLimitKey_ForwardedHeader(t *testing.T) {
+	trusted := mustTrustedProxyCIDRs(t, []string{"10.0.0.0/8"})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "10.9.8.7:4321"
+	req.Header.Set("Forwarded", "for=198.51.100.9, for=10.9.8.7")
+
+	key := anonymousRateLimitKey(req, trusted)
+	if key != "198.51.100.9" {
+		t.Fatalf("expected client ip 198.51.100.9, got %q", key)
+	}
+}
+
+func TestAnonymousRateLimitKey_ForwardedHeaderIPv6(t *testing.T) {
+	trusted := mustTrustedProxyCIDRs(t, []string{"fd00::/8"})
+	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req.RemoteAddr = "[fd00::1]:1234"
+	req.Header.Set("Forwarded", "for=\"[2001:db8::1]:1234\"")
+
+	key := anonymousRateLimitKey(req, trusted)
+	if key != "2001:db8::1" {
+		t.Fatalf("expected client ip 2001:db8::1, got %q", key)
+	}
+}
+
 func TestTenantRateLimiter_MiddlewareWithAuth(t *testing.T) {
 	trl := NewTenantRateLimiter(&TenantRateLimiterConfig{
 		DefaultRPM:   60,
@@ -338,6 +423,15 @@ func TestTenantRateLimiter_BurstForRate_DefaultBurstCapped(t *testing.T) {
 	if burst != 3 {
 		t.Errorf("burst for rpm=60 with lower default = %d, want 3", burst)
 	}
+}
+
+func mustTrustedProxyCIDRs(t *testing.T, values []string) []*net.IPNet {
+	t.Helper()
+	trusted, invalid := parseTrustedProxyCIDRs(values)
+	if len(invalid) > 0 {
+		t.Fatalf("invalid trusted proxies: %v", invalid)
+	}
+	return trusted
 }
 
 func TestTenantRateLimiter_IsolatedTenants(t *testing.T) {

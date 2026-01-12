@@ -4,7 +4,9 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"time"
 
@@ -26,16 +28,18 @@ type TenantRateLimiter struct {
 	distributedLimiter resilience.DistributedLimiter
 	failOpen           bool
 	logger             *slog.Logger
+	trustedProxies     []*net.IPNet
 }
 
 // TenantRateLimiterConfig contains configuration for the tenant rate limiter.
 type TenantRateLimiterConfig struct {
-	DefaultRPM      int           // Default requests per minute
-	DefaultBurst    int           // Default burst size
-	UseDefaultBurst bool          // Override burst for custom RPM limits
-	CleanupTTL      time.Duration // TTL for inactive limiters
-	FailOpen        bool          // Allow requests when limiter backend fails
-	Logger          *slog.Logger  // Optional logger for limiter events
+	DefaultRPM        int           // Default requests per minute
+	DefaultBurst      int           // Default burst size
+	UseDefaultBurst   bool          // Override burst for custom RPM limits
+	CleanupTTL        time.Duration // TTL for inactive limiters
+	FailOpen          bool          // Allow requests when limiter backend fails
+	Logger            *slog.Logger  // Optional logger for limiter events
+	TrustedProxyCIDRs []string      // Trusted proxy IPs/CIDRs for forwarded headers
 }
 
 // NewTenantRateLimiter creates a new per-tenant rate limiter.
@@ -53,6 +57,11 @@ func NewTenantRateLimiter(cfg *TenantRateLimiterConfig) *TenantRateLimiter {
 		cfg.Logger = slog.Default()
 	}
 
+	trustedProxies, invalidProxyCIDRs := parseTrustedProxyCIDRs(cfg.TrustedProxyCIDRs)
+	for _, value := range invalidProxyCIDRs {
+		cfg.Logger.Warn("invalid trusted proxy cidr ignored", "value", value)
+	}
+
 	trl := &TenantRateLimiter{
 		limiters:        make(map[string]*rate.Limiter),
 		defaultRate:     rate.Limit(float64(cfg.DefaultRPM) / 60.0),
@@ -62,6 +71,7 @@ func NewTenantRateLimiter(cfg *TenantRateLimiterConfig) *TenantRateLimiter {
 		lastAccess:      make(map[string]time.Time),
 		failOpen:        cfg.FailOpen,
 		logger:          cfg.Logger,
+		trustedProxies:  trustedProxies,
 	}
 
 	// Start cleanup goroutine
@@ -251,7 +261,7 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 		authCtx := GetAuthContext(r.Context())
 		if authCtx == nil || authCtx.APIKey == nil {
 			// No auth context, use IP-based limiting
-			tenantID := r.RemoteAddr
+			tenantID := anonymousRateLimitKey(r, trl.trustedProxies)
 			allowed, _ := trl.Check(r.Context(), tenantID, 0, 0)
 			if !allowed {
 				w.Header().Set("Content-Type", "application/json")
@@ -311,6 +321,33 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 	})
 }
 
+func anonymousRateLimitKey(r *http.Request, trustedProxies []*net.IPNet) string {
+	if r == nil {
+		return ""
+	}
+	remoteHost := remoteAddrHost(r.RemoteAddr)
+	if remoteHost == "" {
+		return ""
+	}
+	if len(trustedProxies) == 0 {
+		return remoteHost
+	}
+	remoteIP := parseIP(remoteHost)
+	if remoteIP == nil || !ipInNets(remoteIP, trustedProxies) {
+		return remoteHost
+	}
+	if ip := forwardedClientIP(r.Header.Get("Forwarded"), trustedProxies); ip != "" {
+		return ip
+	}
+	if ip := xForwardedForClientIP(r.Header.Get("X-Forwarded-For"), trustedProxies); ip != "" {
+		return ip
+	}
+	if ip := headerClientIP(r.Header.Get("X-Real-IP")); ip != "" {
+		return ip
+	}
+	return remoteHost
+}
+
 func (trl *TenantRateLimiter) burstForRate(rpm int, minBurst int) int {
 	burst := rpm / 6
 	if burst < minBurst {
@@ -323,4 +360,174 @@ func (trl *TenantRateLimiter) burstForRate(rpm int, minBurst int) int {
 		return burst
 	}
 	return burst
+}
+
+func remoteAddrHost(addr string) string {
+	if addr == "" {
+		return ""
+	}
+	host, _, err := net.SplitHostPort(addr)
+	if err == nil && host != "" {
+		return host
+	}
+	return addr
+}
+
+func forwardedClientIP(header string, trustedProxies []*net.IPNet) string {
+	return selectClientIP(parseForwardedFor(header), trustedProxies)
+}
+
+func xForwardedForClientIP(header string, trustedProxies []*net.IPNet) string {
+	return selectClientIP(parseXForwardedFor(header), trustedProxies)
+}
+
+func headerClientIP(value string) string {
+	ip := parseIP(value)
+	if ip == nil {
+		return ""
+	}
+	return ip.String()
+}
+
+func selectClientIP(ips []net.IP, trustedProxies []*net.IPNet) string {
+	if len(ips) == 0 {
+		return ""
+	}
+	for i := len(ips) - 1; i >= 0; i-- {
+		ip := normalizeIP(ips[i])
+		if ip == nil {
+			continue
+		}
+		if !ipInNets(ip, trustedProxies) {
+			return ip.String()
+		}
+	}
+	for _, ip := range ips {
+		ip = normalizeIP(ip)
+		if ip != nil {
+			return ip.String()
+		}
+	}
+	return ""
+}
+
+func parseForwardedFor(header string) []net.IP {
+	if header == "" {
+		return nil
+	}
+	parts := strings.Split(header, ",")
+	ips := make([]net.IP, 0, len(parts))
+	for _, part := range parts {
+		for _, param := range strings.Split(part, ";") {
+			param = strings.TrimSpace(param)
+			if len(param) < 4 || !strings.EqualFold(param[:4], "for=") {
+				continue
+			}
+			value := strings.TrimSpace(param[4:])
+			if ip := parseForwardedForValue(value); ip != nil {
+				ips = append(ips, ip)
+			}
+		}
+	}
+	return ips
+}
+
+func parseXForwardedFor(header string) []net.IP {
+	if header == "" {
+		return nil
+	}
+	parts := strings.Split(header, ",")
+	ips := make([]net.IP, 0, len(parts))
+	for _, part := range parts {
+		if ip := parseIP(part); ip != nil {
+			ips = append(ips, ip)
+		}
+	}
+	return ips
+}
+
+func parseForwardedForValue(value string) net.IP {
+	value = strings.TrimSpace(value)
+	value = strings.Trim(value, "\"")
+	if value == "" || strings.EqualFold(value, "unknown") {
+		return nil
+	}
+	if strings.HasPrefix(value, "[") {
+		if idx := strings.Index(value, "]"); idx != -1 {
+			return parseIP(value[1:idx])
+		}
+	}
+	if host, _, err := net.SplitHostPort(value); err == nil {
+		return parseIP(host)
+	}
+	return parseIP(value)
+}
+
+func parseIP(value string) net.IP {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return nil
+	}
+	if idx := strings.IndexByte(value, '%'); idx != -1 {
+		value = value[:idx]
+	}
+	ip := net.ParseIP(value)
+	return normalizeIP(ip)
+}
+
+func normalizeIP(ip net.IP) net.IP {
+	if ip == nil {
+		return nil
+	}
+	if ip4 := ip.To4(); ip4 != nil {
+		return ip4
+	}
+	return ip
+}
+
+func ipInNets(ip net.IP, nets []*net.IPNet) bool {
+	if ip == nil {
+		return false
+	}
+	for _, ipNet := range nets {
+		if ipNet != nil && ipNet.Contains(ip) {
+			return true
+		}
+	}
+	return false
+}
+
+func parseTrustedProxyCIDRs(values []string) ([]*net.IPNet, []string) {
+	if len(values) == 0 {
+		return nil, nil
+	}
+	trusted := make([]*net.IPNet, 0, len(values))
+	var invalid []string
+	for _, value := range values {
+		value = strings.TrimSpace(value)
+		if value == "" {
+			invalid = append(invalid, value)
+			continue
+		}
+		if strings.Contains(value, "/") {
+			_, ipNet, err := net.ParseCIDR(value)
+			if err != nil {
+				invalid = append(invalid, value)
+				continue
+			}
+			trusted = append(trusted, ipNet)
+			continue
+		}
+		ip := normalizeIP(net.ParseIP(value))
+		if ip == nil {
+			invalid = append(invalid, value)
+			continue
+		}
+		maskBits := 128
+		if ip.To4() != nil {
+			maskBits = 32
+		}
+		trusted = append(trusted, &net.IPNet{IP: ip, Mask: net.CIDRMask(maskBits, maskBits)})
+	}
+	return trusted, invalid
 }
