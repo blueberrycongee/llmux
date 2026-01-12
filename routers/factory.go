@@ -16,21 +16,28 @@ func New(config router.Config) (router.Router, error) {
 // When store is nil, the router uses local in-memory stats (single-instance mode).
 // When store is provided, stats are shared across multiple instances (distributed mode).
 func NewWithStore(config router.Config, store router.StatsStore) (router.Router, error) {
+	return NewWithStores(config, store, nil)
+}
+
+// NewWithStores creates a new router with optional distributed stores.
+// statsStore shares routing stats across instances.
+// rrStore shares round-robin counters across instances.
+func NewWithStores(config router.Config, statsStore router.StatsStore, rrStore router.RoundRobinStore) (router.Router, error) {
 	switch config.Strategy {
 	case router.StrategyRoundRobin:
-		return newRoundRobinRouterWithStore(config, store), nil
+		return newRoundRobinRouterWithStores(config, statsStore, rrStore), nil
 	case router.StrategySimpleShuffle, "":
-		return newShuffleRouterWithStore(config, store), nil
+		return newShuffleRouterWithStore(config, statsStore), nil
 	case router.StrategyLowestLatency:
-		return newLatencyRouterWithStore(config, store), nil
+		return newLatencyRouterWithStore(config, statsStore), nil
 	case router.StrategyLeastBusy:
-		return newLeastBusyRouterWithStore(config, store), nil
+		return newLeastBusyRouterWithStore(config, statsStore), nil
 	case router.StrategyLowestTPMRPM:
-		return newTPMRPMRouterWithStore(config, store), nil
+		return newTPMRPMRouterWithStore(config, statsStore), nil
 	case router.StrategyLowestCost:
-		return newCostRouterWithStore(config, store), nil
+		return newCostRouterWithStore(config, statsStore), nil
 	case router.StrategyTagBased:
-		return newTagBasedRouterWithStore(config, store), nil
+		return newTagBasedRouterWithStore(config, statsStore), nil
 	default:
 		return nil, fmt.Errorf("unknown routing strategy: %s", config.Strategy)
 	}

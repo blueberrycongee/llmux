@@ -13,6 +13,7 @@ import (
 type RoundRobinRouter struct {
 	*BaseRouter
 	counters sync.Map // map[string]*atomic.Uint64
+	rrStore  router.RoundRobinStore
 }
 
 // NewRoundRobinRouter creates a new round-robin router with default config.
@@ -34,6 +35,11 @@ func NewRoundRobinRouterWithConfig(config router.Config) *RoundRobinRouter {
 
 // newRoundRobinRouterWithStore creates a new round-robin router with optional distributed StatsStore.
 func newRoundRobinRouterWithStore(config router.Config, store router.StatsStore) *RoundRobinRouter {
+	return newRoundRobinRouterWithStores(config, store, nil)
+}
+
+// newRoundRobinRouterWithStores creates a round-robin router with optional stats and RR stores.
+func newRoundRobinRouterWithStores(config router.Config, store router.StatsStore, rrStore router.RoundRobinStore) *RoundRobinRouter {
 	config.Strategy = router.StrategyRoundRobin
 	var base *BaseRouter
 	if store != nil {
@@ -41,7 +47,10 @@ func newRoundRobinRouterWithStore(config router.Config, store router.StatsStore)
 	} else {
 		base = NewBaseRouter(config)
 	}
-	return &RoundRobinRouter{BaseRouter: base}
+	return &RoundRobinRouter{
+		BaseRouter: base,
+		rrStore:    rrStore,
+	}
 }
 
 // Pick selects the next deployment in round-robin order.
@@ -84,6 +93,15 @@ func (r *RoundRobinRouter) PickWithContext(ctx context.Context, reqCtx *router.R
 }
 
 func (r *RoundRobinRouter) nextIndex(model string, count int) int {
+	if count <= 0 {
+		return 0
+	}
+	if r.rrStore != nil {
+		idx, err := r.rrStore.NextIndex(context.Background(), model, count)
+		if err == nil && idx >= 0 && idx < count {
+			return idx
+		}
+	}
 	counter := r.counterForModel(model)
 	next := counter.Add(1) - 1
 	return int(next % uint64(count))

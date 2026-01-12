@@ -60,6 +60,9 @@ type ClientConfig struct {
 	// Distributed Routing Stats (for multi-instance deployments)
 	StatsStore router.StatsStore
 
+	// Distributed Round Robin counters (for multi-instance deployments)
+	RoundRobinStore router.RoundRobinStore
+
 	// Caching
 	CacheEnabled   bool
 	Cache          Cache // Custom cache implementation
@@ -341,6 +344,13 @@ func WithRateLimiterConfig(config RateLimiterConfig) Option {
 func WithStatsStore(store router.StatsStore) Option {
 	return func(c *ClientConfig) {
 		c.StatsStore = store
+	}
+}
+
+// WithRoundRobinStore sets a distributed round-robin store for consistent RR across instances.
+func WithRoundRobinStore(store router.RoundRobinStore) Option {
+	return func(c *ClientConfig) {
+		c.RoundRobinStore = store
 	}
 }
 

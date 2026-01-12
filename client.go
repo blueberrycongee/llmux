@@ -1118,7 +1118,7 @@ func (c *Client) createRouter(strategy Strategy) router.Router {
 	config.MaxLatencyListSize = 10
 	config.PricingFile = c.config.PricingFile
 	config.DefaultProvider = c.config.DefaultProvider
-	r, err := routers.NewWithStore(config, c.config.StatsStore)
+	r, err := routers.NewWithStores(config, c.config.StatsStore, c.config.RoundRobinStore)
 	if err != nil {
 		// Fallback to shuffle router if strategy is invalid
 		return routers.NewShuffleRouter()

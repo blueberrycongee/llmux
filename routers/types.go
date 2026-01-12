@@ -16,6 +16,7 @@ type (
 	ResponseMetrics  = router.ResponseMetrics
 	Strategy         = router.Strategy
 	StatsStore       = router.StatsStore
+	RoundRobinStore  = router.RoundRobinStore
 )
 
 // Re-export error variables

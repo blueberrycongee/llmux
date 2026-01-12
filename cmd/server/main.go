@@ -452,6 +452,8 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 				} else {
 					statsStore := routers.NewRedisStatsStore(redisClient)
 					opts = append(opts, llmux.WithStatsStore(statsStore))
+					rrStore := routers.NewRedisRoundRobinStore(redisClient)
+					opts = append(opts, llmux.WithRoundRobinStore(rrStore))
 					logger.Info("distributed routing enabled", "cluster", isCluster)
 				}
 				pingCancel()
