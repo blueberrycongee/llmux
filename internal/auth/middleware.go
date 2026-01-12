@@ -20,18 +20,20 @@ const (
 
 // Middleware provides HTTP middleware for API key authentication.
 type Middleware struct {
-	store     Store
-	logger    *slog.Logger
-	skipPaths map[string]bool
-	enabled   bool
+	store                  Store
+	logger                 *slog.Logger
+	skipPaths              map[string]bool
+	enabled                bool
+	lastUsedUpdateInterval time.Duration
 }
 
 // MiddlewareConfig contains configuration for the auth middleware.
 type MiddlewareConfig struct {
-	Store     Store
-	Logger    *slog.Logger
-	SkipPaths []string // Paths to skip authentication (e.g., /health, /metrics)
-	Enabled   bool
+	Store                  Store
+	Logger                 *slog.Logger
+	SkipPaths              []string // Paths to skip authentication (e.g., /health, /metrics)
+	Enabled                bool
+	LastUsedUpdateInterval time.Duration
 }
 
 // NewMiddleware creates a new authentication middleware.
@@ -42,10 +44,11 @@ func NewMiddleware(cfg *MiddlewareConfig) *Middleware {
 	}
 
 	return &Middleware{
-		store:     cfg.Store,
-		logger:    cfg.Logger,
-		skipPaths: skipPaths,
-		enabled:   cfg.Enabled,
+		store:                  cfg.Store,
+		logger:                 cfg.Logger,
+		skipPaths:              skipPaths,
+		enabled:                cfg.Enabled,
+		lastUsedUpdateInterval: cfg.LastUsedUpdateInterval,
 	}
 }
 
@@ -115,14 +118,14 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			}
 		}
 
-		// Update last used timestamp (async to not block request)
-		go func() {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		now := time.Now()
+		if m.shouldUpdateLastUsed(key.LastUsedAt, now) {
+			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
 			defer cancel()
-			if err := m.store.UpdateAPIKeyLastUsed(ctx, key.ID, time.Now()); err != nil {
+			if err := m.store.UpdateAPIKeyLastUsed(ctx, key.ID, now); err != nil {
 				m.logger.Warn("failed to update last_used_at", "error", err, "key_id", key.ID)
 			}
-		}()
+		}
 
 		// Create auth context
 		authCtx := &AuthContext{
@@ -134,6 +137,19 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 		ctx := context.WithValue(r.Context(), AuthContextKey, authCtx)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+func (m *Middleware) shouldUpdateLastUsed(lastUsed *time.Time, now time.Time) bool {
+	if m.lastUsedUpdateInterval <= 0 {
+		return true
+	}
+	if lastUsed == nil {
+		return true
+	}
+	if lastUsed.After(now) {
+		return false
+	}
+	return now.Sub(*lastUsed) >= m.lastUsedUpdateInterval
 }
 
 // GetAuthContext retrieves the AuthContext from the request context.

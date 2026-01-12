@@ -2,10 +2,12 @@ package auth
 
 import (
 	"context"
+	"io"
 	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"sync"
 	"testing"
 	"time"
 )
@@ -101,6 +103,127 @@ func TestMiddleware_Authenticate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestMiddleware_LastUsedUpdateWindow(t *testing.T) {
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	t.Run("updates when last_used_at is nil", func(t *testing.T) {
+		store, fullKey := setupCountingStore(t, nil)
+		middleware := NewMiddleware(&MiddlewareConfig{
+			Store:                  store,
+			Logger:                 logger,
+			Enabled:                true,
+			LastUsedUpdateInterval: time.Minute,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey)
+		rr := httptest.NewRecorder()
+		middleware.Authenticate(handler).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if got := store.Calls(); got != 1 {
+			t.Fatalf("expected last_used update, got %d calls", got)
+		}
+	})
+
+	t.Run("skips update within window", func(t *testing.T) {
+		lastUsed := time.Now().Add(-30 * time.Second)
+		store, fullKey := setupCountingStore(t, &lastUsed)
+		middleware := NewMiddleware(&MiddlewareConfig{
+			Store:                  store,
+			Logger:                 logger,
+			Enabled:                true,
+			LastUsedUpdateInterval: time.Hour,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey)
+		rr := httptest.NewRecorder()
+		middleware.Authenticate(handler).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if got := store.Calls(); got != 0 {
+			t.Fatalf("expected no last_used update, got %d calls", got)
+		}
+	})
+
+	t.Run("updates when outside window", func(t *testing.T) {
+		lastUsed := time.Now().Add(-2 * time.Minute)
+		store, fullKey := setupCountingStore(t, &lastUsed)
+		middleware := NewMiddleware(&MiddlewareConfig{
+			Store:                  store,
+			Logger:                 logger,
+			Enabled:                true,
+			LastUsedUpdateInterval: time.Minute,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey)
+		rr := httptest.NewRecorder()
+		middleware.Authenticate(handler).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if got := store.Calls(); got != 1 {
+			t.Fatalf("expected last_used update, got %d calls", got)
+		}
+	})
+
+	t.Run("updates when interval is disabled", func(t *testing.T) {
+		lastUsed := time.Now()
+		store, fullKey := setupCountingStore(t, &lastUsed)
+		middleware := NewMiddleware(&MiddlewareConfig{
+			Store:                  store,
+			Logger:                 logger,
+			Enabled:                true,
+			LastUsedUpdateInterval: 0,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey)
+		rr := httptest.NewRecorder()
+		middleware.Authenticate(handler).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if got := store.Calls(); got != 1 {
+			t.Fatalf("expected last_used update, got %d calls", got)
+		}
+	})
+
+	t.Run("skips update when last_used_at is in the future", func(t *testing.T) {
+		lastUsed := time.Now().Add(2 * time.Minute)
+		store, fullKey := setupCountingStore(t, &lastUsed)
+		middleware := NewMiddleware(&MiddlewareConfig{
+			Store:                  store,
+			Logger:                 logger,
+			Enabled:                true,
+			LastUsedUpdateInterval: time.Minute,
+		})
+
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey)
+		rr := httptest.NewRecorder()
+		middleware.Authenticate(handler).ServeHTTP(rr, req)
+
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+		if got := store.Calls(); got != 0 {
+			t.Fatalf("expected no last_used update, got %d calls", got)
+		}
+	})
 }
 
 func TestMiddleware_ExpiredKey(t *testing.T) {
@@ -313,4 +436,49 @@ func TestGetAuthContext(t *testing.T) {
 	if auth.APIKey.ID != "test-id" {
 		t.Errorf("expected key ID 'test-id', got %q", auth.APIKey.ID)
 	}
+}
+
+type countingStore struct {
+	*MemoryStore
+	mu       sync.Mutex
+	calls    int
+	lastUsed time.Time
+}
+
+func newCountingStore() *countingStore {
+	return &countingStore{MemoryStore: NewMemoryStore()}
+}
+
+func (s *countingStore) UpdateAPIKeyLastUsed(ctx context.Context, keyID string, lastUsed time.Time) error {
+	s.mu.Lock()
+	s.calls++
+	s.lastUsed = lastUsed
+	s.mu.Unlock()
+	return s.MemoryStore.UpdateAPIKeyLastUsed(ctx, keyID, lastUsed)
+}
+
+func (s *countingStore) Calls() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.calls
+}
+
+func setupCountingStore(t *testing.T, lastUsed *time.Time) (*countingStore, string) {
+	t.Helper()
+
+	store := newCountingStore()
+	fullKey, hash, _ := GenerateAPIKey()
+	key := &APIKey{
+		ID:         "test-key-id",
+		KeyHash:    hash,
+		KeyPrefix:  ExtractKeyPrefix(fullKey),
+		Name:       "Test Key",
+		IsActive:   true,
+		CreatedAt:  time.Now(),
+		LastUsedAt: lastUsed,
+	}
+	if err := store.CreateAPIKey(context.Background(), key); err != nil {
+		t.Fatalf("CreateAPIKey() error = %v", err)
+	}
+	return store, fullKey
 }

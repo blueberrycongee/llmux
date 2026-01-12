@@ -115,9 +115,10 @@ type RedisCacheConfig struct {
 // AuthConfig contains authentication settings.
 // AuthConfig contains authentication settings.
 type AuthConfig struct {
-	Enabled   bool       `yaml:"enabled"`
-	SkipPaths []string   `yaml:"skip_paths"` // Paths to skip authentication
-	OIDC      OIDCConfig `yaml:"oidc"`       // OIDC configuration
+	Enabled                bool          `yaml:"enabled"`
+	SkipPaths              []string      `yaml:"skip_paths"` // Paths to skip authentication
+	LastUsedUpdateInterval time.Duration `yaml:"last_used_update_interval"`
+	OIDC                   OIDCConfig    `yaml:"oidc"` // OIDC configuration
 }
 
 // OIDCConfig contains OIDC provider settings.
@@ -362,8 +363,9 @@ func DefaultConfig() *Config {
 			},
 		},
 		Auth: AuthConfig{
-			Enabled:   false,
-			SkipPaths: []string{"/health/live", "/health/ready", "/metrics"},
+			Enabled:                false,
+			SkipPaths:              []string{"/health/live", "/health/ready", "/metrics"},
+			LastUsedUpdateInterval: time.Minute,
 		},
 		Database: DatabaseConfig{
 			Enabled:      false,
