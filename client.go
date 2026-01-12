@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
+	"math/rand"
 	"net/http"
 	"sync"
 	"time"
@@ -42,6 +43,7 @@ type Client struct {
 	config         *ClientConfig
 	pricing        *pricing.Registry
 	pipeline       *plugin.Pipeline
+	fallbackReporter FallbackReporter
 
 	// Provider factories for creating providers from config
 	factories map[string]provider.Factory
@@ -53,6 +55,11 @@ type Client struct {
 	// Object pools for performance
 	requestPool  sync.Pool
 	responsePool sync.Pool
+
+	// Resilience components
+	resilienceManager *resilience.Manager
+	backoffRand       *rand.Rand
+	backoffMu         sync.Mutex
 
 	mu sync.RWMutex
 }
@@ -83,6 +90,9 @@ func New(opts ...Option) (*Client, error) {
 		config:      cfg,
 		logger:      cfg.Logger,
 		pricing:     pricing.NewRegistry(),
+		fallbackReporter: cfg.FallbackReporter,
+		resilienceManager: resilience.NewManager(resilience.DefaultManagerConfig()),
+		backoffRand: rand.New(rand.NewSource(time.Now().UnixNano())),
 		requestPool: sync.Pool{
 			New: func() any { return new(types.ChatRequest) },
 		},
@@ -368,17 +378,22 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 	var lastErr error
 	var deployment *provider.Deployment
+	var pendingFallback *fallbackAttempt
 
 	// Retry loop
 	for attempt := 0; attempt <= c.config.RetryCount; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff
-			backoff := c.config.RetryBackoff * time.Duration(1<<(attempt-1))
-			select {
-			case <-ctx.Done():
+			backoff := c.retryBackoff(attempt)
+			if backoff > 0 {
+				select {
+				case <-ctx.Done():
+					c.pipeline.PutContext(pCtx)
+					return nil, ctx.Err()
+				case <-time.After(backoff):
+				}
+			} else if ctx.Err() != nil {
 				c.pipeline.PutContext(pCtx)
 				return nil, ctx.Err()
-			case <-time.After(backoff):
 			}
 		}
 
@@ -402,6 +417,13 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 				// For safety, if Pick fails, we count it as a retry failure.
 				continue
 			}
+			if deployment != nil && newDeployment.ID != deployment.ID && lastErr != nil {
+				pendingFallback = &fallbackAttempt{
+					originalModel: req.Model,
+					fallbackModel: newDeployment.ModelName,
+					err:           lastErr,
+				}
+			}
 			deployment = newDeployment
 		}
 
@@ -411,17 +433,40 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 		c.mu.RUnlock()
 		if !ok {
 			lastErr = fmt.Errorf("provider %s not found", deployment.ProviderName)
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, lastErr, false)
+				pendingFallback = nil
+			}
 			continue
 		}
 
 		if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, err, false)
+				pendingFallback = nil
+			}
 			c.pipeline.PutContext(pCtx)
 			return nil, err
+		}
+
+		release, err := c.acquireDeployment(ctx, deployment)
+		if err != nil {
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, err, false)
+				pendingFallback = nil
+			}
+			lastErr = err
+			continue
 		}
 
 		// Build and execute request
 		httpReq, err := prov.BuildRequest(ctx, sanitizeChatRequestForProvider(req))
 		if err != nil {
+			release()
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, err, false)
+				pendingFallback = nil
+			}
 			c.pipeline.PutContext(pCtx)
 			return nil, fmt.Errorf("build request: %w", err)
 		}
@@ -430,9 +475,14 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 		resp, err := c.httpClient.Do(httpReq)
 		if err != nil {
+			release()
 			c.router.ReportFailure(deployment, err)
 			c.router.ReportRequestEnd(deployment)
 			lastErr = fmt.Errorf("execute request: %w", err)
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, err, false)
+				pendingFallback = nil
+			}
 			continue
 		}
 
@@ -441,9 +491,14 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 			body, _ := io.ReadAll(resp.Body)
 			_ = resp.Body.Close()
 			llmErr := prov.MapError(resp.StatusCode, body)
+			release()
 			c.router.ReportFailure(deployment, llmErr)
 			c.router.ReportRequestEnd(deployment)
 			lastErr = llmErr
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, llmErr, false)
+				pendingFallback = nil
+			}
 			continue
 		}
 
@@ -455,21 +510,35 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 			// Check if it's a retryable client error (e.g. 429 Rate Limit)
 			if llmErr, ok := llmErr.(*LLMError); ok && llmErr.Retryable {
+				release()
 				c.router.ReportFailure(deployment, llmErr)
 				c.router.ReportRequestEnd(deployment)
 				lastErr = llmErr
+				if pendingFallback != nil {
+					c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, llmErr, false)
+					pendingFallback = nil
+				}
 				continue
 			}
 
 			// Non-retryable error
+			release()
 			c.router.ReportFailure(deployment, llmErr)
 			c.router.ReportRequestEnd(deployment)
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, llmErr, false)
+				pendingFallback = nil
+			}
 			c.pipeline.PutContext(pCtx)
 			return nil, llmErr
 		}
 
 		pCtx.Provider = deployment.ProviderName
-		return newStreamReader(ctx, c, req, resp.Body, prov, deployment, c.router, c.pipeline, pCtx, runFrom), nil
+		if pendingFallback != nil {
+			c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, pendingFallback.err, true)
+			pendingFallback = nil
+		}
+		return newStreamReader(ctx, c, req, resp.Body, prov, deployment, c.router, c.pipeline, pCtx, runFrom, release), nil
 	}
 
 	if lastErr == nil {
@@ -502,16 +571,20 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 
 	var lastErr error
 	var deployment *provider.Deployment
+	var pendingFallback *fallbackAttempt
 
 	// Retry loop
 	for attempt := 0; attempt <= c.config.RetryCount; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff
-			backoff := c.config.RetryBackoff * time.Duration(1<<(attempt-1))
-			select {
-			case <-ctx.Done():
+			backoff := c.retryBackoff(attempt)
+			if backoff > 0 {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(backoff):
+				}
+			} else if ctx.Err() != nil {
 				return nil, ctx.Err()
-			case <-time.After(backoff):
 			}
 		}
 
@@ -525,6 +598,13 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 				}
 				continue
 			}
+			if deployment != nil && newDeployment.ID != deployment.ID && lastErr != nil {
+				pendingFallback = &fallbackAttempt{
+					originalModel: req.Model,
+					fallbackModel: newDeployment.ModelName,
+					err:           lastErr,
+				}
+			}
 			deployment = newDeployment
 		}
 
@@ -534,22 +614,38 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 		c.mu.RUnlock()
 		if !ok {
 			lastErr = fmt.Errorf("provider %s not found", deployment.ProviderName)
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, lastErr, false)
+				pendingFallback = nil
+			}
 			continue
 		}
 
 		// Check if provider supports embedding
 		if !prov.SupportEmbedding() {
 			lastErr = fmt.Errorf("provider %s does not support embeddings", deployment.ProviderName)
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, lastErr, false)
+				pendingFallback = nil
+			}
 			continue
 		}
 
 		// Execute request
 		resp, err := c.executeEmbeddingOnce(ctx, prov, deployment, req, promptEstimate)
 		if err == nil {
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, pendingFallback.err, true)
+				pendingFallback = nil
+			}
 			return resp, nil
 		}
 
 		lastErr = err
+		if pendingFallback != nil {
+			c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, err, false)
+			pendingFallback = nil
+		}
 
 		// Check if error is retryable
 		if llmErr, ok := err.(*errors.LLMError); ok && !llmErr.Retryable {
@@ -578,6 +674,12 @@ func (c *Client) executeEmbeddingOnce(
 	if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
 		return nil, err
 	}
+
+	release, err := c.acquireDeployment(ctx, deployment)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 
 	httpReq, err := prov.BuildEmbeddingRequest(ctx, req)
 	if err != nil {
@@ -920,6 +1022,89 @@ func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimate
 	return nil
 }
 
+type fallbackAttempt struct {
+	originalModel string
+	fallbackModel string
+	err           error
+}
+
+func (c *Client) retryBackoff(attempt int) time.Duration {
+	if attempt <= 0 {
+		return 0
+	}
+	base := c.config.RetryBackoff
+	if base <= 0 {
+		return 0
+	}
+
+	backoff := base
+	for i := 1; i < attempt; i++ {
+		next := backoff * 2
+		if next < backoff {
+			break
+		}
+		backoff = next
+	}
+
+	if c.config.RetryMaxBackoff > 0 && backoff > c.config.RetryMaxBackoff {
+		backoff = c.config.RetryMaxBackoff
+	}
+
+	if c.config.RetryJitter > 0 && backoff > 0 {
+		jitter := c.config.RetryJitter
+		if jitter > 1 {
+			jitter = 1
+		}
+		minFactor := 1 - jitter
+		maxFactor := 1 + jitter
+		factor := minFactor + c.randomFloat64()*(maxFactor-minFactor)
+		backoff = time.Duration(float64(backoff) * factor)
+		if c.config.RetryMaxBackoff > 0 && backoff > c.config.RetryMaxBackoff {
+			backoff = c.config.RetryMaxBackoff
+		}
+	}
+
+	return backoff
+}
+
+func (c *Client) randomFloat64() float64 {
+	c.backoffMu.Lock()
+	defer c.backoffMu.Unlock()
+	if c.backoffRand == nil {
+		c.backoffRand = rand.New(rand.NewSource(time.Now().UnixNano()))
+	}
+	return c.backoffRand.Float64()
+}
+
+func (c *Client) reportFallback(ctx context.Context, originalModel, fallbackModel string, err error, success bool) {
+	if c.fallbackReporter == nil {
+		return
+	}
+	c.fallbackReporter(ctx, originalModel, fallbackModel, err, success)
+}
+
+func (c *Client) acquireDeployment(ctx context.Context, deployment *provider.Deployment) (func(), error) {
+	if ctx != nil && ctx.Err() != nil {
+		return nil, ctx.Err()
+	}
+	if c.resilienceManager == nil || deployment == nil {
+		return func() {}, nil
+	}
+	if deployment.MaxConcurrent <= 0 {
+		return func() {}, nil
+	}
+
+	key := deployment.ProviderName
+	sem := c.resilienceManager.GetSemaphore(key, deployment.MaxConcurrent)
+	if !sem.TryAcquire() {
+		return nil, errors.NewRateLimitError(deployment.ProviderName, deployment.ModelName, "provider concurrency limit reached")
+	}
+
+	return func() {
+		c.resilienceManager.Release(key, deployment.MaxConcurrent)
+	}, nil
+}
+
 func (c *Client) executeWithRetry(
 	ctx context.Context,
 	prov provider.Provider,
@@ -928,24 +1113,37 @@ func (c *Client) executeWithRetry(
 ) (*ChatResponse, error) {
 	var lastErr error
 	promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+	var pendingFallback *fallbackAttempt
 
 	for attempt := 0; attempt <= c.config.RetryCount; attempt++ {
 		if attempt > 0 {
-			// Exponential backoff
-			backoff := c.config.RetryBackoff * time.Duration(1<<(attempt-1))
-			select {
-			case <-ctx.Done():
+			backoff := c.retryBackoff(attempt)
+			if backoff > 0 {
+				select {
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				case <-time.After(backoff):
+				}
+			} else if ctx.Err() != nil {
 				return nil, ctx.Err()
-			case <-time.After(backoff):
 			}
 		}
 
 		resp, err := c.executeOnce(ctx, prov, deployment, req)
 		if err == nil {
+			if pendingFallback != nil {
+				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, pendingFallback.err, true)
+				pendingFallback = nil
+			}
 			return resp, nil
 		}
 
 		lastErr = err
+
+		if pendingFallback != nil {
+			c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, err, false)
+			pendingFallback = nil
+		}
 
 		// Check if error is retryable
 		if llmErr, ok := err.(*errors.LLMError); ok && !llmErr.Retryable {
@@ -957,6 +1155,11 @@ func (c *Client) executeWithRetry(
 			reqCtx := buildRouterRequestContext(req, promptTokens, req.Stream)
 			newDeployment, pickErr := c.router.PickWithContext(ctx, reqCtx)
 			if pickErr == nil && newDeployment.ID != deployment.ID {
+				pendingFallback = &fallbackAttempt{
+					originalModel: req.Model,
+					fallbackModel: newDeployment.ModelName,
+					err:           err,
+				}
 				deployment = newDeployment
 				c.mu.RLock()
 				if newProv, ok := c.providers[deployment.ProviderName]; ok {
@@ -985,6 +1188,12 @@ func (c *Client) executeOnce(
 	if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
 		return nil, err
 	}
+
+	release, err := c.acquireDeployment(ctx, deployment)
+	if err != nil {
+		return nil, err
+	}
+	defer release()
 
 	httpReq, err := prov.BuildRequest(ctx, sanitizeChatRequestForProvider(req))
 	if err != nil {
@@ -1084,10 +1293,14 @@ func (c *Client) addProviderFromConfig(cfg ProviderConfig) error {
 		return err
 	}
 
-	return c.addProviderInstance(cfg.Name, prov, cfg.Models)
+	return c.addProviderInstanceWithConfig(cfg.Name, prov, cfg.Models, cfg.MaxConcurrent)
 }
 
 func (c *Client) addProviderInstance(name string, prov provider.Provider, models []string) error {
+	return c.addProviderInstanceWithConfig(name, prov, models, 0)
+}
+
+func (c *Client) addProviderInstanceWithConfig(name string, prov provider.Provider, models []string, maxConcurrent int) error {
 	c.providers[name] = prov
 
 	// Create deployments for each model
@@ -1096,6 +1309,7 @@ func (c *Client) addProviderInstance(name string, prov provider.Provider, models
 			ID:           fmt.Sprintf("%s-%s", name, model),
 			ProviderName: name,
 			ModelName:    model,
+			MaxConcurrent: maxConcurrent,
 		}
 		c.deployments[model] = append(c.deployments[model], deployment)
 

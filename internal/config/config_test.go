@@ -176,6 +176,39 @@ func TestConfigValidation(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "negative retry backoff",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Routing: RoutingConfig{RetryBackoff: -1},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative retry max backoff",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Routing: RoutingConfig{RetryMaxBackoff: -1},
+			},
+			wantErr: true,
+		},
+		{
+			name: "retry jitter out of range",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				Routing: RoutingConfig{RetryJitter: 1.5},
+			},
+			wantErr: true,
+		},
+		{
 			name: "negative healthcheck interval",
 			cfg: &Config{
 				Server: ServerConfig{Port: 8080},

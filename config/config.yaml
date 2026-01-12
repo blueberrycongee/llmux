@@ -65,6 +65,9 @@ routing:
   strategy: simple-shuffle  # simple-shuffle, lowest-latency, least-busy
   fallback_enabled: true
   retry_count: 3
+  retry_backoff: 100ms
+  retry_max_backoff: 5s
+  retry_jitter: 0.2
   cooldown_period: 60s
   distributed: false        # use Redis stats store for multi-instance routing
 

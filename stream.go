@@ -72,6 +72,8 @@ type StreamReader struct {
 	pluginCtx     *plugin.Context
 	streamRunFrom int
 	postHooksRun  bool
+
+	release func()
 }
 
 // newStreamReader creates a new StreamReader.
@@ -86,6 +88,7 @@ func newStreamReader(
 	pipeline *plugin.Pipeline,
 	pluginCtx *plugin.Context,
 	runFrom int,
+	release func(),
 ) *StreamReader {
 	scanner := bufio.NewScanner(body)
 	// Increase buffer size for large chunks
@@ -108,6 +111,7 @@ func newStreamReader(
 		pipeline:        pipeline,
 		pluginCtx:       pluginCtx,
 		streamRunFrom:   runFrom,
+		release:         release,
 	}
 }
 
@@ -390,21 +394,29 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 		return nil, fmt.Errorf("recovery build request failed: %w", err)
 	}
 
+	release, err := s.client.acquireDeployment(s.ctx, deployment)
+	if err != nil {
+		return nil, err
+	}
+
 	if s.router != nil && deployment != nil {
 		s.router.ReportRequestStart(deployment)
 	}
 	s.mu.Lock()
 	s.requestEnded = false // New request started
+	s.release = release
 	s.mu.Unlock()
 
 	resp, err := s.client.httpClient.Do(httpReq)
 	if err != nil {
+		release()
 		if s.router != nil && deployment != nil {
 			s.router.ReportFailure(deployment, err)
 			s.router.ReportRequestEnd(deployment)
 		}
 		s.mu.Lock()
 		s.requestEnded = true
+		s.release = nil
 		s.mu.Unlock()
 		return nil, fmt.Errorf("recovery execute failed: %w", err)
 	}
@@ -413,12 +425,14 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		llmErr := prov.MapError(resp.StatusCode, body)
+		release()
 		if s.router != nil && deployment != nil {
 			s.router.ReportFailure(deployment, llmErr)
 			s.router.ReportRequestEnd(deployment)
 		}
 		s.mu.Lock()
 		s.requestEnded = true
+		s.release = nil
 		s.mu.Unlock()
 		return nil, fmt.Errorf("recovery api error: %w", llmErr)
 	}
@@ -470,6 +484,10 @@ func (s *StreamReader) endRequest() {
 	}
 	if s.router != nil && s.deployment != nil {
 		s.router.ReportRequestEnd(s.deployment)
+	}
+	if s.release != nil {
+		s.release()
+		s.release = nil
 	}
 	s.requestEnded = true
 }

@@ -135,7 +135,7 @@ func run() error {
 	defer cancel()
 
 	// Build llmux.Client options from config
-	opts := buildClientOptions(cfg, logger, secretManager)
+	opts := buildClientOptions(cfg, logger, secretManager, obsMgr)
 
 	// Create llmux.Client
 	client, err := llmux.New(opts...)
@@ -146,7 +146,7 @@ func run() error {
 	defer clientSwapper.Close()
 
 	reloader := newClientReloader(logger, clientSwapper, func(nextCfg *config.Config) (*llmux.Client, error) {
-		nextOpts := buildClientOptions(nextCfg, logger, secretManager)
+		nextOpts := buildClientOptions(nextCfg, logger, secretManager, obsMgr)
 		return llmux.New(nextOpts...)
 	})
 	cfgManager.OnChange(reloader.Reload)
@@ -367,8 +367,6 @@ func hasCallback(callbacks []string, names ...string) bool {
 	return false
 }
 
-const routingRetryBackoff = 100 * time.Millisecond
-
 // buildRoutingOptions converts routing-related config to llmux.Option slice.
 func buildRoutingOptions(cfg *config.Config) []llmux.Option {
 	opts := make([]llmux.Option, 0, 4)
@@ -389,7 +387,9 @@ func buildRoutingOptions(cfg *config.Config) []llmux.Option {
 	}
 
 	opts = append(opts,
-		llmux.WithRetry(cfg.Routing.RetryCount, routingRetryBackoff),
+		llmux.WithRetry(cfg.Routing.RetryCount, cfg.Routing.RetryBackoff),
+		llmux.WithRetryMaxBackoff(cfg.Routing.RetryMaxBackoff),
+		llmux.WithRetryJitter(cfg.Routing.RetryJitter),
 		llmux.WithFallback(cfg.Routing.FallbackEnabled),
 	)
 
@@ -397,7 +397,7 @@ func buildRoutingOptions(cfg *config.Config) []llmux.Option {
 }
 
 // buildClientOptions converts config.Config to llmux.Option slice.
-func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *secret.Manager) []llmux.Option {
+func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *secret.Manager, obsMgr *observability.ObservabilityManager) []llmux.Option {
 	// Pre-allocate with estimated capacity
 	opts := make([]llmux.Option, 0, len(cfg.Providers)+6)
 
@@ -426,6 +426,9 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	}
 
 	opts = append(opts, buildRoutingOptions(cfg)...)
+	if obsMgr != nil {
+		opts = append(opts, llmux.WithFallbackReporter(obsMgr.LogFallback))
+	}
 
 	// Set pricing file
 	if cfg.PricingFile != "" {

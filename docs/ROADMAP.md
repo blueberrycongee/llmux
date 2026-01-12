@@ -1,7 +1,7 @@
 # LLMux Governance Gateway Roadmap
 
 Document created: 2026-01-12T20:18:08Z
-Last updated: 2026-01-12T21:33:13Z
+Last updated: 2026-01-12T22:07:07Z
 
 ## Goals
 - Deliver an enterprise-grade governance gateway that supports both microservice and monolith modes.
@@ -42,8 +42,8 @@ Deliverables:
 - Support hot reload of governance config.
 
 ### Phase 3 - Routing and Resilience
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T22:07:07Z
 
 Deliverables:
 - Standardize routing strategies (weighted, least-conn, latency-aware).
@@ -84,15 +84,15 @@ Completed at (UTC): 2026-01-12T21:33:13Z
 - Keep governance logic out of handlers and routers.
 
 ### P1 - Routing Strategies
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T22:07:07Z
 
 - Add optional consistent RR (Redis counters), weighted least latency, and configurable
   multi-fallback with degradation.
 
 ### P1 - Resilience Policies
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T22:07:07Z
 
 - Standardize timeouts, jittered exponential backoff, retry caps, circuit breaking,
   and isolation strategies.
@@ -126,3 +126,6 @@ Completed at (UTC):
 | 020 | Governance decision engine | done | 2026-01-12T21:33:13Z | Unified auth/budget/rate limit checks |
 | 021 | Async accounting with idempotency | done | 2026-01-12T21:33:13Z | Idempotent usage logging and spend updates |
 | 022 | Governance config hot reload | done | 2026-01-12T21:33:13Z | Config updates applied at runtime |
+| 030 | Weighted latency routing | done | 2026-01-12T22:07:07Z | Buffer + weight-aware latency selection |
+| 031 | Retry backoff jitter + caps | done | 2026-01-12T22:07:07Z | Configurable max backoff and jittered retries |
+| 032 | Fallback observability + provider isolation | done | 2026-01-12T22:07:07Z | Fallback reporting and concurrency isolation |

@@ -17,7 +17,7 @@ func TestBuildClientOptions_CacheDisabled(t *testing.T) {
 		},
 	}
 
-	opts := buildClientOptions(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
+	opts := buildClientOptions(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil)
 	clientCfg := applyOptions(opts)
 
 	if clientCfg.CacheEnabled {
@@ -43,7 +43,7 @@ func TestBuildClientOptions_CacheEnabledLocal(t *testing.T) {
 		},
 	}
 
-	opts := buildClientOptions(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil)
+	opts := buildClientOptions(cfg, slog.New(slog.NewTextHandler(io.Discard, nil)), nil, nil)
 	clientCfg := applyOptions(opts)
 
 	if !clientCfg.CacheEnabled {

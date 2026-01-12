@@ -243,6 +243,9 @@ type RoutingConfig struct {
 	Strategy        string        `yaml:"strategy"` // round-robin, simple-shuffle, lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
 	FallbackEnabled bool          `yaml:"fallback_enabled"`
 	RetryCount      int           `yaml:"retry_count"`
+	RetryBackoff    time.Duration `yaml:"retry_backoff"`
+	RetryMaxBackoff time.Duration `yaml:"retry_max_backoff"`
+	RetryJitter     float64       `yaml:"retry_jitter"`
 	CooldownPeriod  time.Duration `yaml:"cooldown_period"`
 	Distributed     bool          `yaml:"distributed"` // Enable Redis-backed distributed routing stats
 }
@@ -328,6 +331,9 @@ func DefaultConfig() *Config {
 			Strategy:        "simple-shuffle",
 			FallbackEnabled: true,
 			RetryCount:      3,
+			RetryBackoff:    100 * time.Millisecond,
+			RetryMaxBackoff: 5 * time.Second,
+			RetryJitter:     0.2,
 			CooldownPeriod:  60 * time.Second,
 		},
 		Stream: StreamConfig{
@@ -509,6 +515,15 @@ func (c *Config) Validate() error {
 	// Validate routing config
 	if c.Routing.RetryCount < 0 {
 		return fmt.Errorf("routing.retry_count cannot be negative")
+	}
+	if c.Routing.RetryBackoff < 0 {
+		return fmt.Errorf("routing.retry_backoff cannot be negative")
+	}
+	if c.Routing.RetryMaxBackoff < 0 {
+		return fmt.Errorf("routing.retry_max_backoff cannot be negative")
+	}
+	if c.Routing.RetryJitter < 0 || c.Routing.RetryJitter > 1 {
+		return fmt.Errorf("routing.retry_jitter must be between 0 and 1")
 	}
 	if c.Routing.CooldownPeriod < 0 {
 		return fmt.Errorf("routing.cooldown_period cannot be negative")

@@ -1,6 +1,7 @@
 package llmux
 
 import (
+	"context"
 	"log/slog"
 	"time"
 
@@ -40,6 +41,9 @@ type RateLimiterConfig struct {
 	FailOpen bool
 }
 
+// FallbackReporter receives fallback outcomes for observability.
+type FallbackReporter func(ctx context.Context, originalModel, fallbackModel string, err error, success bool)
+
 // ClientConfig holds all configuration for the LLMux client.
 type ClientConfig struct {
 	// Providers configuration
@@ -54,8 +58,11 @@ type ClientConfig struct {
 	FallbackEnabled bool
 	RetryCount      int
 	RetryBackoff    time.Duration
+	RetryMaxBackoff time.Duration
+	RetryJitter     float64
 	CooldownPeriod  time.Duration
 	DefaultProvider string
+	FallbackReporter FallbackReporter
 
 	// Distributed Routing Stats (for multi-instance deployments)
 	StatsStore router.StatsStore
@@ -110,6 +117,8 @@ func defaultConfig() *ClientConfig {
 		FallbackEnabled:    true,
 		RetryCount:         3,
 		RetryBackoff:       time.Second,
+		RetryMaxBackoff:    5 * time.Second,
+		RetryJitter:        0.2,
 		CooldownPeriod:     60 * time.Second,
 		CacheEnabled:       false,
 		CacheTTL:           time.Hour,
@@ -215,6 +224,28 @@ func WithRetry(count int, backoff time.Duration) Option {
 	return func(c *ClientConfig) {
 		c.RetryCount = count
 		c.RetryBackoff = backoff
+	}
+}
+
+// WithRetryMaxBackoff sets the maximum backoff duration for retries.
+// Use 0 to disable the cap.
+func WithRetryMaxBackoff(d time.Duration) Option {
+	return func(c *ClientConfig) {
+		c.RetryMaxBackoff = d
+	}
+}
+
+// WithRetryJitter sets the jitter ratio for retries (0.0 - 1.0).
+func WithRetryJitter(jitter float64) Option {
+	return func(c *ClientConfig) {
+		c.RetryJitter = jitter
+	}
+}
+
+// WithFallbackReporter records fallback outcomes.
+func WithFallbackReporter(reporter FallbackReporter) Option {
+	return func(c *ClientConfig) {
+		c.FallbackReporter = reporter
 	}
 }
 
