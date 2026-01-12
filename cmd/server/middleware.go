@@ -46,12 +46,13 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 			useDefaultBurst = true
 		}
 		rateLimiter = auth.NewTenantRateLimiter(&auth.TenantRateLimiterConfig{
-			DefaultRPM:      defaultRPM,
-			DefaultBurst:    defaultBurst,
-			UseDefaultBurst: useDefaultBurst,
-			CleanupTTL:      10 * time.Minute,
-			FailOpen:        cfg.RateLimit.FailOpen,
-			Logger:          logger,
+			DefaultRPM:        defaultRPM,
+			DefaultBurst:      defaultBurst,
+			UseDefaultBurst:   useDefaultBurst,
+			CleanupTTL:        10 * time.Minute,
+			FailOpen:          cfg.RateLimit.FailOpen,
+			Logger:            logger,
+			TrustedProxyCIDRs: cfg.RateLimit.TrustedProxyCIDRs,
 		})
 
 		// Inject distributed limiter if configured (for multi-instance deployments)

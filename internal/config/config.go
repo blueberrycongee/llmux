@@ -4,6 +4,7 @@ package config
 
 import (
 	"fmt"
+	"net"
 	"os"
 	"strings"
 	"time"
@@ -243,9 +244,10 @@ type RateLimitConfig struct {
 	RequestsPerMinute int64         `yaml:"requests_per_minute"` // RPM limit
 	TokensPerMinute   int64         `yaml:"tokens_per_minute"`   // TPM limit
 	BurstSize         int           `yaml:"burst_size"`
-	WindowSize        time.Duration `yaml:"window_size"`  // Sliding window duration (default: 1m)
-	KeyStrategy       string        `yaml:"key_strategy"` // api_key, user, model, api_key_model
-	FailOpen          bool          `yaml:"fail_open"`    // Allow requests when limiter backend fails
+	WindowSize        time.Duration `yaml:"window_size"`         // Sliding window duration (default: 1m)
+	KeyStrategy       string        `yaml:"key_strategy"`        // api_key, user, model, api_key_model
+	FailOpen          bool          `yaml:"fail_open"`           // Allow requests when limiter backend fails
+	TrustedProxyCIDRs []string      `yaml:"trusted_proxy_cidrs"` // Trusted proxies for forwarded headers
 
 	// Distributed rate limiting (Redis-backed)
 	Distributed bool `yaml:"distributed"` // Enable Redis-backed distributed rate limiting
@@ -323,6 +325,7 @@ func DefaultConfig() *Config {
 			KeyStrategy:       "api_key",
 			FailOpen:          true,
 			Distributed:       false,
+			TrustedProxyCIDRs: []string{},
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
@@ -499,6 +502,11 @@ func (c *Config) Validate() error {
 			return fmt.Errorf("cors.admin_origins.allowlist cannot include wildcard when allow_all_origins is false")
 		}
 	}
+	for i, value := range c.RateLimit.TrustedProxyCIDRs {
+		if !isValidIPOrCIDR(value) {
+			return fmt.Errorf("rate_limit.trusted_proxy_cidrs[%d] must be a valid IP or CIDR", i)
+		}
+	}
 
 	if c.Database.Enabled {
 		if c.Database.Host == "" {
@@ -572,4 +580,16 @@ func containsWildcard(values []string) bool {
 		}
 	}
 	return false
+}
+
+func isValidIPOrCIDR(value string) bool {
+	value = strings.TrimSpace(value)
+	if value == "" {
+		return false
+	}
+	if strings.Contains(value, "/") {
+		_, _, err := net.ParseCIDR(value)
+		return err == nil
+	}
+	return net.ParseIP(value) != nil
 }
