@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -55,6 +56,10 @@ type Prober struct {
 	logger   *slog.Logger
 	client   *http.Client
 	started  atomic.Bool
+
+	// Long-term: split probe cooldowns from router circuit-breaker cooldowns.
+	cooldownMu           sync.Mutex
+	cooldownByDeployment map[string]time.Time
 }
 
 // NewProber creates a new health checker.
@@ -76,6 +81,7 @@ func NewProber(cfg Config, provider ClientProvider, logger *slog.Logger) *Prober
 		client: &http.Client{
 			Timeout: cfg.Timeout,
 		},
+		cooldownByDeployment: make(map[string]time.Time),
 	}
 }
 
@@ -178,13 +184,31 @@ func (p *Prober) handleFailure(client *llmux.Client, deployment *provider.Deploy
 		return
 	}
 
-	until := time.Now().Add(p.cfg.CooldownPeriod)
+	var currentCooldown time.Time
+	if stats := client.GetStats(deployment.ID); stats != nil {
+		currentCooldown = stats.CooldownUntil
+	}
+
+	until := time.Now().Add(p.cfg.CooldownPeriod).Truncate(time.Second)
+	if currentCooldown.After(until) {
+		p.logger.Warn("healthcheck probe failed",
+			"deployment_id", deployment.ID,
+			"provider", deployment.ProviderName,
+			"model", deployment.ModelName,
+			"cooldown_until", currentCooldown,
+			"error", err,
+		)
+		return
+	}
+
 	if setErr := client.SetCooldown(deployment.ID, until); setErr != nil {
 		p.logger.Warn("healthcheck cooldown update failed",
 			"deployment_id", deployment.ID,
 			"error", setErr,
 		)
+		return
 	}
+	p.recordCooldown(deployment.ID, until)
 	p.logger.Warn("healthcheck probe failed",
 		"deployment_id", deployment.ID,
 		"provider", deployment.ProviderName,
@@ -200,6 +224,13 @@ func (p *Prober) handleSuccess(client *llmux.Client, deployment *provider.Deploy
 	}
 	stats := client.GetStats(deployment.ID)
 	if stats == nil || !time.Now().Before(stats.CooldownUntil) {
+		p.clearCooldown(deployment.ID)
+		return
+	}
+
+	recorded, ok := p.recordedCooldown(deployment.ID)
+	if !ok || !stats.CooldownUntil.Equal(recorded) {
+		p.clearCooldown(deployment.ID)
 		return
 	}
 	if clearErr := client.SetCooldown(deployment.ID, time.Time{}); clearErr != nil {
@@ -207,7 +238,9 @@ func (p *Prober) handleSuccess(client *llmux.Client, deployment *provider.Deploy
 			"deployment_id", deployment.ID,
 			"error", clearErr,
 		)
+		return
 	}
+	p.clearCooldown(deployment.ID)
 }
 
 func buildProbeRequest(model string) *types.ChatRequest {
@@ -221,4 +254,23 @@ func buildProbeRequest(model string) *types.ChatRequest {
 		},
 		MaxTokens: 1,
 	}
+}
+
+func (p *Prober) recordCooldown(deploymentID string, until time.Time) {
+	p.cooldownMu.Lock()
+	defer p.cooldownMu.Unlock()
+	p.cooldownByDeployment[deploymentID] = until
+}
+
+func (p *Prober) recordedCooldown(deploymentID string) (time.Time, bool) {
+	p.cooldownMu.Lock()
+	defer p.cooldownMu.Unlock()
+	until, ok := p.cooldownByDeployment[deploymentID]
+	return until, ok
+}
+
+func (p *Prober) clearCooldown(deploymentID string) {
+	p.cooldownMu.Lock()
+	defer p.cooldownMu.Unlock()
+	delete(p.cooldownByDeployment, deploymentID)
 }
