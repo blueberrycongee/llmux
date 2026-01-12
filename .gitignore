@@ -45,6 +45,10 @@ dist/
 bench/results/*.json
 bench/llmux_bench_config.yaml
 
+# Local skills
+skills/
+*.skill
+
 
 
 # UI Build Artifacts
