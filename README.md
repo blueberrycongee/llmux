@@ -186,6 +186,17 @@ tracing:
 - `distributed`: requires PostgreSQL for auth/usage state and Redis for routing stats + rate limiting; startup fails if missing.
 - `development`: explicit override that allows in-memory state for multi-instance testing (not consistent).
 
+## Production Readiness Snapshot (Audit)
+
+This section summarizes the current architecture posture for distributed, production deployments.
+
+- Control/data plane: single binary; admin APIs share the process with optional separate `server.admin_port` (architectural choice).
+- Statelessness: horizontal scale requires `deployment.mode=distributed` with Postgres + Redis; default in-memory stores are single-node only.
+- Distributed routing: Redis-backed stats enable least-busy/latency/TPM/RPM across instances; round-robin counters remain local per node (best-effort, not strict global RR).
+- Routing config parity: Redis stats store supports option overrides, but `main.go` does not pass routing-derived options yet, so distributed stats use defaults.
+- Feature scope vs LiteLLM: LLMux focuses on `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/models` and does not yet cover `/responses`, `/images`, `/audio`, `/batches`, `/rerank`, etc.
+- TPM/RPM estimation: uses tiktoken estimates; falls back to a fixed 100 tokens only when estimation is unavailable.
+
 ### OpenAI-Compatible Providers
 
 LLMux works with any OpenAI-compatible API (SiliconFlow, Together AI, Groq, etc.):

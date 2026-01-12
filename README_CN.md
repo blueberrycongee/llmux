@@ -186,6 +186,17 @@ tracing:
 - `distributed`：需要 PostgreSQL 保存认证/用量状态，Redis 保存路由统计与限流；缺失则启动失败。
 - `development`：显式允许内存状态用于多实例测试（不保证一致性）。
 
+## 生产级就绪度快照（审计）
+
+本节概述现有架构在分布式/生产部署下的真实状态:
+
+- 控制面/数据面：单二进制，同一进程；可通过 `server.admin_port` 独立管理端口（架构取舍）。
+- 无状态扩展：需打开 `deployment.mode=distributed` 并启用 Postgres + Redis，否则默认内存存储仅适合单节点。
+- 分布式路由：Redis 统计支持 least-busy/latency/TPM/RPM，但 round-robin 计数仍为本地实例级（尽力均衡，非严格全局 RR）。
+- 路由配置一致性：Redis stats store 支持 option 覆盖，但 `main.go` 尚未把路由配置转成 option，分布式统计仍用默认值。
+- 对标 LiteLLM：目前主要覆盖 `/v1/chat/completions`、`/v1/completions`、`/v1/embeddings`、`/v1/models`，尚未涵盖 `/responses`、`/images`、`/audio`、`/batches`、`/rerank` 等。
+- TPM/RPM 估算：正常使用 tiktoken 估算；仅在估算不可用时回退为固定 100 tokens。
+
 ### OpenAI 兼容提供商
 
 LLMux 支持任何 OpenAI 兼容的 API（硅基流动、Together AI、Groq 等）：
