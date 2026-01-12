@@ -14,8 +14,8 @@ const (
 	//   KEYS[1] - latency list key (e.g., "llmux:router:stats:deployment-1:latency")
 	//   KEYS[2] - ttft list key (e.g., "llmux:router:stats:deployment-1:ttft")
 	//   KEYS[3] - counters hash key (e.g., "llmux:router:stats:deployment-1:counters")
-	//   KEYS[4] - usage hash key (e.g., "llmux:router:stats:deployment-1:usage:2026-01-10-16-52")
-	//   KEYS[5] - success bucket key (e.g., "llmux:router:stats:deployment-1:successes:2026-01-10-16-52")
+	//   KEYS[4] - usage hash key prefix (e.g., "llmux:router:stats:deployment-1:usage:")
+	//   KEYS[5] - success bucket key prefix (e.g., "llmux:router:stats:deployment-1:successes:")
 	//
 	// Args:
 	//   ARGV[1] - latency value in milliseconds (float)
@@ -24,7 +24,7 @@ const (
 	//   ARGV[4] - max latency list size (integer, default 10)
 	//   ARGV[5] - usage TTL in seconds (integer, default 120)
 	//   ARGV[6] - bucket TTL in seconds (integer)
-	//   ARGV[7] - current timestamp (for last_request_time)
+	//   ARGV[7] - bucket size in seconds (integer)
 	//
 	// Returns:
 	//   "OK" on success
@@ -32,8 +32,8 @@ const (
 local latency_key = KEYS[1]
 local ttft_key = KEYS[2]
 local counters_key = KEYS[3]
-local usage_key = KEYS[4]
-local success_key = KEYS[5]
+local usage_prefix = KEYS[4]
+local success_prefix = KEYS[5]
 
 local latency = tonumber(ARGV[1])
 local ttft = tonumber(ARGV[2])
@@ -41,7 +41,15 @@ local tokens = tonumber(ARGV[3])
 local max_size = tonumber(ARGV[4])
 local usage_ttl = tonumber(ARGV[5])
 local bucket_ttl = tonumber(ARGV[6])
-local now = tonumber(ARGV[7])
+local bucket_seconds = tonumber(ARGV[7])
+
+local time_data = redis.call('TIME')
+local now = tonumber(time_data[1])
+
+local minute_bucket = math.floor(now / 60)
+local usage_key = usage_prefix .. minute_bucket
+local bucket = math.floor(now / bucket_seconds)
+local success_key = success_prefix .. bucket
 
 -- 1. Update latency history (rolling window)
 redis.call('LPUSH', latency_key, latency)
@@ -79,23 +87,23 @@ return redis.status_reply("OK")
 	//   KEYS[1] - counters hash key
 	//   KEYS[2] - latency list key (for penalty latency on timeout)
 	//   KEYS[3] - cooldown key
-	//   KEYS[4..(3+N)] - success bucket keys (current minute first)
-	//   KEYS[(4+N)..(3+2N)] - failure bucket keys (current minute first)
+	//   KEYS[4] - success bucket key prefix (e.g., "llmux:router:stats:deployment-1:successes:")
+	//   KEYS[5] - failure bucket key prefix (e.g., "llmux:router:stats:deployment-1:failures:")
 	//
 	// Args:
-	//   ARGV[1] - current timestamp
-	//   ARGV[2] - is timeout error (1 or 0)
-	//   ARGV[3] - max latency list size
-	//   ARGV[4] - window size (N)
-	//   ARGV[5] - bucket TTL in seconds
-	//   ARGV[6] - failure threshold percent (float)
-	//   ARGV[7] - min requests for threshold
-	//   ARGV[8] - cooldown seconds
-	//   ARGV[9] - immediate cooldown on 429 (1 or 0)
-	//   ARGV[10] - status code (int)
-	//   ARGV[11] - single deployment min requests
-	//   ARGV[12] - is single deployment (1 or 0)
-	//   ARGV[13] - cooldown TTL seconds
+	//   ARGV[1] - is timeout error (1 or 0)
+	//   ARGV[2] - max latency list size
+	//   ARGV[3] - window size (N)
+	//   ARGV[4] - bucket TTL in seconds
+	//   ARGV[5] - failure threshold percent (float)
+	//   ARGV[6] - min requests for threshold
+	//   ARGV[7] - cooldown seconds
+	//   ARGV[8] - immediate cooldown on 429 (1 or 0)
+	//   ARGV[9] - status code (int)
+	//   ARGV[10] - single deployment min requests
+	//   ARGV[11] - is single deployment (1 or 0)
+	//   ARGV[12] - cooldown TTL seconds
+	//   ARGV[13] - bucket size in seconds
 	//
 	// Returns:
 	//   "OK" on success
@@ -103,20 +111,25 @@ return redis.status_reply("OK")
 local counters_key = KEYS[1]
 local latency_key = KEYS[2]
 local cooldown_key = KEYS[3]
+local success_prefix = KEYS[4]
+local failure_prefix = KEYS[5]
 
-local now = tonumber(ARGV[1])
-local is_timeout = tonumber(ARGV[2])
-local max_size = tonumber(ARGV[3])
-local window_size = tonumber(ARGV[4])
-local bucket_ttl = tonumber(ARGV[5])
-local failure_threshold = tonumber(ARGV[6])
-local min_requests = tonumber(ARGV[7])
-local cooldown_seconds = tonumber(ARGV[8])
-local immediate_on_429 = tonumber(ARGV[9])
-local status_code = tonumber(ARGV[10])
-local single_deploy_min_requests = tonumber(ARGV[11])
-local is_single_deployment = tonumber(ARGV[12])
-local cooldown_ttl = tonumber(ARGV[13])
+local is_timeout = tonumber(ARGV[1])
+local max_size = tonumber(ARGV[2])
+local window_size = tonumber(ARGV[3])
+local bucket_ttl = tonumber(ARGV[4])
+local failure_threshold = tonumber(ARGV[5])
+local min_requests = tonumber(ARGV[6])
+local cooldown_seconds = tonumber(ARGV[7])
+local immediate_on_429 = tonumber(ARGV[8])
+local status_code = tonumber(ARGV[9])
+local single_deploy_min_requests = tonumber(ARGV[10])
+local is_single_deployment = tonumber(ARGV[11])
+local cooldown_ttl = tonumber(ARGV[12])
+local bucket_seconds = tonumber(ARGV[13])
+
+local time_data = redis.call('TIME')
+local now = tonumber(time_data[1])
 
 -- 1. Update failure counters
 redis.call('HINCRBY', counters_key, 'total_requests', 1)
@@ -132,9 +145,8 @@ if is_timeout == 1 then
 end
 
 -- 3. Track per-minute failures (sliding window)
-local success_start = 4
-local failure_start = 4 + window_size
-local current_failure_key = KEYS[failure_start]
+local current_bucket = math.floor(now / bucket_seconds)
+local current_failure_key = failure_prefix .. current_bucket
 redis.call('INCRBY', current_failure_key, 1)
 redis.call('EXPIRE', current_failure_key, bucket_ttl)
 
@@ -142,11 +154,12 @@ redis.call('EXPIRE', current_failure_key, bucket_ttl)
 local total_success = 0
 local total_failure = 0
 for i = 0, window_size - 1 do
-    local success_val = redis.call('GET', KEYS[success_start + i])
+    local bucket = current_bucket - i
+    local success_val = redis.call('GET', success_prefix .. bucket)
     if success_val then
         total_success = total_success + tonumber(success_val)
     end
-    local failure_val = redis.call('GET', KEYS[failure_start + i])
+    local failure_val = redis.call('GET', failure_prefix .. bucket)
     if failure_val then
         total_failure = total_failure + tonumber(failure_val)
     end
@@ -228,22 +241,22 @@ return 0
 	//   KEYS[3] - counters hash key
 	//   KEYS[4] - usage key prefix (without minute suffix)
 	//
-	// Args:
-	//   ARGV[1] - current minute key (e.g., "2026-01-10-16-52")
-	//
 	// Returns:
 	//   Array of 4 elements:
 	//     [1] - latency list (array of floats)
 	//     [2] - ttft list (array of floats)
 	//     [3] - counters hash (flat array: key1, val1, key2, val2, ...)
 	//     [4] - usage hash for current minute (flat array)
+	//     [5] - current minute key (UTC unix minute bucket)
 	getStatsScript = `
 local latency_key = KEYS[1]
 local ttft_key = KEYS[2]
 local counters_key = KEYS[3]
 local usage_prefix = KEYS[4]
 
-local current_minute = ARGV[1]
+local time_data = redis.call('TIME')
+local now = tonumber(time_data[1])
+local current_minute = math.floor(now / 60)
 local usage_key = usage_prefix .. current_minute
 
 local result = {}
@@ -251,6 +264,7 @@ result[1] = redis.call('LRANGE', latency_key, 0, -1)
 result[2] = redis.call('LRANGE', ttft_key, 0, -1)
 result[3] = redis.call('HGETALL', counters_key)
 result[4] = redis.call('HGETALL', usage_key)
+result[5] = tostring(current_minute)
 
 return result
 `

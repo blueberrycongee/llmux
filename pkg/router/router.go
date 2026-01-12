@@ -143,7 +143,7 @@ type DeploymentStats struct {
 	// Usage tracking (per minute)
 	CurrentMinuteTPM int64  // Tokens Per Minute
 	CurrentMinuteRPM int64  // Requests Per Minute
-	CurrentMinuteKey string // Format: "YYYY-MM-DD-HH-MM"
+	CurrentMinuteKey string // UTC unix minute bucket (e.g., "29023954")
 
 	// Timing
 	LastRequestTime time.Time

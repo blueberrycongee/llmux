@@ -153,19 +153,17 @@ func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*D
 		r.usageKeyPrefix(deploymentID),
 	}
 
-	currentMinute := time.Now().Format("2006-01-02-15-04")
-	args := []interface{}{currentMinute}
-
-	result, err := r.getStatsScript.Run(ctx, r.client, keys, args...).Result()
+	result, err := r.getStatsScript.Run(ctx, r.client, keys).Result()
 	if err != nil {
 		return nil, err
 	}
 
 	resultSlice, ok := result.([]interface{})
-	if !ok || len(resultSlice) != 4 {
+	if !ok || len(resultSlice) != 5 {
 		return nil, fmt.Errorf("unexpected result format from getStatsScript")
 	}
 
+	currentMinute := parseString(resultSlice[4])
 	stats := &DeploymentStats{
 		MaxLatencyListSize: r.maxLatencyListSize,
 		CurrentMinuteKey:   currentMinute,
@@ -288,16 +286,12 @@ func (r *RedisStatsStore) DecrementActiveRequests(ctx context.Context, deploymen
 
 // RecordSuccess records a successful request with its metrics.
 func (r *RedisStatsStore) RecordSuccess(ctx context.Context, deploymentID string, metrics *ResponseMetrics) error {
-	now := time.Now()
-	usageMinute := now.Format("2006-01-02-15-04")
-	bucketKey := now.Format(r.bucketKeyFormat())
-
 	keys := []string{
 		r.latencyKey(deploymentID),
 		r.ttftKey(deploymentID),
 		r.countersKey(deploymentID),
-		r.usageKey(deploymentID, usageMinute),
-		r.successKey(deploymentID, bucketKey),
+		r.usageKeyPrefix(deploymentID),
+		r.successKeyPrefix(deploymentID),
 	}
 
 	latencyMs := float64(metrics.Latency.Milliseconds())
@@ -313,7 +307,7 @@ func (r *RedisStatsStore) RecordSuccess(ctx context.Context, deploymentID string
 		r.maxLatencyListSize,
 		int(r.usageTTL.Seconds()),
 		r.bucketTTLSeconds(),
-		now.Unix(),
+		r.bucketSeconds(),
 	}
 
 	_, err := r.recordSuccessScript.Run(ctx, r.client, keys, args...).Result()
@@ -327,17 +321,14 @@ func (r *RedisStatsStore) RecordFailure(ctx context.Context, deploymentID string
 
 // RecordFailureWithOptions records a failed request with routing context.
 func (r *RedisStatsStore) RecordFailureWithOptions(ctx context.Context, deploymentID string, err error, opts failureRecordOptions) error {
-	now := time.Now()
 	windowSize := r.failureWindowSize()
-	successKeys, failureKeys := r.windowBucketKeys(deploymentID, now, windowSize)
-
 	keys := []string{
 		r.countersKey(deploymentID),
 		r.latencyKey(deploymentID),
 		r.cooldownKey(deploymentID),
+		r.successKeyPrefix(deploymentID),
+		r.failureKeyPrefix(deploymentID),
 	}
-	keys = append(keys, successKeys...)
-	keys = append(keys, failureKeys...)
 
 	isTimeout := 0
 	statusCode := 0
@@ -350,7 +341,6 @@ func (r *RedisStatsStore) RecordFailureWithOptions(ctx context.Context, deployme
 	}
 
 	args := []interface{}{
-		now.Unix(),
 		isTimeout,
 		r.maxLatencyListSize,
 		windowSize,
@@ -363,6 +353,7 @@ func (r *RedisStatsStore) RecordFailureWithOptions(ctx context.Context, deployme
 		r.singleDeployMinReq,
 		boolToInt(opts.isSingleDeployment),
 		r.cooldownTTLSeconds(),
+		r.bucketSeconds(),
 	}
 
 	_, runErr := r.recordFailureScript.Run(ctx, r.client, keys, args...).Result()
@@ -535,13 +526,6 @@ func (r *RedisStatsStore) bucketSeconds() int {
 	return r.failureBucketSecs
 }
 
-func (r *RedisStatsStore) bucketKeyFormat() string {
-	if r.bucketSeconds() != 60 {
-		return "2006-01-02-15-04-05"
-	}
-	return "2006-01-02-15-04"
-}
-
 func (r *RedisStatsStore) bucketTTLSeconds() int {
 	windowSeconds := r.failureWindowSize() * r.bucketSeconds()
 	return windowSeconds + r.bucketSeconds()
@@ -553,23 +537,6 @@ func (r *RedisStatsStore) cooldownTTLSeconds() int {
 		return 0
 	}
 	return cooldownSeconds + 10
-}
-
-func (r *RedisStatsStore) windowBucketKeys(deploymentID string, now time.Time, windowSize int) ([]string, []string) {
-	if windowSize <= 0 {
-		windowSize = defaultFailureWindowMinutes
-	}
-	bucketSeconds := r.bucketSeconds()
-	current := now.Truncate(time.Duration(bucketSeconds) * time.Second)
-	format := r.bucketKeyFormat()
-	successKeys := make([]string, 0, windowSize)
-	failureKeys := make([]string, 0, windowSize)
-	for i := 0; i < windowSize; i++ {
-		minuteKey := current.Add(-time.Duration(i) * time.Duration(bucketSeconds) * time.Second).Format(format)
-		successKeys = append(successKeys, r.successKey(deploymentID, minuteKey))
-		failureKeys = append(failureKeys, r.failureKey(deploymentID, minuteKey))
-	}
-	return successKeys, failureKeys
 }
 
 func boolToInt(v bool) int {
@@ -605,6 +572,21 @@ func parseInt64(v interface{}) int64 {
 		return int64(val)
 	default:
 		return 0
+	}
+}
+
+func parseString(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case []byte:
+		return string(val)
+	case int64:
+		return strconv.FormatInt(val, 10)
+	case float64:
+		return strconv.FormatInt(int64(val), 10)
+	default:
+		return ""
 	}
 }
 

@@ -2,6 +2,9 @@ package routers
 
 import (
 	"context"
+	"errors"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -78,7 +81,7 @@ func TestRedisStatsStore_KeyHashTag(t *testing.T) {
 	store := NewRedisStatsStore(client)
 
 	deploymentID := "deployment-1"
-	minute := "2026-01-10-00-00"
+	minute := "12345"
 	keys := []string{
 		store.latencyKey(deploymentID),
 		store.ttftKey(deploymentID),
@@ -94,4 +97,72 @@ func TestRedisStatsStore_KeyHashTag(t *testing.T) {
 	}
 
 	require.Equal(t, deploymentID, store.extractDeploymentID(store.countersKey(deploymentID)))
+}
+
+type denyTimeHook struct{}
+
+func (denyTimeHook) DialHook(next redis.DialHook) redis.DialHook {
+	return next
+}
+
+func (denyTimeHook) ProcessHook(next redis.ProcessHook) redis.ProcessHook {
+	return func(ctx context.Context, cmd redis.Cmder) error {
+		if strings.EqualFold(cmd.Name(), "time") {
+			return errors.New("TIME command disabled")
+		}
+		return next(ctx, cmd)
+	}
+}
+
+func (denyTimeHook) ProcessPipelineHook(next redis.ProcessPipelineHook) redis.ProcessPipelineHook {
+	return func(ctx context.Context, cmds []redis.Cmder) error {
+		for _, cmd := range cmds {
+			if strings.EqualFold(cmd.Name(), "time") {
+				return errors.New("TIME command disabled")
+			}
+		}
+		return next(ctx, cmds)
+	}
+}
+
+func TestRedisStatsStore_UsesRedisTimeInScripts(t *testing.T) {
+	s := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	client.AddHook(denyTimeHook{})
+
+	store := NewRedisStatsStore(client)
+	ctx := context.Background()
+	deploymentID := "deployment-time"
+	fixed := time.Date(2026, 1, 10, 12, 34, 56, 0, time.UTC)
+	s.SetTime(fixed)
+
+	require.NoError(t, store.RecordSuccess(ctx, deploymentID, &router.ResponseMetrics{
+		Latency:     10 * time.Millisecond,
+		TotalTokens: 7,
+	}))
+
+	stats, err := store.GetStats(ctx, deploymentID)
+	require.NoError(t, err)
+	require.Equal(t, minuteKey(fixed), stats.CurrentMinuteKey)
+}
+
+func TestRedisStatsStore_UsesRedisTimeForBucketKeys(t *testing.T) {
+	s := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	client.AddHook(denyTimeHook{})
+
+	store := NewRedisStatsStore(client, WithFailureBucketSeconds(10))
+	ctx := context.Background()
+	deploymentID := "deployment-bucket"
+	fixed := time.Date(2026, 1, 10, 0, 0, 25, 0, time.UTC)
+	s.SetTime(fixed)
+
+	require.NoError(t, store.RecordSuccess(ctx, deploymentID, &router.ResponseMetrics{
+		Latency:     5 * time.Millisecond,
+		TotalTokens: 3,
+	}))
+
+	bucket := fixed.Unix() / 10
+	expectedKey := store.successKey(deploymentID, strconv.FormatInt(bucket, 10))
+	require.True(t, s.Exists(expectedKey))
 }
