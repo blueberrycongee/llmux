@@ -29,6 +29,7 @@ type Config struct {
 	Auth          AuthConfig                        `yaml:"auth"`
 	Database      DatabaseConfig                    `yaml:"database"`
 	Cache         CacheConfig                       `yaml:"cache"`
+	HealthCheck   HealthCheckConfig                 `yaml:"healthcheck"`
 	MCP           MCPConfig                         `yaml:"mcp"`
 	Vault         VaultConfig                       `yaml:"vault"`
 	PricingFile   string                            `yaml:"pricing_file"`
@@ -87,6 +88,13 @@ type CacheConfig struct {
 	TTL       time.Duration     `yaml:"ttl"`       // Default TTL
 	Memory    MemoryCacheConfig `yaml:"memory"`    // In-memory cache config
 	Redis     RedisCacheConfig  `yaml:"redis"`     // Redis cache config
+}
+
+// HealthCheckConfig contains proactive health probe settings.
+type HealthCheckConfig struct {
+	Enabled  bool          `yaml:"enabled"`
+	Interval time.Duration `yaml:"interval"`
+	Timeout  time.Duration `yaml:"timeout"`
 }
 
 // MemoryCacheConfig contains in-memory cache settings.
@@ -402,6 +410,11 @@ func DefaultConfig() *Config {
 				MaxRetries:   3,
 			},
 		},
+		HealthCheck: HealthCheckConfig{
+			Enabled:  false,
+			Interval: 30 * time.Second,
+			Timeout:  10 * time.Second,
+		},
 		MCP: MCPConfig{
 			Enabled:                  false,
 			Clients:                  []MCPClientConfig{},
@@ -484,6 +497,12 @@ func (c *Config) Validate() error {
 	}
 	if c.Routing.CooldownPeriod < 0 {
 		return fmt.Errorf("routing.cooldown_period cannot be negative")
+	}
+	if c.HealthCheck.Interval < 0 {
+		return fmt.Errorf("healthcheck.interval cannot be negative")
+	}
+	if c.HealthCheck.Timeout < 0 {
+		return fmt.Errorf("healthcheck.timeout cannot be negative")
 	}
 	switch c.Stream.RecoveryMode {
 	case "", "off", "append", "retry":

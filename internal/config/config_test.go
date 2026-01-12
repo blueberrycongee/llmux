@@ -176,6 +176,28 @@ func TestConfigValidation(t *testing.T) {
 			wantErr: true,
 		},
 		{
+			name: "negative healthcheck interval",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				HealthCheck: HealthCheckConfig{Interval: -1 * time.Second},
+			},
+			wantErr: true,
+		},
+		{
+			name: "negative healthcheck timeout",
+			cfg: &Config{
+				Server: ServerConfig{Port: 8080},
+				Providers: []ProviderConfig{
+					{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
+				},
+				HealthCheck: HealthCheckConfig{Timeout: -1 * time.Second},
+			},
+			wantErr: true,
+		},
+		{
 			name: "database enabled missing user",
 			cfg: &Config{
 				Server: ServerConfig{Port: 8080},

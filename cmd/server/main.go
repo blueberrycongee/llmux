@@ -20,6 +20,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
+	"github.com/blueberrycongee/llmux/internal/healthcheck"
 	"github.com/blueberrycongee/llmux/internal/mcp"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/resilience"
@@ -152,6 +153,22 @@ func run() error {
 
 	if watchErr := cfgManager.Watch(ctx); watchErr != nil {
 		logger.Warn("config hot-reload disabled", "error", watchErr)
+	}
+
+	if cfg.HealthCheck.Enabled {
+		proberCfg := healthcheck.Config{
+			Enabled:        true,
+			Interval:       cfg.HealthCheck.Interval,
+			Timeout:        cfg.HealthCheck.Timeout,
+			CooldownPeriod: cfg.Routing.CooldownPeriod,
+		}
+		prober := healthcheck.NewProber(proberCfg, swapperClientProvider{swapper: clientSwapper}, logger)
+		prober.Start(ctx)
+		logger.Info("healthcheck prober started",
+			"interval", proberCfg.Interval,
+			"timeout", proberCfg.Timeout,
+			"cooldown_period", proberCfg.CooldownPeriod,
+		)
 	}
 
 	// ========================================================================

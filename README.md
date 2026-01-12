@@ -157,6 +157,11 @@ routing:
   retry_count: 3
   distributed: false
 
+healthcheck:
+  enabled: false
+  interval: 30s
+  timeout: 10s
+
 cache:
   enabled: true
   type: local  # local, redis, dual

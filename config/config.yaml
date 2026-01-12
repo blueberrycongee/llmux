@@ -68,6 +68,11 @@ routing:
   cooldown_period: 60s
   distributed: false        # use Redis stats store for multi-instance routing
 
+healthcheck:
+  enabled: false
+  interval: 30s
+  timeout: 10s
+
 stream:
   recovery_mode: retry  # off, append, retry
 

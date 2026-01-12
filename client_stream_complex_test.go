@@ -45,6 +45,7 @@ func (r *sequenceRouter) ReportFailure(d *provider.Deployment, err error)       
 func (r *sequenceRouter) ReportRequestStart(d *provider.Deployment)                                 {}
 func (r *sequenceRouter) ReportRequestEnd(d *provider.Deployment)                                   {}
 func (r *sequenceRouter) IsCircuitOpen(d *provider.Deployment) bool                                 { return false }
+func (r *sequenceRouter) SetCooldown(id string, until time.Time) error                              { return nil }
 func (r *sequenceRouter) AddDeployment(d *provider.Deployment)                                      {}
 func (r *sequenceRouter) AddDeploymentWithConfig(d *provider.Deployment, c router.DeploymentConfig) {}
 func (r *sequenceRouter) RemoveDeployment(id string)                                                {}

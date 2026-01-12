@@ -10,6 +10,7 @@ import (
 	"sync"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -42,6 +43,7 @@ func (r *recordingRouter) ReportFailure(_ *provider.Deployment, _ error)        
 func (r *recordingRouter) ReportRequestStart(_ *provider.Deployment)                       {}
 func (r *recordingRouter) ReportRequestEnd(_ *provider.Deployment)                         {}
 func (r *recordingRouter) IsCircuitOpen(_ *provider.Deployment) bool                       { return false }
+func (r *recordingRouter) SetCooldown(_ string, _ time.Time) error                         { return nil }
 func (r *recordingRouter) AddDeployment(_ *provider.Deployment)                            {}
 func (r *recordingRouter) AddDeploymentWithConfig(_ *provider.Deployment, _ router.DeploymentConfig) {
 }
