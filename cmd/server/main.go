@@ -197,7 +197,7 @@ func run() error {
 	governanceEngine := buildGovernanceEngine(cfg, authStore, auditLogger, logger)
 	if governanceEngine != nil {
 		cfgManager.OnChange(func(nextCfg *config.Config) {
-			governanceEngine.UpdateConfig(nextCfg.Governance)
+			governanceEngine.UpdateConfig(mapGovernanceConfig(nextCfg.Governance))
 		})
 	}
 

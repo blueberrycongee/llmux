@@ -194,7 +194,7 @@ This section summarizes the current architecture posture for distributed, produc
 - Statelessness: horizontal scale requires `deployment.mode=distributed` with Postgres + Redis; default in-memory stores are single-node only.
 - Distributed routing: Redis-backed stats enable least-busy/latency/TPM/RPM across instances; round-robin counters remain local per node (best-effort, not strict global RR).
 - Routing config parity: Redis stats store supports option overrides, but `main.go` does not pass routing-derived options yet, so distributed stats use defaults.
-- Feature scope vs LiteLLM: LLMux focuses on `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/models` and does not yet cover `/responses`, `/images`, `/audio`, `/batches`, `/rerank`, etc.
+- Feature scope vs LiteLLM: LLMux supports `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/models`, plus `/v1/responses` (mapped to chat completions). `/v1/audio/*` and `/v1/batches` return explicit `invalid_request_error` until provider support is implemented.
 - TPM/RPM estimation: uses tiktoken estimates; falls back to a fixed 100 tokens only when estimation is unavailable.
 
 ### OpenAI-Compatible Providers
@@ -223,6 +223,18 @@ curl http://localhost:8080/v1/chat/completions \
     "model": "gpt-4o",
     "messages": [{"role": "user", "content": "Hello!"}],
     "stream": false
+  }'
+```
+
+### Responses
+
+```bash
+curl http://localhost:8080/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "gpt-4o",
+    "input": "Hello!"
   }'
 ```
 

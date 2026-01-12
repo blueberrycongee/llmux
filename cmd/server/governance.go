@@ -39,13 +39,22 @@ func buildGovernanceEngine(cfg *config.Config, authStore auth.Store, auditLogger
 		}
 	}
 
-	return governance.NewEngine(cfg.Governance,
+	return governance.NewEngine(mapGovernanceConfig(cfg.Governance),
 		governance.WithStore(authStore),
 		governance.WithRateLimiter(rateLimiter),
 		governance.WithAuditLogger(auditLogger),
 		governance.WithIdempotencyStore(idempotency),
 		governance.WithLogger(logger),
 	)
+}
+
+func mapGovernanceConfig(cfg config.GovernanceConfig) governance.Config {
+	return governance.Config{
+		Enabled:           cfg.Enabled,
+		AsyncAccounting:   cfg.AsyncAccounting,
+		IdempotencyWindow: cfg.IdempotencyWindow,
+		AuditEnabled:      cfg.AuditEnabled,
+	}
 }
 
 func buildTenantRateLimiter(cfg *config.Config, logger *slog.Logger) *auth.TenantRateLimiter {

@@ -33,11 +33,6 @@ func NewRoundRobinRouterWithConfig(config router.Config) *RoundRobinRouter {
 	}
 }
 
-// newRoundRobinRouterWithStore creates a new round-robin router with optional distributed StatsStore.
-func newRoundRobinRouterWithStore(config router.Config, store router.StatsStore) *RoundRobinRouter {
-	return newRoundRobinRouterWithStores(config, store, nil)
-}
-
 // newRoundRobinRouterWithStores creates a round-robin router with optional stats and RR stores.
 func newRoundRobinRouterWithStores(config router.Config, store router.StatsStore, rrStore router.RoundRobinStore) *RoundRobinRouter {
 	config.Strategy = router.StrategyRoundRobin

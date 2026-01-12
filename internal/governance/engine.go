@@ -1,3 +1,4 @@
+// Package governance provides policy evaluation and accounting for gateway requests.
 package governance
 
 import (
@@ -65,7 +66,7 @@ func (e *Engine) Evaluate(ctx context.Context, input RequestInput) error {
 		return err
 	}
 
-	if err := e.checkBudgets(ctx, input.Model, authCtx, resolved); err != nil {
+	if err := e.checkBudgets(input.Model, authCtx, resolved); err != nil {
 		return err
 	}
 
@@ -305,42 +306,42 @@ func (e *Engine) checkModelAccess(ctx context.Context, model string, authCtx *au
 	return llmerrors.NewPermissionError("gateway", model, "model access denied")
 }
 
-func (e *Engine) checkBudgets(ctx context.Context, model string, authCtx *auth.AuthContext, resolved resolvedEntities) error {
+func (e *Engine) checkBudgets(model string, authCtx *auth.AuthContext, resolved resolvedEntities) error {
 	if authCtx == nil {
 		return nil
 	}
 
 	if authCtx.APIKey != nil {
 		if authCtx.APIKey.IsOverBudget() || isModelOverBudget(model, authCtx.APIKey.ModelMaxBudget, authCtx.APIKey.ModelSpend) {
-			e.auditBudgetExceeded(ctx, authCtx, auth.AuditObjectAPIKey, authCtx.APIKey.ID, model)
+			e.auditBudgetExceeded(authCtx, auth.AuditObjectAPIKey, authCtx.APIKey.ID, model)
 			return llmerrors.NewInsufficientQuotaError("gateway", model, "api key budget exceeded")
 		}
 	}
 
 	if resolved.team != nil {
 		if resolved.team.IsOverBudget() || isModelOverBudget(model, resolved.team.ModelMaxBudget, resolved.team.ModelSpend) {
-			e.auditBudgetExceeded(ctx, authCtx, auth.AuditObjectTeam, resolved.team.ID, model)
+			e.auditBudgetExceeded(authCtx, auth.AuditObjectTeam, resolved.team.ID, model)
 			return llmerrors.NewInsufficientQuotaError("gateway", model, "team budget exceeded")
 		}
 	}
 
 	if resolved.user != nil {
 		if resolved.user.IsOverBudget() || isModelOverBudget(model, resolved.user.ModelMaxBudget, resolved.user.ModelSpend) {
-			e.auditBudgetExceeded(ctx, authCtx, auth.AuditObjectUser, resolved.user.ID, model)
+			e.auditBudgetExceeded(authCtx, auth.AuditObjectUser, resolved.user.ID, model)
 			return llmerrors.NewInsufficientQuotaError("gateway", model, "user budget exceeded")
 		}
 	}
 
 	if resolved.org != nil {
 		if resolved.org.IsOverBudget() {
-			e.auditBudgetExceeded(ctx, authCtx, auth.AuditObjectOrganization, resolved.org.ID, model)
+			e.auditBudgetExceeded(authCtx, auth.AuditObjectOrganization, resolved.org.ID, model)
 			return llmerrors.NewInsufficientQuotaError("gateway", model, "organization budget exceeded")
 		}
 	}
 
 	if resolved.endUser != nil {
 		if resolved.endUser.IsOverBudget() {
-			e.auditBudgetExceeded(ctx, authCtx, auth.AuditObjectEndUser, resolved.endUser.UserID, model)
+			e.auditBudgetExceeded(authCtx, auth.AuditObjectEndUser, resolved.endUser.UserID, model)
 			return llmerrors.NewInsufficientQuotaError("gateway", model, "end user budget exceeded")
 		}
 		if resolved.endUser.IsBlocked() {
@@ -411,7 +412,7 @@ func (e *Engine) checkRateLimit(ctx context.Context, input RequestInput, authCtx
 	return nil
 }
 
-func (e *Engine) auditBudgetExceeded(ctx context.Context, authCtx *auth.AuthContext, objectType auth.AuditObjectType, objectID, model string) {
+func (e *Engine) auditBudgetExceeded(authCtx *auth.AuthContext, objectType auth.AuditObjectType, objectID, model string) {
 	cfg := e.loadConfig()
 	if !cfg.AuditEnabled || e.auditLogger == nil {
 		return

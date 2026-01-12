@@ -14,6 +14,7 @@ type CallType string
 const (
 	CallTypeCompletion     CallType = "completion"
 	CallTypeChatCompletion CallType = "chat_completion"
+	CallTypeResponse       CallType = "response"
 	CallTypeEmbedding      CallType = "embedding"
 	CallTypeImageGen       CallType = "image_generation"
 	CallTypeAudioTranscr   CallType = "audio_transcription"

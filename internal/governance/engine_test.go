@@ -18,7 +18,7 @@ import (
 
 type errorLimiter struct{}
 
-func (errorLimiter) CheckAllow(context.Context, []resilience.Descriptor) ([]resilience.Result, error) {
+func (errorLimiter) CheckAllow(context.Context, []resilience.Descriptor) ([]resilience.LimitResult, error) {
 	return nil, errors.New("backend unavailable")
 }
 

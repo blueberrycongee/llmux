@@ -10,11 +10,16 @@ import (
 
 type fakeDataHandler struct{}
 
-func (fakeDataHandler) HealthCheck(http.ResponseWriter, *http.Request)     {}
-func (fakeDataHandler) ChatCompletions(http.ResponseWriter, *http.Request) {}
-func (fakeDataHandler) Completions(http.ResponseWriter, *http.Request)     {}
-func (fakeDataHandler) Embeddings(http.ResponseWriter, *http.Request)      {}
-func (fakeDataHandler) ListModels(http.ResponseWriter, *http.Request)      {}
+func (fakeDataHandler) HealthCheck(http.ResponseWriter, *http.Request)         {}
+func (fakeDataHandler) ChatCompletions(http.ResponseWriter, *http.Request)     {}
+func (fakeDataHandler) Completions(http.ResponseWriter, *http.Request)         {}
+func (fakeDataHandler) Embeddings(http.ResponseWriter, *http.Request)          {}
+func (fakeDataHandler) ListModels(http.ResponseWriter, *http.Request)          {}
+func (fakeDataHandler) Responses(http.ResponseWriter, *http.Request)           {}
+func (fakeDataHandler) AudioTranscriptions(http.ResponseWriter, *http.Request) {}
+func (fakeDataHandler) AudioTranslations(http.ResponseWriter, *http.Request)   {}
+func (fakeDataHandler) AudioSpeech(http.ResponseWriter, *http.Request)         {}
+func (fakeDataHandler) Batches(http.ResponseWriter, *http.Request)             {}
 
 type fakeManagementHandler struct{}
 
@@ -43,6 +48,26 @@ func TestBuildMuxes_AdminPortDisabled_RegistersAllOnDataMux(t *testing.T) {
 
 	if got := routePattern(muxes.Data, http.MethodPost, "/v1/completions"); got != "POST /v1/completions" {
 		t.Fatalf("data mux missing completions route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/responses"); got != "POST /v1/responses" {
+		t.Fatalf("data mux missing responses route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/audio/transcriptions"); got != "POST /v1/audio/transcriptions" {
+		t.Fatalf("data mux missing audio transcription route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/audio/translations"); got != "POST /v1/audio/translations" {
+		t.Fatalf("data mux missing audio translation route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/audio/speech"); got != "POST /v1/audio/speech" {
+		t.Fatalf("data mux missing audio speech route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/batches"); got != "POST /v1/batches" {
+		t.Fatalf("data mux missing batch route, got pattern %q", got)
 	}
 
 	if got := routePattern(muxes.Data, http.MethodGet, "/key/list"); got != "GET /key/list" {
@@ -75,6 +100,26 @@ func TestBuildMuxes_AdminPortEnabled_SplitsRoutes(t *testing.T) {
 
 	if got := routePattern(muxes.Data, http.MethodPost, "/v1/completions"); got != "POST /v1/completions" {
 		t.Fatalf("data mux missing completions route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/responses"); got != "POST /v1/responses" {
+		t.Fatalf("data mux missing responses route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/audio/transcriptions"); got != "POST /v1/audio/transcriptions" {
+		t.Fatalf("data mux missing audio transcription route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/audio/translations"); got != "POST /v1/audio/translations" {
+		t.Fatalf("data mux missing audio translation route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/audio/speech"); got != "POST /v1/audio/speech" {
+		t.Fatalf("data mux missing audio speech route, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Data, http.MethodPost, "/v1/batches"); got != "POST /v1/batches" {
+		t.Fatalf("data mux missing batch route, got pattern %q", got)
 	}
 
 	if got := routePattern(muxes.Admin, http.MethodPost, "/v1/chat/completions"); got != "" {

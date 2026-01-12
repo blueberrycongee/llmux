@@ -139,9 +139,9 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	defer endSpan()
 	h.observePre(ctx, payload)
 
-	if err := h.evaluateGovernance(ctx, r, req.Model, req.User, req.Tags, governance.CallTypeChatCompletion); err != nil {
-		h.observePost(ctx, payload, err)
-		h.writeError(w, err)
+	if evalErr := h.evaluateGovernance(ctx, r, req.Model, req.User, req.Tags, governance.CallTypeChatCompletion); evalErr != nil {
+		h.observePost(ctx, payload, evalErr)
+		h.writeError(w, evalErr)
 		return
 	}
 
@@ -451,8 +451,8 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := h.evaluateGovernance(r.Context(), r, chatReq.Model, req.User, nil, governance.CallTypeCompletion); err != nil {
-		h.writeError(w, err)
+	if evalErr := h.evaluateGovernance(r.Context(), r, chatReq.Model, req.User, nil, governance.CallTypeCompletion); evalErr != nil {
+		h.writeError(w, evalErr)
 		return
 	}
 
@@ -856,9 +856,9 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	defer endSpan()
 	h.observePre(ctx, payload)
 
-	if err := h.evaluateGovernance(ctx, r, req.Model, req.User, nil, governance.CallTypeEmbedding); err != nil {
-		h.observePost(ctx, payload, err)
-		h.writeError(w, err)
+	if evalErr := h.evaluateGovernance(ctx, r, req.Model, req.User, nil, governance.CallTypeEmbedding); evalErr != nil {
+		h.observePost(ctx, payload, evalErr)
+		h.writeError(w, evalErr)
 		return
 	}
 

@@ -1,7 +1,7 @@
 # LLMux Governance Gateway Roadmap
 
 Document created: 2026-01-12T20:18:08Z
-Last updated: 2026-01-12T22:07:07Z
+Last updated: 2026-01-12T23:24:36Z
 
 ## Goals
 - Deliver an enterprise-grade governance gateway that supports both microservice and monolith modes.
@@ -51,16 +51,16 @@ Deliverables:
 - Make fallback policies explicit and observable.
 
 ### Phase 4 - Ops and Observability
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T23:24:36Z
 
 Deliverables:
 - Trace ID, structured logs, unified metrics, and circuit-break event metrics.
 - Control plane APIs with audit logs, plus safe rollout/gray config.
 
 ### Phase 5 - Compatibility and Developer Experience
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T23:24:36Z
 
 Deliverables:
 - Align with LiteLLM key params and OpenAI-compatible surfaces
@@ -98,14 +98,14 @@ Completed at (UTC): 2026-01-12T22:07:07Z
   and isolation strategies.
 
 ### P1 - Observability and Audit
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T23:24:36Z
 
 - Add trace IDs, structured logs, metrics, and audit/charge tracing.
 
 ### P2 - Compatibility
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T23:24:36Z
 
 - Stabilize parameter mapping and align streaming vs non-streaming behavior.
 
@@ -129,3 +129,10 @@ Completed at (UTC):
 | 030 | Weighted latency routing | done | 2026-01-12T22:07:07Z | Buffer + weight-aware latency selection |
 | 031 | Retry backoff jitter + caps | done | 2026-01-12T22:07:07Z | Configurable max backoff and jittered retries |
 | 032 | Fallback observability + provider isolation | done | 2026-01-12T22:07:07Z | Fallback reporting and concurrency isolation |
+| 040 | Control plane endpoints + audit logs | done | 2026-01-12T23:24:36Z | Control API, audit logging, and admin wiring |
+| 041 | Config reload + status | done | 2026-01-12T23:24:36Z | Hot reload with checksum and status metadata |
+| 042 | Metrics + resilience observability | done | 2026-01-12T23:24:36Z | Resilience stats, cooldown, and active request metrics |
+| 050 | Responses API compatibility | done | 2026-01-12T23:24:36Z | Responses mapped onto chat completions with stream events |
+| 051 | LiteLLM param aliases | done | 2026-01-12T23:24:36Z | Alias support for max_output_tokens/end_user/tags |
+| 052 | Audio + batch stubs | done | 2026-01-12T23:24:36Z | Explicit invalid_request_error for unsupported endpoints |
+| 053 | DX docs update | done | 2026-01-12T23:24:36Z | README/ROADMAP compatibility updates |

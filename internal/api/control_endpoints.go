@@ -26,8 +26,8 @@ type providerControlStatus struct {
 }
 
 type cooldownRequest struct {
-	DeploymentID   string `json:"deployment_id"`
-	CooldownSeconds int   `json:"cooldown_seconds"`
+	DeploymentID    string `json:"deployment_id"`
+	CooldownSeconds int    `json:"cooldown_seconds"`
 }
 
 type configReloadRequest struct {
@@ -139,8 +139,8 @@ func (h *ManagementHandler) UpdateDeploymentCooldown(w http.ResponseWriter, r *h
 	}
 
 	h.writeJSON(w, http.StatusOK, map[string]any{
-		"deployment_id":  req.DeploymentID,
-		"cooldown_until": cooldownUntil,
+		"deployment_id":   req.DeploymentID,
+		"cooldown_until":  cooldownUntil,
 		"cooldown_active": cooldownActive,
 	})
 }
@@ -229,11 +229,11 @@ func (h *ManagementHandler) acquireClient() (*llmux.Client, func()) {
 }
 
 type auditActor struct {
-	id       string
-	kind     string
-	email    string
-	teamID   *string
-	orgID    *string
+	id     string
+	kind   string
+	email  string
+	teamID *string
+	orgID  *string
 }
 
 func (h *ManagementHandler) auditControlAction(
@@ -252,23 +252,23 @@ func (h *ManagementHandler) auditControlAction(
 
 	actor := auditActorFromContext(auth.GetAuthContext(r.Context()))
 	log := &auth.AuditLog{
-		ActorID:     actor.id,
-		ActorType:   actor.kind,
-		ActorEmail:  actor.email,
-		ActorIP:     requesterIP(r.RemoteAddr),
-		Action:      action,
-		ObjectType:  objectType,
-		ObjectID:    objectID,
-		TeamID:      actor.teamID,
+		ActorID:        actor.id,
+		ActorType:      actor.kind,
+		ActorEmail:     actor.email,
+		ActorIP:        requesterIP(r.RemoteAddr),
+		Action:         action,
+		ObjectType:     objectType,
+		ObjectID:       objectID,
+		TeamID:         actor.teamID,
 		OrganizationID: actor.orgID,
-		BeforeValue: beforeValue,
-		AfterValue:  afterValue,
-		Metadata:    metadata,
-		RequestID:   observability.RequestIDFromContext(r.Context()),
-		UserAgent:   r.UserAgent(),
-		RequestURI:  r.RequestURI,
-		Success:     success,
-		Error:       errMsg,
+		BeforeValue:    beforeValue,
+		AfterValue:     afterValue,
+		Metadata:       metadata,
+		RequestID:      observability.RequestIDFromContext(r.Context()),
+		UserAgent:      r.UserAgent(),
+		RequestURI:     r.RequestURI,
+		Success:        success,
+		Error:          errMsg,
 	}
 	_ = h.auditLogger.Log(log)
 }

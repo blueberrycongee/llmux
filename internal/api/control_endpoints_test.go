@@ -25,10 +25,10 @@ type stubProvider struct {
 	models []string
 }
 
-func (p *stubProvider) Name() string                           { return p.name }
-func (p *stubProvider) SupportedModels() []string              { return p.models }
-func (p *stubProvider) SupportsModel(model string) bool        { return containsModel(p.models, model) }
-func (p *stubProvider) SupportEmbedding() bool                 { return false }
+func (p *stubProvider) Name() string                    { return p.name }
+func (p *stubProvider) SupportedModels() []string       { return p.models }
+func (p *stubProvider) SupportsModel(model string) bool { return containsModel(p.models, model) }
+func (p *stubProvider) SupportEmbedding() bool          { return false }
 func (p *stubProvider) ParseStreamChunk([]byte) (*types.StreamChunk, error) {
 	return nil, nil
 }

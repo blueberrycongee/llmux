@@ -31,22 +31,27 @@ type ChatRequest struct {
 }
 
 var chatRequestKnownFields = map[string]struct{}{
-	"model":             {},
-	"messages":          {},
-	"stream":            {},
-	"max_tokens":        {},
-	"temperature":       {},
-	"top_p":             {},
-	"n":                 {},
-	"stop":              {},
-	"presence_penalty":  {},
-	"frequency_penalty": {},
-	"user":              {},
-	"tools":             {},
-	"tool_choice":       {},
-	"response_format":   {},
-	"stream_options":    {},
-	"tags":              {},
+	"model":                 {},
+	"messages":              {},
+	"stream":                {},
+	"max_tokens":            {},
+	"max_output_tokens":     {},
+	"max_completion_tokens": {},
+	"temperature":           {},
+	"top_p":                 {},
+	"n":                     {},
+	"stop":                  {},
+	"presence_penalty":      {},
+	"frequency_penalty":     {},
+	"user":                  {},
+	"end_user":              {},
+	"end_user_id":           {},
+	"tools":                 {},
+	"tool_choice":           {},
+	"response_format":       {},
+	"stream_options":        {},
+	"tags":                  {},
+	"tag":                   {},
 }
 
 // MarshalJSON merges Extra fields without overriding explicitly set fields.
@@ -87,6 +92,29 @@ func (r *ChatRequest) UnmarshalJSON(data []byte) error {
 	}
 
 	*r = ChatRequest(parsed)
+
+	if r.MaxTokens == 0 {
+		if err := readAliasInt(payload, "max_output_tokens", &r.MaxTokens); err != nil {
+			return err
+		}
+		if err := readAliasInt(payload, "max_completion_tokens", &r.MaxTokens); err != nil {
+			return err
+		}
+	}
+	if r.User == "" {
+		if err := readAliasString(payload, "end_user", &r.User); err != nil {
+			return err
+		}
+		if err := readAliasString(payload, "end_user_id", &r.User); err != nil {
+			return err
+		}
+	}
+	if len(r.Tags) == 0 {
+		if err := readAliasTags(payload, "tag", &r.Tags); err != nil {
+			return err
+		}
+	}
+
 	for key := range chatRequestKnownFields {
 		delete(payload, key)
 	}
@@ -97,6 +125,59 @@ func (r *ChatRequest) UnmarshalJSON(data []byte) error {
 		r.Extra = payload
 	}
 
+	return nil
+}
+
+func readAliasInt(payload map[string]json.RawMessage, key string, target *int) error {
+	if payload == nil || target == nil || *target != 0 {
+		return nil
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return nil
+	}
+	var value int
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return err
+	}
+	*target = value
+	return nil
+}
+
+func readAliasString(payload map[string]json.RawMessage, key string, target *string) error {
+	if payload == nil || target == nil || *target != "" {
+		return nil
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return nil
+	}
+	var value string
+	if err := json.Unmarshal(raw, &value); err != nil {
+		return err
+	}
+	*target = value
+	return nil
+}
+
+func readAliasTags(payload map[string]json.RawMessage, key string, target *[]string) error {
+	if payload == nil || target == nil || len(*target) > 0 {
+		return nil
+	}
+	raw, ok := payload[key]
+	if !ok {
+		return nil
+	}
+	var single string
+	if err := json.Unmarshal(raw, &single); err == nil {
+		*target = []string{single}
+		return nil
+	}
+	var list []string
+	if err := json.Unmarshal(raw, &list); err != nil {
+		return err
+	}
+	*target = list
 	return nil
 }
 

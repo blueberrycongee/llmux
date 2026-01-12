@@ -17,6 +17,11 @@ type dataHandler interface {
 	Completions(http.ResponseWriter, *http.Request)
 	Embeddings(http.ResponseWriter, *http.Request)
 	ListModels(http.ResponseWriter, *http.Request)
+	Responses(http.ResponseWriter, *http.Request)
+	AudioTranscriptions(http.ResponseWriter, *http.Request)
+	AudioTranslations(http.ResponseWriter, *http.Request)
+	AudioSpeech(http.ResponseWriter, *http.Request)
+	Batches(http.ResponseWriter, *http.Request)
 }
 
 type managementRegistrar interface {
@@ -67,6 +72,11 @@ func registerDataRoutes(mux *http.ServeMux, handler dataHandler, cfg *config.Con
 	mux.HandleFunc("POST /v1/completions", handler.Completions)
 	mux.HandleFunc("POST /v1/embeddings", handler.Embeddings)
 	mux.HandleFunc("POST /embeddings", handler.Embeddings)
+	mux.HandleFunc("POST /v1/responses", handler.Responses)
+	mux.HandleFunc("POST /v1/audio/transcriptions", handler.AudioTranscriptions)
+	mux.HandleFunc("POST /v1/audio/translations", handler.AudioTranslations)
+	mux.HandleFunc("POST /v1/audio/speech", handler.AudioSpeech)
+	mux.HandleFunc("POST /v1/batches", handler.Batches)
 	mux.HandleFunc("GET /v1/models", handler.ListModels)
 
 	// Metrics endpoint

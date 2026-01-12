@@ -194,7 +194,7 @@ tracing:
 - 无状态扩展：需打开 `deployment.mode=distributed` 并启用 Postgres + Redis，否则默认内存存储仅适合单节点。
 - 分布式路由：Redis 统计支持 least-busy/latency/TPM/RPM，但 round-robin 计数仍为本地实例级（尽力均衡，非严格全局 RR）。
 - 路由配置一致性：Redis stats store 支持 option 覆盖，但 `main.go` 尚未把路由配置转成 option，分布式统计仍用默认值。
-- 对标 LiteLLM：目前主要覆盖 `/v1/chat/completions`、`/v1/completions`、`/v1/embeddings`、`/v1/models`，尚未涵盖 `/responses`、`/images`、`/audio`、`/batches`、`/rerank` 等。
+- 对标 LiteLLM：目前覆盖 `/v1/chat/completions`、`/v1/completions`、`/v1/embeddings`、`/v1/models`，并支持 `/v1/responses`（映射到 chat completions）。`/v1/audio/*` 与 `/v1/batches` 暂返回明确的 `invalid_request_error`，待后续接入真实 provider 支持。
 - TPM/RPM 估算：正常使用 tiktoken 估算；仅在估算不可用时回退为固定 100 tokens。
 
 ### OpenAI 兼容提供商
@@ -223,6 +223,18 @@ curl http://localhost:8080/v1/chat/completions \
     "model": "gpt-4o",
     "messages": [{"role": "user", "content": "你好！"}],
     "stream": false
+  }'
+```
+
+### Responses
+
+```bash
+curl http://localhost:8080/v1/responses \
+  -H "Content-Type: application/json" \
+  -H "Authorization: Bearer $API_KEY" \
+  -d '{
+    "model": "gpt-4o",
+    "input": "Hello!"
   }'
 ```
 
