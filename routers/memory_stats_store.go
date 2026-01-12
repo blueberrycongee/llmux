@@ -245,7 +245,7 @@ func (m *MemoryStatsStore) appendToHistoryLocked(history *[]float64, value float
 // updateUsageStatsLocked updates TPM/RPM counters for the current minute.
 // MUST be called with m.mu locked.
 func (m *MemoryStatsStore) updateUsageStatsLocked(stats *DeploymentStats, tokens int) {
-	currentMinute := time.Now().Format("2006-01-02-15-04")
+	currentMinute := minuteKey(time.Now())
 
 	if stats.CurrentMinuteKey != currentMinute {
 		// New minute, reset counters

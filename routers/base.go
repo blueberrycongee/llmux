@@ -637,7 +637,7 @@ func (r *BaseRouter) appendToHistory(history *[]float64, value float64, maxSize 
 }
 
 func (r *BaseRouter) updateUsageStats(stats *statsEntry, tokens int) {
-	currentMinute := time.Now().Format("2006-01-02-15-04")
+	currentMinute := minuteKey(time.Now())
 
 	if stats.CurrentMinuteKey != currentMinute {
 		stats.CurrentMinuteKey = currentMinute

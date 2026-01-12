@@ -144,6 +144,20 @@ func NewRedisStatsStore(client redis.UniversalClient, opts ...RedisStatsOption) 
 	return store
 }
 
+func (r *RedisStatsStore) now(ctx context.Context) time.Time {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	if r.client == nil {
+		return time.Now().UTC()
+	}
+	now, err := r.client.Time(ctx).Result()
+	if err != nil {
+		return time.Now().UTC()
+	}
+	return now.UTC()
+}
+
 // GetStats retrieves statistics for a deployment.
 func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*DeploymentStats, error) {
 	keys := []string{
@@ -153,7 +167,7 @@ func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*D
 		r.usageKeyPrefix(deploymentID),
 	}
 
-	currentMinute := time.Now().Format("2006-01-02-15-04")
+	currentMinute := minuteKey(r.now(ctx))
 	args := []interface{}{currentMinute}
 
 	result, err := r.getStatsScript.Run(ctx, r.client, keys, args...).Result()
@@ -288,9 +302,9 @@ func (r *RedisStatsStore) DecrementActiveRequests(ctx context.Context, deploymen
 
 // RecordSuccess records a successful request with its metrics.
 func (r *RedisStatsStore) RecordSuccess(ctx context.Context, deploymentID string, metrics *ResponseMetrics) error {
-	now := time.Now()
-	usageMinute := now.Format("2006-01-02-15-04")
-	bucketKey := now.Format(r.bucketKeyFormat())
+	now := r.now(ctx)
+	usageMinute := minuteKey(now)
+	bucketKey := formatBucketKey(now, r.bucketKeyFormat())
 
 	keys := []string{
 		r.latencyKey(deploymentID),
@@ -327,7 +341,7 @@ func (r *RedisStatsStore) RecordFailure(ctx context.Context, deploymentID string
 
 // RecordFailureWithOptions records a failed request with routing context.
 func (r *RedisStatsStore) RecordFailureWithOptions(ctx context.Context, deploymentID string, err error, opts failureRecordOptions) error {
-	now := time.Now()
+	now := r.now(ctx)
 	windowSize := r.failureWindowSize()
 	successKeys, failureKeys := r.windowBucketKeys(deploymentID, now, windowSize)
 
@@ -559,6 +573,7 @@ func (r *RedisStatsStore) windowBucketKeys(deploymentID string, now time.Time, w
 	if windowSize <= 0 {
 		windowSize = defaultFailureWindowMinutes
 	}
+	now = now.UTC()
 	bucketSeconds := r.bucketSeconds()
 	current := now.Truncate(time.Duration(bucketSeconds) * time.Second)
 	format := r.bucketKeyFormat()
