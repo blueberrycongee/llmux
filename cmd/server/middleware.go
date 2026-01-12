@@ -22,10 +22,11 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 	var authMiddleware *auth.Middleware
 	if cfg.Auth.Enabled {
 		authMiddleware = auth.NewMiddleware(&auth.MiddlewareConfig{
-			Store:     authStore,
-			Logger:    logger,
-			SkipPaths: cfg.Auth.SkipPaths,
-			Enabled:   true,
+			Store:                  authStore,
+			Logger:                 logger,
+			SkipPaths:              cfg.Auth.SkipPaths,
+			Enabled:                true,
+			LastUsedUpdateInterval: cfg.Auth.LastUsedUpdateInterval,
 		})
 		logger.Info("API key authentication middleware enabled")
 		logger.Info("model access middleware enabled")

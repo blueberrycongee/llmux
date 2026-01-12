@@ -139,6 +139,7 @@ auth:
   skip_paths:               # Paths that don't require authentication
     - /health/ready
     - /metrics
+  last_used_update_interval: 1m # Min interval to update key last_used_at (0 to disable)
   oidc:
     issuer_url: ${OIDC_ISSUER_URL}
     client_id: ${OIDC_CLIENT_ID}
