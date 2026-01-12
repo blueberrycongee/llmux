@@ -1,0 +1,49 @@
+# Minimal distributed configuration (requires Postgres + Redis).
+
+server:
+  port: 8080
+
+deployment:
+  mode: distributed
+
+providers:
+  - name: openai
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+    models:
+      - gpt-4o-mini
+
+routing:
+  default_provider: openai
+  strategy: simple-shuffle
+  fallback_enabled: true
+  retry_count: 2
+  cooldown_period: 60s
+  distributed: true
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 600
+  burst_size: 20
+  distributed: true
+  fail_open: true
+
+auth:
+  enabled: false
+
+database:
+  enabled: true
+  host: ${DB_HOST:localhost}
+  port: 5432
+  user: ${DB_USER:llmux}
+  password: ${DB_PASSWORD}
+  database: ${DB_NAME:llmux}
+  ssl_mode: disable
+
+cache:
+  enabled: false
+  type: redis
+  redis:
+    addr: ${REDIS_ADDR:localhost:6379}
+    password: ${REDIS_PASSWORD:}

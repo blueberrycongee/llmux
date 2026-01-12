@@ -1,7 +1,7 @@
 # LLMux Governance Gateway Roadmap
 
 Document created: 2026-01-12T20:18:08Z
-Last updated: 2026-01-12T20:18:08Z
+Last updated: 2026-01-12T20:26:44Z
 
 ## Goals
 - Deliver an enterprise-grade governance gateway that supports both microservice and monolith modes.
@@ -16,8 +16,8 @@ Last updated: 2026-01-12T20:18:08Z
 ## Phases
 
 ### Phase 0 - Baseline and Interface Freeze
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T20:26:44Z
 
 Deliverables:
 - Define gateway spec, error codes, request lifecycle, and governance extension points.
@@ -119,3 +119,5 @@ Completed at (UTC):
 | ID | Task | Status | Completed at (UTC) | Notes |
 | --- | --- | --- | --- | --- |
 | 000 | Roadmap document created | done | 2026-01-12T20:18:08Z | Initial version |
+| 001 | Baseline gateway spec | done | 2026-01-12T20:26:44Z | Error codes, lifecycle, extension points |
+| 002 | Distributed runbook + minimal templates | done | 2026-01-12T20:26:44Z | Ops guide and config samples |
