@@ -809,6 +809,21 @@ func (c *Client) GetStats(deploymentID string) *DeploymentStats {
 	return c.router.GetStats(deploymentID)
 }
 
+// ResilienceStats returns the resilience status for a provider key.
+func (c *Client) ResilienceStats(key string) ResilienceStats {
+	if c.resilienceManager == nil {
+		return ResilienceStats{Key: key}
+	}
+	stats := c.resilienceManager.Stats(key)
+	return ResilienceStats{
+		Key:                stats.Key,
+		CircuitState:       stats.CircuitState,
+		RateLimitTokens:    stats.RateLimitTokens,
+		ConcurrentCurrent:  stats.ConcurrentCurrent,
+		ConcurrentCapacity: stats.ConcurrentCapacity,
+	}
+}
+
 // SetCooldown updates the cooldown expiration time for a deployment.
 // A zero time clears any active cooldown.
 func (c *Client) SetCooldown(deploymentID string, until time.Time) error {
@@ -1302,6 +1317,9 @@ func (c *Client) addProviderInstance(name string, prov provider.Provider, models
 
 func (c *Client) addProviderInstanceWithConfig(name string, prov provider.Provider, models []string, maxConcurrent int) error {
 	c.providers[name] = prov
+	if maxConcurrent > 0 && c.resilienceManager != nil {
+		c.resilienceManager.SetSemaphore(name, maxConcurrent)
+	}
 
 	// Create deployments for each model
 	for _, model := range models {

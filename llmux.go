@@ -143,6 +143,15 @@ type (
 	CacheControl = cache.Control
 )
 
+// ResilienceStats exposes provider-level resilience metrics.
+type ResilienceStats struct {
+	Key                string  `json:"key"`
+	CircuitState       string  `json:"circuit_state"`
+	RateLimitTokens    float64 `json:"rate_limit_tokens"`
+	ConcurrentCurrent  int     `json:"concurrent_current"`
+	ConcurrentCapacity int     `json:"concurrent_capacity"`
+}
+
 // Re-export plugin types.
 // For full plugin functionality, import github.com/blueberrycongee/llmux/internal/plugin or pkg/plugin.
 type (

@@ -238,7 +238,8 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 
 	// Create handler
 	handler := api.NewHandler(registry, simpleRouter, logger, nil)
-	mgmtHandler := api.NewManagementHandler(store, auditStore, logger)
+	auditLogger := auth.NewAuditLogger(auditStore, true)
+	mgmtHandler := api.NewManagementHandler(store, auditStore, logger, nil, nil, auditLogger)
 	invitationHandler := api.NewInvitationHandler(invitationService, invitationStore, logger)
 
 	// Setup routes

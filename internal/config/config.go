@@ -391,6 +391,7 @@ func DefaultConfig() *Config {
 				"/audit/",
 				"/global/",
 				"/invitation/",
+				"/control/",
 				"/metrics",
 			},
 		},

@@ -146,6 +146,7 @@ cors:
     - /audit/
     - /global/
     - /invitation/
+    - /control/
     - /metrics
 
 # Authentication (API Key validation)

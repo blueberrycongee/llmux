@@ -77,6 +77,15 @@ func (h *ManagementHandler) RegisterRoutes(mux *http.ServeMux) {
 		auditHandler := NewAuditLogHandler(h.auditStore, h.writeJSON, h.writeError)
 		auditHandler.RegisterAuditRoutes(mux)
 	}
+
+	// ========================================================================
+	// Control Plane Routes
+	// ========================================================================
+	mux.HandleFunc("GET /control/deployments", h.ListDeployments)
+	mux.HandleFunc("POST /control/deployments/cooldown", h.UpdateDeploymentCooldown)
+	mux.HandleFunc("GET /control/providers", h.ListProviders)
+	mux.HandleFunc("GET /control/config", h.GetConfigStatus)
+	mux.HandleFunc("POST /control/config/reload", h.ReloadConfig)
 }
 
 // RouteInfo describes an API route.
@@ -153,5 +162,12 @@ func GetRoutes() []RouteInfo {
 		{Method: "GET", Path: "/invitation/list", Description: "List invitation links", Category: "invitation"},
 		{Method: "POST", Path: "/invitation/deactivate", Description: "Deactivate an invitation link", Category: "invitation"},
 		{Method: "POST", Path: "/invitation/delete", Description: "Delete invitation links", Category: "invitation"},
+
+		// Control Plane
+		{Method: "GET", Path: "/control/deployments", Description: "List deployments and routing status", Category: "control"},
+		{Method: "POST", Path: "/control/deployments/cooldown", Description: "Set or clear deployment cooldown", Category: "control"},
+		{Method: "GET", Path: "/control/providers", Description: "List providers and resilience stats", Category: "control"},
+		{Method: "GET", Path: "/control/config", Description: "Get current config status", Category: "control"},
+		{Method: "POST", Path: "/control/config/reload", Description: "Reload config from disk", Category: "control"},
 	}
 }

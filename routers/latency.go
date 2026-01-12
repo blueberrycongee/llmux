@@ -134,22 +134,22 @@ func (r *LatencyRouter) PickWithContext(ctx context.Context, reqCtx *router.Requ
 		}
 	}
 
-	totalWeight := 0
+	totalWeight := 0.0
 	for _, c := range validCandidates {
 		if c.deployment.Config.Weight > 0 {
 			totalWeight += c.deployment.Config.Weight
 		}
 	}
 	if totalWeight > 0 {
-		target := r.randFloat64() * float64(totalWeight)
-		running := 0
+		target := r.randFloat64() * totalWeight
+		running := 0.0
 		for _, c := range validCandidates {
 			weight := c.deployment.Config.Weight
 			if weight <= 0 {
 				continue
 			}
 			running += weight
-			if target < float64(running) {
+			if target < running {
 				return c.deployment.Deployment, nil
 			}
 		}

@@ -11,21 +11,28 @@ import (
 	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/internal/auth"
+	"github.com/blueberrycongee/llmux/internal/config"
 )
 
 // ManagementHandler handles management API endpoints.
 type ManagementHandler struct {
-	store      auth.Store
-	auditStore auth.AuditLogStore
-	logger     *slog.Logger
+	store         auth.Store
+	auditStore    auth.AuditLogStore
+	auditLogger   *auth.AuditLogger
+	clientSwapper *ClientSwapper
+	configManager *config.Manager
+	logger        *slog.Logger
 }
 
 // NewManagementHandler creates a new management handler.
-func NewManagementHandler(store auth.Store, auditStore auth.AuditLogStore, logger *slog.Logger) *ManagementHandler {
+func NewManagementHandler(store auth.Store, auditStore auth.AuditLogStore, logger *slog.Logger, swapper *ClientSwapper, cfgManager *config.Manager, auditLogger *auth.AuditLogger) *ManagementHandler {
 	return &ManagementHandler{
-		store:      store,
-		auditStore: auditStore,
-		logger:     logger,
+		store:         store,
+		auditStore:    auditStore,
+		auditLogger:   auditLogger,
+		clientSwapper: swapper,
+		configManager: cfgManager,
+		logger:        logger,
 	}
 }
 

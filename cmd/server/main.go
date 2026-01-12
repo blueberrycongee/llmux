@@ -244,7 +244,7 @@ func run() error {
 	handler := api.NewClientHandlerWithSwapper(clientSwapper, logger, handlerCfg)
 
 	// Initialize ManagementHandler for enterprise API endpoints
-	mgmtHandler := api.NewManagementHandler(authStore, auditStore, logger)
+	mgmtHandler := api.NewManagementHandler(authStore, auditStore, logger, clientSwapper, cfgManager, auditLogger)
 
 	// Setup HTTP routes
 	muxes, err := buildMuxes(cfg, handler, mgmtHandler, logger, uiAssets)

@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/blueberrycongee/llmux/internal/metrics"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -17,6 +18,8 @@ var ErrNoAvailableDeployment = errors.New("no available deployment for model")
 
 // ErrNoDeploymentsWithTag is returned when no deployments match the requested tags.
 var ErrNoDeploymentsWithTag = errors.New("no deployments match the requested tags")
+
+var deploymentMetrics = metrics.NewCollector()
 
 // statsEntry tracks performance metrics for a deployment.
 type statsEntry struct {
@@ -293,19 +296,30 @@ func (r *BaseRouter) IsCircuitOpen(deployment *provider.Deployment) bool {
 // A zero time clears any active cooldown.
 func (r *BaseRouter) SetCooldown(deploymentID string, until time.Time) error {
 	if r.statsStore != nil {
-		return r.statsStore.SetCooldown(context.Background(), deploymentID, until)
+		ctx := context.Background()
+		before, _ := r.statsStore.GetCooldownUntil(ctx, deploymentID)
+		if err := r.statsStore.SetCooldown(ctx, deploymentID, until); err != nil {
+			return err
+		}
+		r.recordCooldownMetric(r.findDeploymentByID(deploymentID), before, until)
+		return nil
 	}
 
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	stats := r.getOrCreateStats(deploymentID)
+	before := stats.CooldownUntil
 	stats.CooldownUntil = until
+	r.recordCooldownMetric(r.findDeploymentByIDLocked(deploymentID), before, until)
 	return nil
 }
 
 // ReportRequestStart increments the active request count.
 func (r *BaseRouter) ReportRequestStart(deployment *provider.Deployment) {
+	if deployment != nil {
+		deploymentMetrics.RecordActiveRequest(deployment.ID, deployment.ModelName, deployment.ProviderName, 1)
+	}
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
@@ -323,6 +337,9 @@ func (r *BaseRouter) ReportRequestStart(deployment *provider.Deployment) {
 
 // ReportRequestEnd decrements the active request count.
 func (r *BaseRouter) ReportRequestEnd(deployment *provider.Deployment) {
+	if deployment != nil {
+		deploymentMetrics.RecordActiveRequest(deployment.ID, deployment.ModelName, deployment.ProviderName, -1)
+	}
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
@@ -386,17 +403,21 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
+		ctx := context.Background()
+		beforeCooldown, _ := r.statsStore.GetCooldownUntil(ctx, deployment.ID)
 		isSingleDeployment := r.isSingleDeployment(deployment)
 		if recorder, ok := r.statsStore.(failureRecordWithOptions); ok {
 			_ = recorder.RecordFailureWithOptions(
-				context.Background(),
+				ctx,
 				deployment.ID,
 				err,
 				failureRecordOptions{isSingleDeployment: isSingleDeployment},
 			)
-			return
+		} else {
+			_ = r.statsStore.RecordFailure(ctx, deployment.ID, err)
 		}
-		_ = r.statsStore.RecordFailure(context.Background(), deployment.ID, err)
+		afterCooldown, _ := r.statsStore.GetCooldownUntil(ctx, deployment.ID)
+		r.recordCooldownMetric(deployment, beforeCooldown, afterCooldown)
 		return
 	}
 
@@ -406,6 +427,7 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 	defer r.mu.Unlock()
 
 	stats := r.getOrCreateStats(deployment.ID)
+	beforeCooldown := stats.CooldownUntil
 	stats.TotalRequests++
 	stats.FailureCount++
 	now := time.Now()
@@ -418,12 +440,14 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 		// Immediate cooldown: 429 Rate Limit
 		if r.config.ImmediateCooldownOn429 && llmErr.StatusCode == 429 && !isSingleDeployment {
 			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
+			r.recordCooldownMetric(deployment, beforeCooldown, stats.CooldownUntil)
 			return
 		}
 
 		// Immediate cooldown: Non-retryable errors (401, 404, 408)
 		if llmErr.StatusCode == 401 || llmErr.StatusCode == 404 || llmErr.StatusCode == 408 {
 			stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
+			r.recordCooldownMetric(deployment, beforeCooldown, stats.CooldownUntil)
 			return
 		}
 
@@ -436,6 +460,7 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 	// Failure rate based cooldown
 	if r.shouldCooldownByFailureRate(stats, now, isSingleDeployment) {
 		stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
+		r.recordCooldownMetric(deployment, beforeCooldown, stats.CooldownUntil)
 	}
 }
 
@@ -637,6 +662,43 @@ func (r *BaseRouter) isSingleDeployment(deployment *provider.Deployment) bool {
 	r.mu.RLock()
 	defer r.mu.RUnlock()
 	return len(r.deployments[model]) == 1
+}
+
+func (r *BaseRouter) findDeploymentByID(deploymentID string) *provider.Deployment {
+	r.mu.RLock()
+	defer r.mu.RUnlock()
+	return r.findDeploymentByIDLocked(deploymentID)
+}
+
+func (r *BaseRouter) findDeploymentByIDLocked(deploymentID string) *provider.Deployment {
+	for _, deps := range r.deployments {
+		for _, d := range deps {
+			if d.ID == deploymentID {
+				return d.Deployment
+			}
+		}
+	}
+	return nil
+}
+
+func (r *BaseRouter) recordCooldownMetric(deployment *provider.Deployment, before, after time.Time) {
+	if deployment == nil || after.IsZero() {
+		return
+	}
+	now := time.Now()
+	if now.After(after) {
+		return
+	}
+	if !before.IsZero() && now.Before(before) {
+		return
+	}
+	deploymentMetrics.RecordDeploymentCooldown(
+		deployment.ID,
+		deployment.ModelName,
+		deployment.ModelAlias,
+		deployment.ProviderName,
+		deployment.BaseURL,
+	)
 }
 
 func (r *BaseRouter) appendToHistory(history *[]float64, value float64, maxSize int) {
