@@ -151,21 +151,21 @@ providers:
     models:
       - claude-3-5-sonnet-20241022
 
-  routing:
-    strategy: simple-shuffle  # or: lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
-    fallback_enabled: true
-    retry_count: 3
-    distributed: false
+routing:
+  strategy: simple-shuffle  # or: lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
+  fallback_enabled: true
+  retry_count: 3
+  distributed: false
 
-  healthcheck:
-    enabled: false
-    interval: 30s
-    timeout: 10s
+healthcheck:
+  enabled: false
+  interval: 30s
+  timeout: 10s
 
-  cache:
-    enabled: true
-    type: local  # local, redis, dual
-    ttl: 1h
+cache:
+  enabled: true
+  type: local  # local, redis, dual
+  ttl: 1h
 
 rate_limit:
   enabled: false
