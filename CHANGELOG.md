@@ -8,6 +8,7 @@ Recent changes and project history for context.
 
 ### Fixes
 - Wire fail_open from config into client and gateway rate limiter setup, with gateway backend-failure coverage.
+- Remove duplicate RequestID middleware wrapping and wire streaming plugin hooks into client streams.
 
 ## 2026-01-09
 
