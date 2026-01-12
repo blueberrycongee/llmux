@@ -334,6 +334,29 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 	req.Stream = true
 
+	// Get plugin context
+	pCtx := c.pipeline.GetContext(ctx, generateRequestID())
+	pCtx.IsStreaming = true
+	pCtx.Model = req.Model
+
+	// Run Stream PreHooks
+	req, sc, runFrom := c.pipeline.RunStreamPreHooks(pCtx, req)
+	pCtx.Model = req.Model
+	if sc != nil {
+		if sc.Error != nil {
+			if !sc.AllowFallback {
+				c.pipeline.PutContext(pCtx)
+				return nil, sc.Error
+			}
+			// Fallback logic could go here, but for now just return error
+			c.pipeline.PutContext(pCtx)
+			return nil, sc.Error
+		}
+		if sc.Stream != nil {
+			return newStreamReaderFromChannel(ctx, c, req, sc.Stream, c.pipeline, pCtx, runFrom), nil
+		}
+	}
+
 	// Check rate limit before processing request
 	apiKey := c.rateLimitAPIKey(ctx)
 	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
@@ -343,6 +366,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 		estimatedTokens += req.MaxTokens
 	}
 	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, estimatedTokens); err != nil {
+		c.pipeline.PutContext(pCtx)
 		return nil, err
 	}
 
@@ -356,6 +380,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 			backoff := c.config.RetryBackoff * time.Duration(1<<(attempt-1))
 			select {
 			case <-ctx.Done():
+				c.pipeline.PutContext(pCtx)
 				return nil, ctx.Err()
 			case <-time.After(backoff):
 			}
@@ -394,12 +419,14 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 		}
 
 		if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
+			c.pipeline.PutContext(pCtx)
 			return nil, err
 		}
 
 		// Build and execute request
 		httpReq, err := prov.BuildRequest(ctx, sanitizeChatRequestForProvider(req))
 		if err != nil {
+			c.pipeline.PutContext(pCtx)
 			return nil, fmt.Errorf("build request: %w", err)
 		}
 
@@ -441,15 +468,18 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 			// Non-retryable error
 			c.router.ReportFailure(deployment, llmErr)
 			c.router.ReportRequestEnd(deployment)
+			c.pipeline.PutContext(pCtx)
 			return nil, llmErr
 		}
 
-		return newStreamReader(ctx, c, req, resp.Body, prov, deployment, c.router), nil
+		pCtx.Provider = deployment.ProviderName
+		return newStreamReader(ctx, c, req, resp.Body, prov, deployment, c.router, c.pipeline, pCtx, runFrom), nil
 	}
 
 	if lastErr == nil {
 		lastErr = fmt.Errorf("max retries exceeded")
 	}
+	c.pipeline.PutContext(pCtx)
 	return nil, lastErr
 }
 

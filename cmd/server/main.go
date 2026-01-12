@@ -258,7 +258,6 @@ func run() error {
 	}
 
 	dataHandler := middleware(muxes.Data)
-	dataHandler = observability.RequestIDMiddleware(dataHandler)
 
 	// Create data server
 	dataServer := &http.Server{
@@ -272,7 +271,6 @@ func run() error {
 	var adminServer *http.Server
 	if muxes.Admin != nil {
 		adminHandler := middleware(muxes.Admin)
-		adminHandler = observability.RequestIDMiddleware(adminHandler)
 		adminServer = &http.Server{
 			Addr:         fmt.Sprintf(":%d", cfg.Server.AdminPort),
 			Handler:      adminHandler,

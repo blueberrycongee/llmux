@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
@@ -65,6 +66,12 @@ type StreamReader struct {
 	skipRemaining   int
 	seenDone        bool
 	requestEnded    bool // tracks whether ReportRequestEnd has been called for current deployment
+
+	pluginStream  <-chan *types.StreamChunk
+	pipeline      *plugin.Pipeline
+	pluginCtx     *plugin.Context
+	streamRunFrom int
+	postHooksRun  bool
 }
 
 // newStreamReader creates a new StreamReader.
@@ -76,6 +83,9 @@ func newStreamReader(
 	prov provider.Provider,
 	deployment *provider.Deployment,
 	r router.Router,
+	pipeline *plugin.Pipeline,
+	pluginCtx *plugin.Context,
+	runFrom int,
 ) *StreamReader {
 	scanner := bufio.NewScanner(body)
 	// Increase buffer size for large chunks
@@ -95,6 +105,34 @@ func newStreamReader(
 		maxRetries:      client.config.RetryCount,
 		fallbackEnabled: client.config.FallbackEnabled,
 		recoveryMode:    client.config.StreamRecoveryMode,
+		pipeline:        pipeline,
+		pluginCtx:       pluginCtx,
+		streamRunFrom:   runFrom,
+	}
+}
+
+func newStreamReaderFromChannel(
+	ctx context.Context,
+	client *Client,
+	req *types.ChatRequest,
+	stream <-chan *types.StreamChunk,
+	pipeline *plugin.Pipeline,
+	pluginCtx *plugin.Context,
+	runFrom int,
+) *StreamReader {
+	return &StreamReader{
+		ctx:             ctx,
+		client:          client,
+		originalReq:     req,
+		firstChunk:      true,
+		startTime:       time.Now(),
+		maxRetries:      client.config.RetryCount,
+		fallbackEnabled: client.config.FallbackEnabled,
+		recoveryMode:    client.config.StreamRecoveryMode,
+		pluginStream:    stream,
+		pipeline:        pipeline,
+		pluginCtx:       pluginCtx,
+		streamRunFrom:   runFrom,
 	}
 }
 
@@ -107,6 +145,10 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 
 	if s.closed {
 		return nil, io.EOF
+	}
+
+	if s.pluginStream != nil {
+		return s.recvFromPluginStreamLocked()
 	}
 
 	for s.scanner.Scan() {
@@ -150,6 +192,11 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 			}
 		}
 
+		chunk = s.applyStreamPluginsLocked(chunk)
+		if chunk == nil {
+			continue
+		}
+
 		// Record Time To First Token on first content chunk
 		if s.firstChunk {
 			s.ttft = time.Since(s.startTime)
@@ -166,7 +213,7 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 
 	// Check for scanner errors
 	if err := s.scanner.Err(); err != nil {
-		s.router.ReportFailure(s.deployment, err)
+		s.reportFailure(err)
 
 		// Try to recover
 		for s.canRecover(err) {
@@ -179,6 +226,7 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 			// If retry failed, try again (retryCount is incremented in tryRecover)
 		}
 
+		s.finalizeStreamLocked(err)
 		_ = s.close()
 		return nil, err
 	}
@@ -186,7 +234,7 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 	// Check for premature EOF
 	if !s.seenDone {
 		err := io.ErrUnexpectedEOF
-		s.router.ReportFailure(s.deployment, err)
+		s.reportFailure(err)
 
 		for s.canRecover(err) {
 			s.mu.Unlock()
@@ -198,6 +246,7 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 			// Retry failed, loop again
 		}
 		// If recovery failed or not possible, report failure
+		s.finalizeStreamLocked(err)
 		_ = s.close()
 		return nil, err
 	}
@@ -205,6 +254,67 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 	// Stream ended normally
 	s.finish()
 	return nil, io.EOF
+}
+
+func (s *StreamReader) recvFromPluginStreamLocked() (*types.StreamChunk, error) {
+	for {
+		chunk, ok := <-s.pluginStream
+		if !ok {
+			s.seenDone = true
+			s.finish()
+			return nil, io.EOF
+		}
+		if chunk == nil {
+			continue
+		}
+
+		chunk = s.applyStreamPluginsLocked(chunk)
+		if chunk == nil {
+			continue
+		}
+
+		if s.firstChunk {
+			s.ttft = time.Since(s.startTime)
+			s.firstChunk = false
+		}
+
+		if len(chunk.Choices) > 0 {
+			s.accumulated.WriteString(chunk.Choices[0].Delta.Content)
+		}
+
+		return chunk, nil
+	}
+}
+
+func (s *StreamReader) applyStreamPluginsLocked(chunk *types.StreamChunk) *types.StreamChunk {
+	if s.pipeline == nil || s.pluginCtx == nil || chunk == nil {
+		return chunk
+	}
+
+	out, _ := s.pipeline.RunOnStreamChunk(s.pluginCtx, chunk)
+	return out
+}
+
+func (s *StreamReader) finalizeStreamLocked(err error) {
+	if s.postHooksRun {
+		return
+	}
+	s.postHooksRun = true
+
+	if s.pipeline == nil || s.pluginCtx == nil {
+		return
+	}
+
+	_ = s.pipeline.RunStreamPostHooks(s.pluginCtx, err, s.streamRunFrom)
+	s.pipeline.PutContext(s.pluginCtx)
+	s.pluginCtx = nil
+}
+
+func (s *StreamReader) reportFailure(err error) {
+	if s.router == nil || s.deployment == nil {
+		return
+	}
+	s.router.ReportFailure(s.deployment, err)
 }
 
 //nolint:unparam // err parameter kept for future error classification
@@ -280,15 +390,19 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 		return nil, fmt.Errorf("recovery build request failed: %w", err)
 	}
 
-	s.router.ReportRequestStart(deployment)
+	if s.router != nil && deployment != nil {
+		s.router.ReportRequestStart(deployment)
+	}
 	s.mu.Lock()
 	s.requestEnded = false // New request started
 	s.mu.Unlock()
 
 	resp, err := s.client.httpClient.Do(httpReq)
 	if err != nil {
-		s.router.ReportFailure(deployment, err)
-		s.router.ReportRequestEnd(deployment)
+		if s.router != nil && deployment != nil {
+			s.router.ReportFailure(deployment, err)
+			s.router.ReportRequestEnd(deployment)
+		}
 		s.mu.Lock()
 		s.requestEnded = true
 		s.mu.Unlock()
@@ -299,8 +413,10 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 		body, _ := io.ReadAll(resp.Body)
 		_ = resp.Body.Close()
 		llmErr := prov.MapError(resp.StatusCode, body)
-		s.router.ReportFailure(deployment, llmErr)
-		s.router.ReportRequestEnd(deployment)
+		if s.router != nil && deployment != nil {
+			s.router.ReportFailure(deployment, llmErr)
+			s.router.ReportRequestEnd(deployment)
+		}
 		s.mu.Lock()
 		s.requestEnded = true
 		s.mu.Unlock()
@@ -317,6 +433,9 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	s.scanner.Buffer(make([]byte, 4096), 4096*4)
 	s.provider = prov
 	s.deployment = deployment
+	if s.pluginCtx != nil {
+		s.pluginCtx.Provider = deployment.ProviderName
+	}
 	s.mu.Unlock()
 
 	// Recursive call to get next chunk
@@ -328,6 +447,11 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 func (s *StreamReader) Close() error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	streamErr := s.ctx.Err()
+	if streamErr == nil && !s.seenDone {
+		streamErr = io.ErrUnexpectedEOF
+	}
+	s.finalizeStreamLocked(streamErr)
 	return s.close()
 }
 
@@ -341,10 +465,13 @@ func (s *StreamReader) TTFT() time.Duration {
 
 // endRequest reports request end if not already reported (must be called with lock held).
 func (s *StreamReader) endRequest() {
-	if !s.requestEnded && s.deployment != nil {
-		s.router.ReportRequestEnd(s.deployment)
-		s.requestEnded = true
+	if s.requestEnded {
+		return
 	}
+	if s.router != nil && s.deployment != nil {
+		s.router.ReportRequestEnd(s.deployment)
+	}
+	s.requestEnded = true
 }
 
 // closeBody closes the body without reporting (must be called with lock held).
@@ -353,6 +480,9 @@ func (s *StreamReader) closeBody() error {
 		return nil
 	}
 	s.closed = true
+	if s.body == nil {
+		return nil
+	}
 	return s.body.Close()
 }
 
@@ -368,16 +498,19 @@ func (s *StreamReader) close() error {
 // finish reports success metrics and closes the stream.
 func (s *StreamReader) finish() {
 	if !s.closed {
-		latency := time.Since(s.startTime)
-		promptTokens := tokenizer.EstimatePromptTokens(s.originalReq.Model, s.originalReq)
-		completionTokens := tokenizer.EstimateCompletionTokensFromText(s.originalReq.Model, s.accumulated.String())
-		s.router.ReportSuccess(s.deployment, &router.ResponseMetrics{
-			Latency:          latency,
-			TimeToFirstToken: s.ttft,
-			InputTokens:      promptTokens,
-			OutputTokens:     completionTokens,
-			TotalTokens:      promptTokens + completionTokens,
-		})
+		if s.router != nil && s.deployment != nil {
+			latency := time.Since(s.startTime)
+			promptTokens := tokenizer.EstimatePromptTokens(s.originalReq.Model, s.originalReq)
+			completionTokens := tokenizer.EstimateCompletionTokensFromText(s.originalReq.Model, s.accumulated.String())
+			s.router.ReportSuccess(s.deployment, &router.ResponseMetrics{
+				Latency:          latency,
+				TimeToFirstToken: s.ttft,
+				InputTokens:      promptTokens,
+				OutputTokens:     completionTokens,
+				TotalTokens:      promptTokens + completionTokens,
+			})
+		}
+		s.finalizeStreamLocked(nil)
 		_ = s.close()
 	}
 }
