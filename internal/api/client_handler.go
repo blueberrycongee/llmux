@@ -16,6 +16,7 @@ import (
 
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/auth"
+	"github.com/blueberrycongee/llmux/internal/governance"
 	"github.com/blueberrycongee/llmux/internal/mcp"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
@@ -36,6 +37,7 @@ type ClientHandler struct {
 	store       auth.Store // Storage for usage logging and budget tracking
 	mcpManager  mcp.Manager
 	obs         *observability.ObservabilityManager
+	governance  *governance.Engine
 }
 
 // ClientHandlerConfig contains configuration for ClientHandler.
@@ -44,6 +46,7 @@ type ClientHandlerConfig struct {
 	Store         auth.Store // Storage for usage logging (optional)
 	MCPManager    mcp.Manager
 	Observability *observability.ObservabilityManager
+	Governance    *governance.Engine
 }
 
 // NewClientHandler creates a new handler that wraps llmux.Client.
@@ -57,6 +60,7 @@ func NewClientHandlerWithSwapper(swapper *ClientSwapper, logger *slog.Logger, cf
 	var store auth.Store
 	var manager mcp.Manager
 	var obs *observability.ObservabilityManager
+	var gov *governance.Engine
 	if cfg != nil {
 		if cfg.MaxBodySize > 0 {
 			maxBodySize = cfg.MaxBodySize
@@ -64,6 +68,7 @@ func NewClientHandlerWithSwapper(swapper *ClientSwapper, logger *slog.Logger, cf
 		store = cfg.Store
 		manager = cfg.MCPManager
 		obs = cfg.Observability
+		gov = cfg.Governance
 	}
 
 	return &ClientHandler{
@@ -73,6 +78,7 @@ func NewClientHandlerWithSwapper(swapper *ClientSwapper, logger *slog.Logger, cf
 		store:       store,
 		mcpManager:  manager,
 		obs:         obs,
+		governance:  gov,
 	}
 }
 
@@ -132,6 +138,12 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	ctx, endSpan := h.startSpan(r.Context(), payload)
 	defer endSpan()
 	h.observePre(ctx, payload)
+
+	if err := h.evaluateGovernance(ctx, r, req.Model, req.User, req.Tags, governance.CallTypeChatCompletion); err != nil {
+		h.observePost(ctx, payload, err)
+		h.writeError(w, err)
+		return
+	}
 
 	manager := h.getMCPManager(ctx)
 
@@ -203,18 +215,36 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 	}
 
 	// === USAGE LOGGING AND SPEND TRACKING (P0 Fix) ===
-	// Record usage and update spent budget for budget control
 	modelName := req.Model
 	if resp.Model != "" {
 		modelName = resp.Model
 	}
-	h.recordUsage(ctx, requestID, modelName, "chat_completion", resp.Usage, start, latency)
+	cost := 0.0
+	if resp.Usage != nil {
+		cost = client.CalculateCost(modelName, resp.Usage)
+	}
+	h.accountUsage(ctx, governance.AccountInput{
+		RequestID:   requestID,
+		Model:       modelName,
+		CallType:    governance.CallTypeChatCompletion,
+		EndUserID:   req.User,
+		RequestTags: req.Tags,
+		Usage: governance.Usage{
+			PromptTokens:     resp.Usage.PromptTokens,
+			CompletionTokens: resp.Usage.CompletionTokens,
+			TotalTokens:      resp.Usage.TotalTokens,
+			Cost:             cost,
+			Provider:         resp.Usage.Provider,
+		},
+		Start:   start,
+		Latency: latency,
+	})
 
 	if resp.Usage != nil {
 		payload.PromptTokens = resp.Usage.PromptTokens
 		payload.CompletionTokens = resp.Usage.CompletionTokens
 		payload.TotalTokens = resp.Usage.TotalTokens
-		payload.ResponseCost = client.CalculateCost(modelName, resp.Usage)
+		payload.ResponseCost = cost
 		if resp.Usage.Provider != "" {
 			payload.APIProvider = resp.Usage.Provider
 		}
@@ -338,14 +368,33 @@ func (h *ClientHandler) handleStreamResponse(ctx context.Context, w http.Respons
 	}
 
 	// Record usage and update spent budget
-	h.recordUsage(ctx, requestID, req.Model, "chat_completion", finalUsage, start, latency)
+	cost := 0.0
+	if finalUsage != nil {
+		cost = client.CalculateCost(req.Model, finalUsage)
+	}
+	h.accountUsage(ctx, governance.AccountInput{
+		RequestID: requestID,
+		Model:     req.Model,
+		CallType:  governance.CallTypeChatCompletion,
+		EndUserID:   req.User,
+		RequestTags: req.Tags,
+		Usage: governance.Usage{
+			PromptTokens:     finalUsage.PromptTokens,
+			CompletionTokens: finalUsage.CompletionTokens,
+			TotalTokens:      finalUsage.TotalTokens,
+			Cost:             cost,
+			Provider:         finalUsage.Provider,
+		},
+		Start:   start,
+		Latency: latency,
+	})
 
 	if payload != nil {
 		if finalUsage != nil {
 			payload.PromptTokens = finalUsage.PromptTokens
 			payload.CompletionTokens = finalUsage.CompletionTokens
 			payload.TotalTokens = finalUsage.TotalTokens
-			payload.ResponseCost = client.CalculateCost(req.Model, finalUsage)
+			payload.ResponseCost = cost
 			if finalUsage.Provider != "" {
 				payload.APIProvider = finalUsage.Provider
 			}
@@ -402,6 +451,11 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	if err := h.evaluateGovernance(r.Context(), r, chatReq.Model, req.User, nil, governance.CallTypeCompletion); err != nil {
+		h.writeError(w, err)
+		return
+	}
+
 	// Handle streaming response
 	if chatReq.Stream {
 		// Force include_usage to get accurate token counts from supported providers (e.g. OpenAI)
@@ -446,7 +500,25 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Record usage and update spent budget for budget control
-	h.recordUsage(r.Context(), requestID, req.Model, "completion", completionResp.Usage, start, latency)
+	cost := 0.0
+	if completionResp.Usage != nil {
+		cost = client.CalculateCost(req.Model, completionResp.Usage)
+	}
+	h.accountUsage(r.Context(), governance.AccountInput{
+		RequestID: requestID,
+		Model:     req.Model,
+		CallType:  governance.CallTypeCompletion,
+		EndUserID: req.User,
+		Usage: governance.Usage{
+			PromptTokens:     completionResp.Usage.PromptTokens,
+			CompletionTokens: completionResp.Usage.CompletionTokens,
+			TotalTokens:      completionResp.Usage.TotalTokens,
+			Cost:             cost,
+			Provider:         completionResp.Usage.Provider,
+		},
+		Start:   start,
+		Latency: latency,
+	})
 
 	w.Header().Set("Content-Type", "application/json")
 	if err := json.NewEncoder(w).Encode(completionResp); err != nil {
@@ -540,7 +612,25 @@ func (h *ClientHandler) handleCompletionStreamResponse(w http.ResponseWriter, r 
 		}
 	}
 
-	h.recordUsage(r.Context(), requestID, req.Model, "completion", finalUsage, start, latency)
+	cost := 0.0
+	if finalUsage != nil {
+		cost = client.CalculateCost(req.Model, finalUsage)
+	}
+	h.accountUsage(r.Context(), governance.AccountInput{
+		RequestID: requestID,
+		Model:     req.Model,
+		CallType:  governance.CallTypeCompletion,
+		EndUserID: req.User,
+		Usage: governance.Usage{
+			PromptTokens:     finalUsage.PromptTokens,
+			CompletionTokens: finalUsage.CompletionTokens,
+			TotalTokens:      finalUsage.TotalTokens,
+			Cost:             cost,
+			Provider:         finalUsage.Provider,
+		},
+		Start:   start,
+		Latency: latency,
+	})
 }
 
 func firstCompletionText(resp *types.CompletionResponse) string {
@@ -572,65 +662,75 @@ func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
 	}
 }
 
-// recordUsage logs API usage to the store and updates spend budgets.
-// This is called after successful completion (streaming or non-streaming).
-func (h *ClientHandler) recordUsage(ctx context.Context, requestID, model, callType string, usage *llmux.Usage, start time.Time, latency time.Duration) {
+func (h *ClientHandler) evaluateGovernance(ctx context.Context, r *http.Request, model, endUser string, tags []string, callType string) error {
+	if h.governance == nil {
+		return nil
+	}
+	return h.governance.Evaluate(ctx, governance.RequestInput{
+		Request:   r,
+		Model:     model,
+		CallType:  callType,
+		EndUserID: endUser,
+		Tags:      tags,
+	})
+}
+
+func (h *ClientHandler) accountUsage(ctx context.Context, input governance.AccountInput) {
+	if h.governance != nil {
+		h.governance.Account(ctx, input)
+		return
+	}
 	if h.store == nil {
 		return
 	}
 
-	// Extract authentication context for tracking
 	authCtx := auth.GetAuthContext(ctx)
-
-	// Build usage log entry
 	log := &auth.UsageLog{
-		RequestID: requestID,
-		Model:     model,
-		Provider:  "llmux",
-		CallType:  callType,
-		StartTime: start,
-		EndTime:   time.Now(),
-		LatencyMs: int(latency.Milliseconds()),
-		CacheHit:  nil, // No cache hit for now
+		RequestID:   input.RequestID,
+		Model:       input.Model,
+		Provider:    input.Usage.Provider,
+		CallType:    input.CallType,
+		InputTokens: input.Usage.PromptTokens,
+		OutputTokens: input.Usage.CompletionTokens,
+		TotalTokens: input.Usage.TotalTokens,
+		Cost:        input.Usage.Cost,
+		StartTime:   input.Start,
+		EndTime:     time.Now(),
+		LatencyMs:   int(input.Latency.Milliseconds()),
+		RequestTags: append([]string(nil), input.RequestTags...),
+		CacheHit:    nil,
 	}
-
-	// Set token counts if available
-	if usage != nil {
-		log.InputTokens = usage.PromptTokens
-		log.OutputTokens = usage.CompletionTokens
-		log.TotalTokens = usage.TotalTokens
-		client, release := h.acquireClient()
-		if client != nil {
-			log.Cost = client.CalculateCost(model, usage)
-		}
-		release()
+	if log.Provider == "" {
+		log.Provider = "llmux"
 	}
-
-	// Set API key and team info from auth context
+	if input.StatusCode != nil {
+		log.StatusCode = input.StatusCode
+	}
+	if input.Status != nil {
+		log.Status = input.Status
+	}
 	if authCtx != nil && authCtx.APIKey != nil {
 		log.APIKeyID = authCtx.APIKey.ID
 		log.TeamID = authCtx.APIKey.TeamID
 		log.OrganizationID = authCtx.APIKey.OrganizationID
 		log.UserID = authCtx.APIKey.UserID
 	}
+	if input.EndUserID != "" {
+		log.EndUserID = &input.EndUserID
+	}
 
-	// Record usage asynchronously to avoid blocking the response
 	go func() {
 		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		// Log usage
 		if err := h.store.LogUsage(bgCtx, log); err != nil {
-			h.logger.Warn("failed to log usage", "error", err, "request_id", requestID)
+			h.logger.Warn("failed to log usage", "error", err, "request_id", input.RequestID)
 		}
 
-		// Update API key spend (if we have cost data)
 		if authCtx != nil && authCtx.APIKey != nil && log.Cost > 0 {
 			if err := h.store.UpdateAPIKeySpent(bgCtx, authCtx.APIKey.ID, log.Cost); err != nil {
 				h.logger.Warn("failed to update api key spend", "error", err, "key_id", authCtx.APIKey.ID)
 			}
-
-			// Update team spend if applicable
 			if authCtx.APIKey.TeamID != nil {
 				if err := h.store.UpdateTeamSpent(bgCtx, *authCtx.APIKey.TeamID, log.Cost); err != nil {
 					h.logger.Warn("failed to update team spend", "error", err, "team_id", *authCtx.APIKey.TeamID)
@@ -756,6 +856,12 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	defer endSpan()
 	h.observePre(ctx, payload)
 
+	if err := h.evaluateGovernance(ctx, r, req.Model, req.User, nil, governance.CallTypeEmbedding); err != nil {
+		h.observePost(ctx, payload, err)
+		h.writeError(w, err)
+		return
+	}
+
 	client, release := h.acquireClient()
 	defer release()
 	if client == nil {
@@ -791,12 +897,30 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	if resp.Model != "" {
 		modelName = resp.Model
 	}
-	h.recordEmbeddingUsage(ctx, requestID, modelName, &resp.Usage, start, latency)
+	cost := client.CalculateCost(modelName, &llmux.Usage{
+		PromptTokens:     resp.Usage.PromptTokens,
+		CompletionTokens: 0,
+		TotalTokens:      resp.Usage.TotalTokens,
+	})
+	h.accountUsage(ctx, governance.AccountInput{
+		RequestID: requestID,
+		Model:     modelName,
+		CallType:  governance.CallTypeEmbedding,
+		EndUserID: req.User,
+		Usage: governance.Usage{
+			PromptTokens: resp.Usage.PromptTokens,
+			TotalTokens:  resp.Usage.TotalTokens,
+			Cost:         cost,
+			Provider:     resp.Usage.Provider,
+		},
+		Start:   start,
+		Latency: latency,
+	})
 
 	if payload != nil {
 		payload.PromptTokens = resp.Usage.PromptTokens
 		payload.TotalTokens = resp.Usage.TotalTokens
-		payload.ResponseCost = client.CalculateCost(modelName, &resp.Usage)
+		payload.ResponseCost = cost
 		if resp.Usage.Provider != "" {
 			payload.APIProvider = resp.Usage.Provider
 		}
@@ -815,76 +939,6 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	if err := json.NewEncoder(w).Encode(resp); err != nil {
 		h.logger.Error("failed to encode response", "error", err)
 	}
-}
-
-// recordEmbeddingUsage logs embedding API usage to the store and updates spend budgets.
-func (h *ClientHandler) recordEmbeddingUsage(ctx context.Context, requestID, model string, usage *types.Usage, start time.Time, latency time.Duration) {
-	if h.store == nil {
-		return
-	}
-
-	// Extract authentication context for tracking
-	authCtx := auth.GetAuthContext(ctx)
-
-	// Build usage log entry
-	log := &auth.UsageLog{
-		RequestID: requestID,
-		Model:     model,
-		Provider:  "llmux",
-		CallType:  "embedding",
-		StartTime: start,
-		EndTime:   time.Now(),
-		LatencyMs: int(latency.Milliseconds()),
-		CacheHit:  nil,
-	}
-
-	// Set token counts if available
-	if usage != nil {
-		log.InputTokens = usage.PromptTokens
-		log.TotalTokens = usage.TotalTokens
-		client, release := h.acquireClient()
-		if client != nil {
-			log.Cost = client.CalculateCost(model, &llmux.Usage{
-				PromptTokens:     usage.PromptTokens,
-				CompletionTokens: 0,
-				TotalTokens:      usage.TotalTokens,
-			})
-		}
-		release()
-	}
-
-	// Set API key and team info from auth context
-	if authCtx != nil && authCtx.APIKey != nil {
-		log.APIKeyID = authCtx.APIKey.ID
-		log.TeamID = authCtx.APIKey.TeamID
-		log.OrganizationID = authCtx.APIKey.OrganizationID
-		log.UserID = authCtx.APIKey.UserID
-	}
-
-	// Record usage asynchronously to avoid blocking the response
-	go func() {
-		bgCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-		defer cancel()
-
-		// Log usage
-		if err := h.store.LogUsage(bgCtx, log); err != nil {
-			h.logger.Warn("failed to log embedding usage", "error", err, "request_id", requestID)
-		}
-
-		// Update API key spend (if we have cost data)
-		if authCtx != nil && authCtx.APIKey != nil && log.Cost > 0 {
-			if err := h.store.UpdateAPIKeySpent(bgCtx, authCtx.APIKey.ID, log.Cost); err != nil {
-				h.logger.Warn("failed to update api key spend", "error", err, "key_id", authCtx.APIKey.ID)
-			}
-
-			// Update team spend if applicable
-			if authCtx.APIKey.TeamID != nil {
-				if err := h.store.UpdateTeamSpent(bgCtx, *authCtx.APIKey.TeamID, log.Cost); err != nil {
-					h.logger.Warn("failed to update team spend", "error", err, "team_id", *authCtx.APIKey.TeamID)
-				}
-			}
-		}
-	}()
 }
 
 func (h *ClientHandler) startSpan(ctx context.Context, payload *observability.StandardLoggingPayload) (context.Context, func()) {

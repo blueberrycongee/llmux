@@ -1,6 +1,6 @@
 # Distributed Mode Runbook
 
-Last updated (UTC): 2026-01-12T20:26:44Z
+Last updated (UTC): 2026-01-12T21:33:13Z
 
 ## Purpose
 This runbook enables multi-instance LLMux deployments with shared state via Postgres and Redis.
@@ -52,6 +52,8 @@ LLMUX_CONFIG=config/config.yaml ./llmux
 ## Operational Notes
 - If Redis is unavailable, routing stats fall back to local stats.
 - Round-robin counters use Redis when distributed routing is enabled; fallback is local.
+- Governance idempotency uses Redis in distributed mode when configured; otherwise it falls back to memory.
+- Governance config hot reload is supported for runtime policy changes.
 - If Postgres is unavailable and auth is enabled, startup will fail in distributed mode.
 - Use `server.admin_port` if you need a separate admin plane port.
 

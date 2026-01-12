@@ -21,6 +21,7 @@ type Config struct {
 	Routing       RoutingConfig                     `yaml:"routing"`
 	Stream        StreamConfig                      `yaml:"stream"`
 	RateLimit     RateLimitConfig                   `yaml:"rate_limit"`
+	Governance    GovernanceConfig                  `yaml:"governance"`
 	Logging       LoggingConfig                     `yaml:"logging"`
 	Metrics       MetricsConfig                     `yaml:"metrics"`
 	Tracing       TracingConfig                     `yaml:"tracing"`
@@ -261,6 +262,14 @@ type RateLimitConfig struct {
 	Distributed bool `yaml:"distributed"` // Enable Redis-backed distributed rate limiting
 }
 
+// GovernanceConfig defines governance engine behavior.
+type GovernanceConfig struct {
+	Enabled           bool          `yaml:"enabled"`
+	AsyncAccounting   bool          `yaml:"async_accounting"`
+	IdempotencyWindow time.Duration `yaml:"idempotency_window"`
+	AuditEnabled      bool          `yaml:"audit_enabled"`
+}
+
 // LoggingConfig contains logging settings.
 type LoggingConfig struct {
 	Level  string `yaml:"level"`  // debug, info, warn, error
@@ -334,6 +343,12 @@ func DefaultConfig() *Config {
 			FailOpen:          true,
 			Distributed:       false,
 			TrustedProxyCIDRs: []string{},
+		},
+		Governance: GovernanceConfig{
+			Enabled:           true,
+			AsyncAccounting:   true,
+			IdempotencyWindow: 10 * time.Minute,
+			AuditEnabled:      true,
 		},
 		Logging: LoggingConfig{
 			Level:  "info",
@@ -512,6 +527,9 @@ func (c *Config) Validate() error {
 
 	if c.CORS.MaxAge < 0 {
 		return fmt.Errorf("cors.max_age cannot be negative")
+	}
+	if c.Governance.IdempotencyWindow < 0 {
+		return fmt.Errorf("governance.idempotency_window cannot be negative")
 	}
 	if !c.CORS.AllowAllOrigins {
 		if containsWildcard(c.CORS.DataOrigins.Allowlist) {

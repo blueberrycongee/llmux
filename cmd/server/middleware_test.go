@@ -1,10 +1,9 @@
 package main
 
 import (
+	"context"
 	"io"
 	"log/slog"
-	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 
@@ -12,21 +11,21 @@ import (
 	"github.com/blueberrycongee/llmux/internal/config"
 )
 
-func TestBuildMiddlewareStack_FailOpenAllowsOnBackendError(t *testing.T) {
-	status := runRateLimitRequestWithRedisFailure(t, true)
-	if status != http.StatusOK {
-		t.Fatalf("status = %d, want %d", status, http.StatusOK)
+func TestBuildTenantRateLimiter_FailOpenAllowsOnBackendError(t *testing.T) {
+	allowed := runRateLimitCheckWithRedisFailure(t, true)
+	if !allowed {
+		t.Fatal("expected request to be allowed")
 	}
 }
 
-func TestBuildMiddlewareStack_FailCloseDeniesOnBackendError(t *testing.T) {
-	status := runRateLimitRequestWithRedisFailure(t, false)
-	if status != http.StatusTooManyRequests {
-		t.Fatalf("status = %d, want %d", status, http.StatusTooManyRequests)
+func TestBuildTenantRateLimiter_FailCloseDeniesOnBackendError(t *testing.T) {
+	allowed := runRateLimitCheckWithRedisFailure(t, false)
+	if allowed {
+		t.Fatal("expected request to be denied")
 	}
 }
 
-func runRateLimitRequestWithRedisFailure(t *testing.T, failOpen bool) int {
+func runRateLimitCheckWithRedisFailure(t *testing.T, failOpen bool) bool {
 	t.Helper()
 
 	redisServer := miniredis.RunT(t)
@@ -54,22 +53,14 @@ func runRateLimitRequestWithRedisFailure(t *testing.T, failOpen bool) int {
 		},
 	}
 
-	logger := slog.New(slog.NewTextHandler(io.Discard, nil))
-	middleware, err := buildMiddlewareStack(cfg, nil, logger, nil)
-	if err != nil {
-		t.Fatalf("buildMiddlewareStack error: %v", err)
-	}
-
+	limiter := buildTenantRateLimiter(cfg, slogDiscard())
 	redisServer.Close()
 	redisServer = nil
 
-	handler := middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	}))
-	req := httptest.NewRequest(http.MethodPost, "http://localhost/v1/chat/completions", nil)
-	req.RemoteAddr = "127.0.0.1:1234"
-	rr := httptest.NewRecorder()
+	allowed, _ := limiter.Check(context.Background(), "tenant", 10, 1)
+	return allowed
+}
 
-	handler.ServeHTTP(rr, req)
-	return rr.Code
+func slogDiscard() *slog.Logger {
+	return slog.New(slog.NewTextHandler(io.Discard, nil))
 }

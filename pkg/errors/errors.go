@@ -43,6 +43,8 @@ const (
 	TypeInternalError      = "internal_error"
 	TypeContextLength      = "context_length_exceeded"
 	TypeContentPolicy      = "content_policy_violation"
+	TypePermissionDenied   = "permission_error"
+	TypeInsufficientQuota  = "insufficient_quota"
 )
 
 // NewAuthenticationError creates an authentication error (401).
@@ -51,6 +53,18 @@ func NewAuthenticationError(provider, model, message string) *LLMError {
 		StatusCode: http.StatusUnauthorized,
 		Message:    message,
 		Type:       TypeAuthentication,
+		Provider:   provider,
+		Model:      model,
+		Retryable:  false,
+	}
+}
+
+// NewPermissionError creates a permission error (403).
+func NewPermissionError(provider, model, message string) *LLMError {
+	return &LLMError{
+		StatusCode: http.StatusForbidden,
+		Message:    message,
+		Type:       TypePermissionDenied,
 		Provider:   provider,
 		Model:      model,
 		Retryable:  false,
@@ -66,6 +80,18 @@ func NewRateLimitError(provider, model, message string) *LLMError {
 		Provider:   provider,
 		Model:      model,
 		Retryable:  true,
+	}
+}
+
+// NewInsufficientQuotaError creates a quota error (402).
+func NewInsufficientQuotaError(provider, model, message string) *LLMError {
+	return &LLMError{
+		StatusCode: http.StatusPaymentRequired,
+		Message:    message,
+		Type:       TypeInsufficientQuota,
+		Provider:   provider,
+		Model:      model,
+		Retryable:  false,
 	}
 }
 

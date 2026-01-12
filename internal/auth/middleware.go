@@ -100,21 +100,12 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
-		if key.IsOverBudget() {
-			m.writeError(w, http.StatusPaymentRequired, "api key budget exceeded")
-			return
-		}
-
 		// Load team if associated
 		var team *Team
 		if key.TeamID != nil {
 			team, err = m.store.GetTeam(r.Context(), *key.TeamID)
 			if err != nil {
 				m.logger.Error("failed to lookup team", "error", err, "team_id", *key.TeamID)
-			}
-			if team != nil && team.IsOverBudget() {
-				m.writeError(w, http.StatusPaymentRequired, "team budget exceeded")
-				return
 			}
 		}
 

@@ -62,7 +62,9 @@ func TestLLMError(t *testing.T) {
 			wantCode int
 		}{
 			{"auth error", NewAuthenticationError("p", "m", "msg"), 401},
+			{"permission", NewPermissionError("p", "m", "msg"), 403},
 			{"rate limit", NewRateLimitError("p", "m", "msg"), 429},
+			{"insufficient quota", NewInsufficientQuotaError("p", "m", "msg"), 402},
 			{"bad request", NewInvalidRequestError("p", "m", "msg"), 400},
 			{"not found", NewNotFoundError("p", "m", "msg"), 404},
 			{"timeout", NewTimeoutError("p", "m", "msg"), 408},
@@ -94,7 +96,9 @@ func TestLLMError(t *testing.T) {
 
 		notRetryable := []func(string, string, string) *LLMError{
 			NewAuthenticationError,
+			NewPermissionError,
 			NewInvalidRequestError,
+			NewInsufficientQuotaError,
 			NewNotFoundError,
 			NewInternalError,
 		}

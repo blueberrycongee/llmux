@@ -302,7 +302,7 @@ func TestMiddleware_InactiveKey(t *testing.T) {
 	}
 }
 
-func TestMiddleware_BudgetExceeded(t *testing.T) {
+func TestMiddleware_BudgetExceededDoesNotBlock(t *testing.T) {
 	store := NewMemoryStore()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -336,8 +336,8 @@ func TestMiddleware_BudgetExceeded(t *testing.T) {
 	rr := httptest.NewRecorder()
 	middleware.Authenticate(handler).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusPaymentRequired {
-		t.Errorf("expected status %d for budget exceeded, got %d", http.StatusPaymentRequired, rr.Code)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d for budget exceeded, got %d", http.StatusOK, rr.Code)
 	}
 }
 
@@ -365,7 +365,7 @@ func TestMiddleware_Disabled(t *testing.T) {
 	}
 }
 
-func TestMiddleware_TeamBudgetExceeded(t *testing.T) {
+func TestMiddleware_TeamBudgetExceededDoesNotBlock(t *testing.T) {
 	store := NewMemoryStore()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
 
@@ -411,8 +411,8 @@ func TestMiddleware_TeamBudgetExceeded(t *testing.T) {
 	rr := httptest.NewRecorder()
 	middleware.Authenticate(handler).ServeHTTP(rr, req)
 
-	if rr.Code != http.StatusPaymentRequired {
-		t.Errorf("expected status %d for team budget exceeded, got %d", http.StatusPaymentRequired, rr.Code)
+	if rr.Code != http.StatusOK {
+		t.Errorf("expected status %d for team budget exceeded, got %d", http.StatusOK, rr.Code)
 	}
 }
 

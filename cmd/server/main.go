@@ -193,7 +193,13 @@ func run() error {
 
 	// Create AuditLogger
 	auditLogger := auth.NewAuditLogger(auditStore, true)
-	_ = auditLogger // Will be used by management handlers
+
+	governanceEngine := buildGovernanceEngine(cfg, authStore, auditLogger, logger)
+	if governanceEngine != nil {
+		cfgManager.OnChange(func(nextCfg *config.Config) {
+			governanceEngine.UpdateConfig(nextCfg.Governance)
+		})
+	}
 
 	// Initialize UserTeamSyncer for SSO user-team synchronization
 	var syncer *auth.UserTeamSyncer
@@ -233,6 +239,7 @@ func run() error {
 		Store:         authStore,
 		MCPManager:    mcpManager,
 		Observability: obsMgr,
+		Governance:    governanceEngine,
 	}
 	handler := api.NewClientHandlerWithSwapper(clientSwapper, logger, handlerCfg)
 

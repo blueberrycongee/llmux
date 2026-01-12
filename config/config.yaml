@@ -84,6 +84,12 @@ rate_limit:
   fail_open: true           # allow requests when limiter backend fails
   trusted_proxy_cidrs: []   # trusted proxies for Forwarded/X-Forwarded-For/X-Real-IP
 
+governance:
+  enabled: true
+  async_accounting: true
+  idempotency_window: 10m
+  audit_enabled: true
+
 logging:
   level: info   # debug, info, warn, error
   format: json  # json, text

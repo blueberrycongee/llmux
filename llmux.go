@@ -219,12 +219,16 @@ const (
 	TypeInternalError      = errors.TypeInternalError
 	TypeContextLength      = errors.TypeContextLength
 	TypeContentPolicy      = errors.TypeContentPolicy
+	TypePermissionDenied   = errors.TypePermissionDenied
+	TypeInsufficientQuota  = errors.TypeInsufficientQuota
 )
 
 // Re-export error factory functions.
 var (
 	NewAuthenticationError     = errors.NewAuthenticationError
+	NewPermissionError         = errors.NewPermissionError
 	NewRateLimitError          = errors.NewRateLimitError
+	NewInsufficientQuotaError  = errors.NewInsufficientQuotaError
 	NewInvalidRequestError     = errors.NewInvalidRequestError
 	NewNotFoundError           = errors.NewNotFoundError
 	NewTimeoutError            = errors.NewTimeoutError

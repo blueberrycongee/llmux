@@ -1,7 +1,7 @@
 # LLMux Governance Gateway Roadmap
 
 Document created: 2026-01-12T20:18:08Z
-Last updated: 2026-01-12T20:46:53Z
+Last updated: 2026-01-12T21:33:13Z
 
 ## Goals
 - Deliver an enterprise-grade governance gateway that supports both microservice and monolith modes.
@@ -33,8 +33,8 @@ Deliverables:
 - Replace all local maps with interface-backed implementations.
 
 ### Phase 2 - Governance Kernel
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T21:33:13Z
 
 Deliverables:
 - Unify auth, tenant, budget, quota, and audit into a decision engine.
@@ -77,8 +77,8 @@ Completed at (UTC):
 - Provide local fallback for monolith mode.
 
 ### P0 - Unified Governance
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T21:33:13Z
 
 - Consolidate "evaluate -> decide -> account" pipeline.
 - Keep governance logic out of handlers and routers.
@@ -123,3 +123,6 @@ Completed at (UTC):
 | 002 | Distributed runbook + minimal templates | done | 2026-01-12T20:26:44Z | Ops guide and config samples |
 | 010 | Round-robin store externalized | done | 2026-01-12T20:46:53Z | Redis + memory RR stores wired |
 | 011 | State adapter inventory | done | 2026-01-12T20:46:53Z | Interfaces and backends documented |
+| 020 | Governance decision engine | done | 2026-01-12T21:33:13Z | Unified auth/budget/rate limit checks |
+| 021 | Async accounting with idempotency | done | 2026-01-12T21:33:13Z | Idempotent usage logging and spend updates |
+| 022 | Governance config hot reload | done | 2026-01-12T21:33:13Z | Config updates applied at runtime |

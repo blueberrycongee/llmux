@@ -321,6 +321,16 @@ func (trl *TenantRateLimiter) RateLimitMiddleware(next http.Handler) http.Handle
 	})
 }
 
+// AnonymousKey derives a tenant key for unauthenticated requests.
+func (trl *TenantRateLimiter) AnonymousKey(r *http.Request) string {
+	return anonymousRateLimitKey(r, trl.trustedProxies)
+}
+
+// BurstForRate calculates the burst size for a given RPM.
+func (trl *TenantRateLimiter) BurstForRate(rpm int, minBurst int) int {
+	return trl.burstForRate(rpm, minBurst)
+}
+
 func anonymousRateLimitKey(r *http.Request, trustedProxies []*net.IPNet) string {
 	if r == nil {
 		return ""
