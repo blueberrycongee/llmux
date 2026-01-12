@@ -1,7 +1,7 @@
 # LLMux Governance Gateway Roadmap
 
 Document created: 2026-01-12T20:18:08Z
-Last updated: 2026-01-12T20:26:44Z
+Last updated: 2026-01-12T20:46:53Z
 
 ## Goals
 - Deliver an enterprise-grade governance gateway that supports both microservice and monolith modes.
@@ -24,8 +24,8 @@ Deliverables:
 - Publish the "distributed mode" runbook and minimal viable configuration templates.
 
 ### Phase 1 - Externalized State and Adapters
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-12T20:46:53Z
 
 Deliverables:
 - Abstract state interfaces: rate limits, budgets, RR and stats, sessions, audits.
@@ -121,3 +121,5 @@ Completed at (UTC):
 | 000 | Roadmap document created | done | 2026-01-12T20:18:08Z | Initial version |
 | 001 | Baseline gateway spec | done | 2026-01-12T20:26:44Z | Error codes, lifecycle, extension points |
 | 002 | Distributed runbook + minimal templates | done | 2026-01-12T20:26:44Z | Ops guide and config samples |
+| 010 | Round-robin store externalized | done | 2026-01-12T20:46:53Z | Redis + memory RR stores wired |
+| 011 | State adapter inventory | done | 2026-01-12T20:46:53Z | Interfaces and backends documented |

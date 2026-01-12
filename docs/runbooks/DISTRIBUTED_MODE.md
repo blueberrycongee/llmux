@@ -51,6 +51,7 @@ LLMUX_CONFIG=config/config.yaml ./llmux
 
 ## Operational Notes
 - If Redis is unavailable, routing stats fall back to local stats.
+- Round-robin counters use Redis when distributed routing is enabled; fallback is local.
 - If Postgres is unavailable and auth is enabled, startup will fail in distributed mode.
 - Use `server.admin_port` if you need a separate admin plane port.
 
