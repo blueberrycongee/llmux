@@ -89,6 +89,9 @@ func NewFromConfig(info Info, cfg provider.Config) (provider.Provider, error) {
 		opts = append(opts, WithTokenSource(cfg.TokenSource))
 	}
 	p := New(info, opts...)
+	if strings.TrimSpace(p.baseURL) == "" {
+		return nil, fmt.Errorf("base_url is required for provider %q", info.Name)
+	}
 	for k, v := range cfg.Headers {
 		p.headers[k] = v
 	}
