@@ -230,6 +230,55 @@ func TestMiddleware_Authenticate_RejectsBlockedTeam(t *testing.T) {
 	}
 }
 
+func TestMiddleware_Authenticate_ReadOnlyKey_AllowsModelsButDeniesWrites(t *testing.T) {
+	store := NewMemoryStore()
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	fullKey, hash, _ := GenerateAPIKey()
+	testKey := &APIKey{
+		ID:        "ro-key-id",
+		KeyHash:   hash,
+		KeyPrefix: ExtractKeyPrefix(fullKey),
+		Name:      "ReadOnly Key",
+		IsActive:  true,
+		KeyType:   KeyTypeReadOnly,
+		CreatedAt: time.Now(),
+	}
+	if err := store.CreateAPIKey(context.Background(), testKey); err != nil {
+		t.Fatalf("CreateAPIKey() error = %v", err)
+	}
+
+	middleware := NewMiddleware(&MiddlewareConfig{
+		Store:   store,
+		Logger:  logger,
+		Enabled: true,
+	})
+
+	okHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	})
+
+	t.Run("GET /v1/models is allowed", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodGet, "/v1/models", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey)
+		rr := httptest.NewRecorder()
+		middleware.Authenticate(okHandler).ServeHTTP(rr, req)
+		if rr.Code != http.StatusOK {
+			t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+		}
+	})
+
+	t.Run("POST /v1/chat/completions is denied", func(t *testing.T) {
+		req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", nil)
+		req.Header.Set("Authorization", "Bearer "+fullKey)
+		rr := httptest.NewRecorder()
+		middleware.Authenticate(okHandler).ServeHTTP(rr, req)
+		if rr.Code != http.StatusForbidden {
+			t.Fatalf("expected status %d, got %d", http.StatusForbidden, rr.Code)
+		}
+	})
+}
+
 func TestMiddleware_LastUsedUpdateWindow(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

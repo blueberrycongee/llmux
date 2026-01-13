@@ -131,6 +131,18 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			}
 		}
 
+		// Enforce key type restrictions.
+		if key.KeyType == KeyTypeReadOnly {
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				m.writePermissionDenied(w, "read-only key")
+				return
+			}
+			if r.URL.Path != "/v1/models" {
+				m.writePermissionDenied(w, "read-only key")
+				return
+			}
+		}
+
 		now := time.Now()
 		if m.shouldUpdateLastUsed(key.LastUsedAt, now) {
 			ctx, cancel := context.WithTimeout(r.Context(), 2*time.Second)
