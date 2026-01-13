@@ -15,12 +15,12 @@
 \i /workspace/internal/auth/migrations/001_init.sql
 
 \echo 'Seeding test API key...'
--- "sk-test-key-12345" sha256 (hex):
---   db4aac95519f2890e4bd9f8860cceb0b452d35c5e809d69d44f234de3e7123d0
+-- "llmux_test_key_12345" sha256 (hex):
+--   f0a5be3c98fccb0f2721fb33c0b8b357e93111c4399c42f591763865ae34f511
 INSERT INTO api_keys (key_hash, key_prefix, name, is_active)
 VALUES (
-  'db4aac95519f2890e4bd9f8860cceb0b452d35c5e809d69d44f234de3e7123d0',
-  'sk-test-',
+  'f0a5be3c98fccb0f2721fb33c0b8b357e93111c4399c42f591763865ae34f511',
+  'llmux_te',
   'Test API Key',
   true
 )

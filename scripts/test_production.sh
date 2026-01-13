@@ -2,7 +2,7 @@
 set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
-API_KEY="${TEST_API_KEY:-sk-test-key-12345}"
+API_KEY="${TEST_API_KEY:-llmux_test_key_12345}"
 
 echo "=========================================="
 echo "LLMux Production Test Suite"
@@ -45,7 +45,6 @@ RESPONSE="$(json "${BASE_URL}/v1/chat/completions" \
     "messages": [{"role": "user", "content": "Say hello in one word"}],
     "max_tokens": 10
   }')"
-echo "${RESPONSE}" | rg -n "\"choices\"" >/dev/null && pass "Chat completion" || fail "Chat completion"
 echo "${RESPONSE}" | grep -q "\"choices\"" && pass "Chat completion" || fail "Chat completion"
 
 echo ""

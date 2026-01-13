@@ -2,6 +2,11 @@
 
 This guide provides a practical, staged way to validate LLMux end-to-end.
 
+## Windows Notes (PowerShell + WSL)
+
+- For `.sh` scripts, prefer running via WSL: `wsl -e bash -lc "./scripts/test_production.sh"`.
+- In PowerShell, use `curl.exe` (to avoid the `curl` alias) and `$env:VAR="..."` for env vars.
+
 ## Levels
 
 1. **Level 1: Single instance** (no external deps)
@@ -18,6 +23,14 @@ go build -o llmux ./cmd/server
 
 export OPENAI_API_KEY="sk-your-key"
 ./llmux --config config/config.test.yaml
+```
+
+PowerShell equivalent:
+
+```powershell
+go build -o llmux.exe .\cmd\server
+$env:OPENAI_API_KEY="sk-your-key"
+.\llmux.exe --config .\config\config.test.yaml
 ```
 
 Smoke checks (another terminal):
@@ -48,8 +61,8 @@ docker compose -f docker-compose.test.yaml up -d
 LLMux ships canonical Postgres migrations in `internal/auth/migrations/`.
 This test setup applies them and then inserts a single API key:
 
-- Test key: `sk-test-key-12345`
-- Test key sha256: `db4aac95519f2890e4bd9f8860cceb0b452d35c5e809d69d44f234de3e7123d0`
+- Test key: `llmux_test_key_12345`
+- Test key sha256: `f0a5be3c98fccb0f2721fb33c0b8b357e93111c4399c42f591763865ae34f511`
 
 ```bash
 docker compose -f docker-compose.test.yaml exec -T postgres \
@@ -62,7 +75,7 @@ docker compose -f docker-compose.test.yaml exec -T postgres \
 chmod +x scripts/test_production.sh scripts/test_redis.sh scripts/test_postgres.sh
 
 export BASE_URL="http://localhost:8080"
-export TEST_API_KEY="sk-test-key-12345"
+export TEST_API_KEY="llmux_test_key_12345"
 ./scripts/test_production.sh
 
 # Optional: validate infra from your host (requires local clients)
@@ -73,10 +86,24 @@ export REDIS_HOST=localhost REDIS_PORT=6379
 ./scripts/test_redis.sh
 ```
 
+PowerShell + WSL example:
+
+```powershell
+$env:OPENAI_API_KEY="sk-your-key"
+docker compose -f docker-compose.test.yaml up -d
+
+docker compose -f docker-compose.test.yaml exec -T postgres `
+  psql -U llmux -d llmux -f /workspace/scripts/init_db.sql
+
+$env:BASE_URL="http://localhost:8080"
+$env:TEST_API_KEY="llmux_test_key_12345"
+wsl -e bash -lc "./scripts/test_production.sh"
+```
+
 Notes:
 - Stage 2 uses `config/config.distributed.yaml` which enables `auth`, `database`, `routing.distributed`, and `rate_limit.distributed`.
 - Because `auth.enabled=true`, requests to `/v1/*` require `Authorization: Bearer <key>`.
- - `governance` is disabled in the default distributed test config to avoid schema drift while the Postgres store is converging.
+- `governance` is disabled in the default distributed test config to avoid schema drift while the Postgres store is converging.
 
 ## Stage 3: Multi-instance (HA / LB)
 
