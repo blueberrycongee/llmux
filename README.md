@@ -190,7 +190,8 @@ curl http://localhost:8080/health/ready
 
 ## Management API
 
-Management endpoints are enabled when the database is configured.
+Management endpoints (and the dashboard UI) are exposed only when `server.admin_port > 0` is configured.
+Database configuration controls whether management state is persisted (Postgres) or ephemeral (in-memory).
 
 Key categories:
 - Keys: `/key/*`

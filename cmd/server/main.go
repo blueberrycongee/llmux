@@ -268,19 +268,27 @@ func run() error {
 		mcpHandler := mcp.NewHTTPHandler(mcpManager)
 		if muxes.Admin != nil {
 			mcpHandler.RegisterRoutes(muxes.Admin)
+			logger.Info("MCP management endpoints registered",
+				"endpoints", []string{"/mcp/clients", "/mcp/clients/{id}", "/mcp/tools"},
+				"admin_port", cfg.Server.AdminPort,
+			)
 		} else {
-			mcpHandler.RegisterRoutes(muxes.Data)
+			logger.Warn("MCP management endpoints disabled (set server.admin_port to enable)",
+				"endpoints", []string{"/mcp/clients", "/mcp/clients/{id}", "/mcp/tools"},
+			)
 		}
-		logger.Info("MCP management endpoints registered",
-			"endpoints", []string{"/mcp/clients", "/mcp/clients/{id}", "/mcp/tools"},
-			"admin_port", cfg.Server.AdminPort,
-		)
 	}
 
-	logger.Info("management endpoints registered",
-		"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
-		"admin_port", cfg.Server.AdminPort,
-	)
+	if muxes.Admin != nil {
+		logger.Info("management endpoints registered",
+			"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
+			"admin_port", cfg.Server.AdminPort,
+		)
+	} else {
+		logger.Warn("management endpoints disabled (set server.admin_port to enable)",
+			"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
+		)
+	}
 
 	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer)
 	if err != nil {

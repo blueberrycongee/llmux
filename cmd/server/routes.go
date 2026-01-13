@@ -51,10 +51,6 @@ func buildMuxes(cfg *config.Config, handler dataHandler, mgmtHandler managementR
 		return muxes{Data: dataMux, Admin: adminMux}, nil
 	}
 
-	if mgmtHandler != nil {
-		registerAdminRoutes(dataMux, mgmtHandler, logger, uiAssets, true)
-	}
-
 	return muxes{Data: dataMux}, nil
 }
 
