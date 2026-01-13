@@ -241,6 +241,12 @@ llmux/
 
 ## Developer Info
 
+### Documentation
+
+- `docs/DEVELOPMENT.md`
+- `docs/PRODUCTION_TEST_GUIDE.md`
+- `docs/runbooks/DISTRIBUTED_MODE.md`
+
 ### Development Commands
 
 ```bash

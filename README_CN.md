@@ -233,6 +233,12 @@ llmux/
 
 ## 开发命令
 
+### 文档
+
+- `docs/DEVELOPMENT.md`
+- `docs/PRODUCTION_TEST_GUIDE.md`
+- `docs/runbooks/DISTRIBUTED_MODE.md`
+
 ```bash
 make test
 make coverage
@@ -248,4 +254,3 @@ make check
 ## License
 
 MIT License - 详见 [LICENSE](LICENSE)
-
