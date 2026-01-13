@@ -17,8 +17,8 @@ Use the checkboxes to mark alignment completion:
 | anthropic | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | aws_polly | [~] | 2026-01-13 16:43:37 | audio/tts surface not implemented |
 | azure | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| azure_ai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| baseten | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| azure_ai | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
+| baseten | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | bedrock | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | bytez | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | cerebras | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
@@ -31,22 +31,22 @@ Use the checkboxes to mark alignment completion:
 | dashscope | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | databricks | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | dataforseo | [~] | 2026-01-13 16:43:37 | search tool (deferred) |
-| datarobot | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| datarobot | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | deepgram | [~] | 2026-01-13 16:43:37 | audio surface not implemented |
 | deepinfra | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | deepseek | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | docker_model_runner | [~] | 2026-01-13 16:43:37 | local runner integration (deferred) |
 | elevenlabs | [~] | 2026-01-13 16:43:37 | audio/tts surface not implemented |
-| empower | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| empower | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | exa_ai | [~] | 2026-01-13 16:43:37 | search tool (deferred) |
 | fal_ai | [~] | 2026-01-13 16:43:37 | image surface not implemented |
 | featherless_ai | [~] | 2026-01-13 16:43:37 | image surface not implemented |
 | firecrawl | [~] | 2026-01-13 16:43:37 | search/scrape tool (deferred) |
 | fireworks_ai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| friendliai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| galadriel | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| friendliai | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
+| galadriel | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | gemini | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| gigachat | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| gigachat | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | github | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | github_copilot | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | google_pse | [~] | 2026-01-13 16:43:37 | search tool (deferred) |
@@ -56,7 +56,7 @@ Use the checkboxes to mark alignment completion:
 | hosted_vllm | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | huggingface | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | hyperbolic | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| infinity | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| infinity | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | jina_ai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | lambda_ai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | langgraph | [~] | 2026-01-13 16:43:37 | workflow integration (deferred) |
@@ -70,15 +70,15 @@ Use the checkboxes to mark alignment completion:
 | minimax | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | mistral | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | moonshot | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| morph | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| nebius | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| nlp_cloud | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| morph | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
+| nebius | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
+| nlp_cloud | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | novita | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | nscale | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | nvidia_nim | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | oci | [~] | 2026-01-13 16:43:37 | cloud integration (deferred) |
 | ollama | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| oobabooga | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| oobabooga | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | openai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | openai_like | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | openrouter | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
@@ -87,21 +87,21 @@ Use the checkboxes to mark alignment completion:
 | perplexity | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | petals | [~] | 2026-01-13 16:43:37 | p2p inference integration (deferred) |
 | pg_vector | [~] | 2026-01-13 16:43:37 | vector store integration (deferred) |
-| predibase | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| predibase | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | ragflow | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | recraft | [~] | 2026-01-13 16:43:37 | image surface not implemented |
 | replicate | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | runwayml | [~] | 2026-01-13 16:43:37 | image surface not implemented |
-| sagemaker | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| sagemaker | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | sambanova | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| sap | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| sap | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | searxng | [~] | 2026-01-13 16:43:37 | search tool (deferred) |
 | snowflake | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | stability | [~] | 2026-01-13 16:43:37 | image surface not implemented |
 | tavily | [~] | 2026-01-13 16:43:37 | search tool (deferred) |
 | together_ai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | topaz | [~] | 2026-01-13 16:43:37 | image surface not implemented |
-| triton | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| triton | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | v0 | [~] | 2026-01-13 16:43:37 | image surface not implemented |
 | vercel_ai_gateway | [~] | 2026-01-13 16:43:37 | image surface not implemented |
 | vertex_ai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
@@ -111,7 +111,7 @@ Use the checkboxes to mark alignment completion:
 | wandb | [~] | 2026-01-13 16:43:37 | observability integration (deferred) |
 | watsonx | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 | xai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
-| xinference | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
+| xinference | [x] | 2026-01-13 16:43:37 | BaseURL required (no safe default base URL) |
 | zai | [x] | 2026-01-13 16:43:37 | aligned via native adapter or OpenAI-compatible fallback |
 
 ## Infra or Utility Modules (no alignment target)
