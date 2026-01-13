@@ -448,85 +448,57 @@ func (h *ManagementHandler) RegenerateKey(w http.ResponseWriter, r *http.Request
 	}
 	keyPrefix := auth.ExtractKeyPrefix(rawKey)
 
-	// Create new key with same settings
 	now := time.Now()
-	newKey := &auth.APIKey{
-		ID:                  auth.GenerateUUID(),
-		KeyHash:             keyHash,
-		KeyPrefix:           keyPrefix,
-		Name:                oldKey.Name,
-		KeyAlias:            oldKey.KeyAlias,
-		TeamID:              oldKey.TeamID,
-		UserID:              oldKey.UserID,
-		OrganizationID:      oldKey.OrganizationID,
-		AllowedModels:       oldKey.AllowedModels,
-		KeyType:             oldKey.KeyType,
-		TPMLimit:            oldKey.TPMLimit,
-		RPMLimit:            oldKey.RPMLimit,
-		MaxParallelRequests: oldKey.MaxParallelRequests,
-		MaxBudget:           oldKey.MaxBudget,
-		SoftBudget:          oldKey.SoftBudget,
-		BudgetDuration:      oldKey.BudgetDuration,
-		BudgetResetAt:       oldKey.BudgetResetAt,
-		ModelMaxBudget:      oldKey.ModelMaxBudget,
-		ModelTPMLimit:       oldKey.ModelTPMLimit,
-		ModelRPMLimit:       oldKey.ModelRPMLimit,
-		Metadata:            oldKey.Metadata,
-		IsActive:            true,
-		CreatedAt:           now,
-		UpdatedAt:           now,
-	}
+	oldKey.KeyHash = keyHash
+	oldKey.KeyPrefix = keyPrefix
+	oldKey.UpdatedAt = now
 
 	// Update rotation count in metadata
-	if newKey.Metadata == nil {
-		newKey.Metadata = make(auth.Metadata)
-	}
+	oldKey.Metadata = ensureMetadata(oldKey.Metadata)
 	rotationCount := 0
-	if v, ok := oldKey.Metadata["rotation_count"].(float64); ok {
+	switch v := oldKey.Metadata["rotation_count"].(type) {
+	case int:
+		rotationCount = v
+	case int64:
+		rotationCount = int(v)
+	case float64:
 		rotationCount = int(v)
 	}
-	newKey.Metadata["rotation_count"] = rotationCount + 1
-	newKey.Metadata["last_rotation_at"] = now.Format(time.RFC3339)
+	oldKey.Metadata["rotation_count"] = rotationCount + 1
+	oldKey.Metadata["last_rotation_at"] = now.Format(time.RFC3339)
 
 	// Recalculate next rotation time if auto_rotate is enabled
 	if autoRotate, ok := oldKey.Metadata["auto_rotate"].(bool); ok && autoRotate {
 		if interval, ok := oldKey.Metadata["rotation_interval"].(string); ok {
 			rotationAt := auth.CalculateRotationTime(interval)
 			if rotationAt != nil {
-				newKey.Metadata["key_rotation_at"] = rotationAt.Format(time.RFC3339)
+				oldKey.Metadata["key_rotation_at"] = rotationAt.Format(time.RFC3339)
 			}
 		}
 	}
 
-	// Delete old key and create new one
-	if err := h.store.DeleteAPIKey(r.Context(), oldKey.ID); err != nil {
-		h.logger.Error("failed to delete old key", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to regenerate key")
-		return
-	}
-
-	if err := h.store.CreateAPIKey(r.Context(), newKey); err != nil {
-		h.logger.Error("failed to create new key", "error", err)
+	if err := h.store.UpdateAPIKey(r.Context(), oldKey); err != nil {
+		h.logger.Error("failed to update key during regenerate", "error", err)
 		h.writeError(w, http.StatusInternalServerError, "failed to regenerate key")
 		return
 	}
 
 	h.writeJSON(w, http.StatusOK, GenerateKeyResponse{
 		Key:            rawKey,
-		KeyID:          newKey.ID,
-		KeyPrefix:      newKey.KeyPrefix,
-		Name:           newKey.Name,
-		KeyAlias:       newKey.KeyAlias,
-		TeamID:         newKey.TeamID,
-		UserID:         newKey.UserID,
-		OrganizationID: newKey.OrganizationID,
-		Models:         newKey.AllowedModels,
-		MaxBudget:      newKey.MaxBudget,
-		SoftBudget:     newKey.SoftBudget,
-		TPMLimit:       newKey.TPMLimit,
-		RPMLimit:       newKey.RPMLimit,
-		ExpiresAt:      newKey.ExpiresAt,
-		CreatedAt:      newKey.CreatedAt,
+		KeyID:          oldKey.ID,
+		KeyPrefix:      oldKey.KeyPrefix,
+		Name:           oldKey.Name,
+		KeyAlias:       oldKey.KeyAlias,
+		TeamID:         oldKey.TeamID,
+		UserID:         oldKey.UserID,
+		OrganizationID: oldKey.OrganizationID,
+		Models:         oldKey.AllowedModels,
+		MaxBudget:      oldKey.MaxBudget,
+		SoftBudget:     oldKey.SoftBudget,
+		TPMLimit:       oldKey.TPMLimit,
+		RPMLimit:       oldKey.RPMLimit,
+		ExpiresAt:      oldKey.ExpiresAt,
+		CreatedAt:      oldKey.CreatedAt,
 	})
 }
 
