@@ -193,6 +193,8 @@ curl http://localhost:8080/health/ready
 Management endpoints (and the dashboard UI) are exposed only when `server.admin_port > 0` is configured.
 Database configuration controls whether management state is persisted (Postgres) or ephemeral (in-memory).
 
+Bootstrap (optional): set `auth.bootstrap_token` and pass `X-LLMux-Bootstrap-Token` to access management endpoints for initial setup.
+
 Key categories:
 - Keys: `/key/*`
 - Users: `/user/*`

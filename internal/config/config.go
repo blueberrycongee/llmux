@@ -129,7 +129,8 @@ type AuthConfig struct {
 	Enabled                bool          `yaml:"enabled"`
 	SkipPaths              []string      `yaml:"skip_paths"` // Paths to skip authentication
 	LastUsedUpdateInterval time.Duration `yaml:"last_used_update_interval"`
-	OIDC                   OIDCConfig    `yaml:"oidc"` // OIDC configuration
+	BootstrapToken         string        `yaml:"bootstrap_token"` // Optional bootstrap token for management endpoints
+	OIDC                   OIDCConfig    `yaml:"oidc"`            // OIDC configuration
 }
 
 // OIDCConfig contains OIDC provider settings.

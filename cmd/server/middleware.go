@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"strings"
 
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
@@ -52,6 +53,7 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 			return nil
 		}
 		handler := next
+		handler = managementAuthzMiddleware(cfg)(handler)
 		if authMiddleware != nil {
 			handler = authMiddleware.Authenticate(handler)
 		}
@@ -63,4 +65,77 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 		handler = corsMiddleware(cfg.CORS, handler)
 		return handler
 	}, nil
+}
+
+const bootstrapTokenHeader = "X-LLMux-Bootstrap-Token"
+
+func managementAuthzMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if cfg == nil || r == nil || !isManagementPath(r.URL.Path) {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			bootstrapToken := strings.TrimSpace(cfg.Auth.BootstrapToken)
+			if bootstrapToken != "" && r.Header.Get(bootstrapTokenHeader) == bootstrapToken {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			authCtx := auth.GetAuthContext(r.Context())
+			if authCtx == nil {
+				writeAuthzError(w, http.StatusUnauthorized, "authentication required", "authentication_error")
+				return
+			}
+
+			if authCtx.User != nil {
+				switch authCtx.UserRole {
+				case auth.UserRoleProxyAdmin, auth.UserRoleProxyAdminViewer:
+					next.ServeHTTP(w, r)
+					return
+				default:
+					writeAuthzError(w, http.StatusForbidden, "management permission required", "permission_error")
+					return
+				}
+			}
+
+			if authCtx.APIKey != nil && authCtx.APIKey.KeyType == auth.KeyTypeManagement {
+				next.ServeHTTP(w, r)
+				return
+			}
+
+			writeAuthzError(w, http.StatusForbidden, "management permission required", "permission_error")
+		})
+	}
+}
+
+func isManagementPath(path string) bool {
+	if path == "" {
+		return false
+	}
+	managementPrefixes := []string{
+		"/key/",
+		"/team/",
+		"/user/",
+		"/organization/",
+		"/spend/",
+		"/audit/",
+		"/global/",
+		"/invitation/",
+		"/control/",
+		"/mcp/",
+	}
+	for _, prefix := range managementPrefixes {
+		if strings.HasPrefix(path, prefix) {
+			return true
+		}
+	}
+	return false
+}
+
+func writeAuthzError(w http.ResponseWriter, status int, message, typ string) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	_, _ = w.Write([]byte(`{"error":{"message":"` + message + `","type":"` + typ + `"}}`))
 }
