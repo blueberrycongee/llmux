@@ -59,6 +59,31 @@ func TestRouting_ModelMapping(t *testing.T) {
 	assert.Equal(t, "gpt-4o-mock", resp.Model)
 }
 
+func TestRouting_ModelWithProviderPrefix(t *testing.T) {
+	resetMock()
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	req := &testutil.ChatCompletionRequest{
+		Model: "mock-openai/gpt-4o-mock",
+		Messages: []testutil.ChatMessage{
+			{Role: "user", Content: "Hello"},
+		},
+	}
+
+	resp, _, err := testClient.ChatCompletion(ctx, req)
+	require.NoError(t, err)
+
+	// Response should have the requested model.
+	assert.Equal(t, "mock-openai/gpt-4o-mock", resp.Model)
+
+	requests := mockLLM.GetRequests()
+	require.NotEmpty(t, requests, "mock should have recorded requests")
+	assert.Equal(t, "POST", requests[0].Method)
+	assert.Contains(t, requests[0].Path, "chat/completions")
+}
+
 func TestRouting_UnknownModel(t *testing.T) {
 	resetMock()
 

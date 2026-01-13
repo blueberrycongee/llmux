@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 
@@ -138,6 +139,10 @@ func (r *BaseRouter) AddDeploymentWithConfig(deployment *provider.Deployment, co
 	}
 
 	r.deployments[model] = append(r.deployments[model], extended)
+	if deployment.ProviderName != "" && model != "" {
+		key := deployment.ProviderName + "/" + model
+		r.deployments[key] = append(r.deployments[key], extended)
+	}
 	r.stats[deployment.ID] = r.newStatsEntry()
 }
 
@@ -163,6 +168,11 @@ func (r *BaseRouter) GetDeployments(model string) []*provider.Deployment {
 	defer r.mu.RUnlock()
 
 	deps := r.deployments[model]
+	if len(deps) == 0 && strings.Contains(model, "/") {
+		if stripped := model[strings.LastIndex(model, "/")+1:]; stripped != "" {
+			deps = r.deployments[stripped]
+		}
+	}
 	result := make([]*provider.Deployment, len(deps))
 	for i, d := range deps {
 		result[i] = d.Deployment
@@ -173,6 +183,11 @@ func (r *BaseRouter) GetDeployments(model string) []*provider.Deployment {
 func (r *BaseRouter) snapshotDeployments(model string) []*ExtendedDeployment {
 	r.mu.RLock()
 	deps := r.deployments[model]
+	if len(deps) == 0 && strings.Contains(model, "/") {
+		if stripped := model[strings.LastIndex(model, "/")+1:]; stripped != "" {
+			deps = r.deployments[stripped]
+		}
+	}
 	if len(deps) == 0 {
 		r.mu.RUnlock()
 		return nil
