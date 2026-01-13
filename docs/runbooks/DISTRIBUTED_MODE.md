@@ -18,17 +18,14 @@ This runbook enables multi-instance LLMux deployments with shared state via Post
 ## Database Schema
 LLMux ships SQL migrations in `internal/auth/migrations/`.
 
-Apply the baseline schema (pick one file and keep it consistent across environments):
-
-```
-psql "$DATABASE_URL" -f internal/auth/migrations/001_init.sql
-```
-
-If you need the full multi-tenant schema parity, use:
+Apply the baseline schema (use these in order and keep it consistent across environments):
 
 ```
 psql "$DATABASE_URL" -f internal/auth/migrations/002_full_schema.sql
+psql "$DATABASE_URL" -f internal/auth/migrations/003_enterprise_features.sql
 ```
+
+Note: `internal/auth/migrations/001_init.sql` is a legacy minimal schema and is not compatible with the current Postgres-backed auth store.
 
 ## Configuration Steps
 1) Set `deployment.mode=distributed`.

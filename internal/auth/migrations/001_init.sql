@@ -1,5 +1,8 @@
 -- LLMux Authentication Schema
 -- PostgreSQL migration for API key authentication and multi-tenant support
+--
+-- Deprecated: this legacy schema is not compatible with the current Postgres auth store.
+-- Use `002_full_schema.sql` + `003_enterprise_features.sql` instead.
 
 -- Enable UUID extension
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
