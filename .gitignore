@@ -28,6 +28,10 @@ vendor/
 .DS_Store
 Thumbs.db
 
+# Internal assistant artifacts
+.agent/
+.gemini/
+
 # Config with secrets
 config/config.local.yaml
 *.local.yaml

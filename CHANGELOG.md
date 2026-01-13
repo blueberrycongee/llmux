@@ -26,7 +26,6 @@ Recent changes and project history for context.
 ### Documentation
 - 📝 Complete rewrite of `README.md` and `README_CN.md`
 - 📝 Rewrote `ui/README.md` with full documentation
-- 📝 Created `.agent/` directory for AI assistance
 
 ---
 
@@ -93,4 +92,3 @@ Recent changes and project history for context.
 | `cmd/server/ui_assets/.gitkeep` | Created for CI        |
 | `docs/LOCAL_TESTING_GUIDE.md`   | New file              |
 | `scripts/test_api.ps1`          | New file              |
-| `.agent/*`                      | New directory         |
