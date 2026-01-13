@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"net/http"
 	"net/http/httptest"
@@ -103,5 +104,35 @@ func TestManagementAuthzMiddleware_AuthDisabled_BootstrapToken_Allows(t *testing
 
 	if rr.Code != http.StatusOK {
 		t.Fatalf("expected 200, got %d", rr.Code)
+	}
+}
+
+func TestManagementBodyLimitMiddleware_TooLarge_Denied(t *testing.T) {
+	h := managementBodyLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	body := bytes.Repeat([]byte("a"), int(maxManagementBodyBytes)+1)
+	req := httptest.NewRequest(http.MethodPost, "/key/generate", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected %d, got %d", http.StatusRequestEntityTooLarge, rr.Code)
+	}
+}
+
+func TestManagementBodyLimitMiddleware_NonManagementPath_AllowsLargeBody(t *testing.T) {
+	h := managementBodyLimitMiddleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+	}))
+
+	body := bytes.Repeat([]byte("a"), int(maxManagementBodyBytes)+1)
+	req := httptest.NewRequest(http.MethodPost, "/v1/chat/completions", bytes.NewReader(body))
+	rr := httptest.NewRecorder()
+	h.ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected %d, got %d", http.StatusOK, rr.Code)
 	}
 }

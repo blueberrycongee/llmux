@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"strings"
@@ -53,6 +55,7 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 			return nil
 		}
 		handler := next
+		handler = managementBodyLimitMiddleware(handler)
 		handler = managementAuthzMiddleware(cfg)(handler)
 		if authMiddleware != nil {
 			handler = authMiddleware.Authenticate(handler)
@@ -66,6 +69,8 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 		return handler
 	}, nil
 }
+
+const maxManagementBodyBytes int64 = 1 << 20
 
 const bootstrapTokenHeader = "X-LLMux-Bootstrap-Token"
 
@@ -138,4 +143,27 @@ func writeAuthzError(w http.ResponseWriter, status int, message, typ string) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(`{"error":{"message":"` + message + `","type":"` + typ + `"}}`))
+}
+
+func managementBodyLimitMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r == nil || r.URL == nil || !isManagementPath(r.URL.Path) || r.Body == nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
+		body, err := io.ReadAll(io.LimitReader(r.Body, maxManagementBodyBytes+1))
+		_ = r.Body.Close()
+		if err != nil {
+			writeAuthzError(w, http.StatusBadRequest, "invalid request body", "request_error")
+			return
+		}
+		if int64(len(body)) > maxManagementBodyBytes {
+			writeAuthzError(w, http.StatusRequestEntityTooLarge, "request body too large", "request_error")
+			return
+		}
+
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		next.ServeHTTP(w, r)
+	})
 }
