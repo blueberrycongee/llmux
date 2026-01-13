@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 // ErrNoAvailableDeployment is returned when no healthy deployment is available.
@@ -168,8 +168,8 @@ func (r *BaseRouter) GetDeployments(model string) []*provider.Deployment {
 	defer r.mu.RUnlock()
 
 	deps := r.deployments[model]
-	if len(deps) == 0 && strings.Contains(model, "/") {
-		if stripped := model[strings.LastIndex(model, "/")+1:]; stripped != "" {
+	if len(deps) == 0 {
+		if _, stripped := types.SplitProviderModel(model); stripped != "" && stripped != model {
 			deps = r.deployments[stripped]
 		}
 	}
@@ -183,8 +183,8 @@ func (r *BaseRouter) GetDeployments(model string) []*provider.Deployment {
 func (r *BaseRouter) snapshotDeployments(model string) []*ExtendedDeployment {
 	r.mu.RLock()
 	deps := r.deployments[model]
-	if len(deps) == 0 && strings.Contains(model, "/") {
-		if stripped := model[strings.LastIndex(model, "/")+1:]; stripped != "" {
+	if len(deps) == 0 {
+		if _, stripped := types.SplitProviderModel(model); stripped != "" && stripped != model {
 			deps = r.deployments[stripped]
 		}
 	}
