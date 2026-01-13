@@ -191,7 +191,7 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
 		} else {
-			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "upstream request failed"))
 		}
 		return
 	}
@@ -274,7 +274,7 @@ func (h *ClientHandler) handleStreamResponse(ctx context.Context, w http.Respons
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
 		} else {
-			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "upstream request failed"))
 		}
 		return
 	}
@@ -475,7 +475,7 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
 		} else {
-			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "upstream request failed"))
 		}
 		return
 	}
@@ -533,7 +533,7 @@ func (h *ClientHandler) handleCompletionStreamResponse(w http.ResponseWriter, r 
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
 		} else {
-			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "upstream request failed"))
 		}
 		return
 	}
@@ -645,7 +645,10 @@ func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
 	if e, ok := err.(*llmerrors.LLMError); ok {
 		llmErr = e
 	} else {
-		llmErr = llmerrors.NewInternalError("", "", err.Error())
+		if h != nil && h.logger != nil && err != nil {
+			h.logger.Error("internal error", "error", err)
+		}
+		llmErr = llmerrors.NewInternalError("", "", "internal server error")
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -879,7 +882,7 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 		if llmErr, ok := err.(*llmerrors.LLMError); ok {
 			h.writeError(w, llmErr)
 		} else {
-			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, err.Error()))
+			h.writeError(w, llmerrors.NewServiceUnavailableError("", req.Model, "upstream request failed"))
 		}
 		return
 	}
