@@ -5,9 +5,10 @@ import (
 	"os"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestCostRouter_Pick_WithRegistry(t *testing.T) {

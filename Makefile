@@ -47,7 +47,7 @@ lint:
 # Format code
 fmt:
 	$(GOFMT) -s -w .
-	$(GOIMPORTS) -w .
+	$(GOIMPORTS) -local github.com/blueberrycongee/llmux -w .
 
 # Run go vet
 vet:

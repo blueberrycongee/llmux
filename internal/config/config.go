@@ -9,8 +9,9 @@ import (
 	"strings"
 	"time"
 
-	"github.com/blueberrycongee/llmux/internal/observability"
 	"gopkg.in/yaml.v3"
+
+	"github.com/blueberrycongee/llmux/internal/observability"
 )
 
 // Config represents the complete gateway configuration.

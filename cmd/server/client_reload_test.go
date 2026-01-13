@@ -6,10 +6,11 @@ import (
 	"log/slog"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/config"
-	"github.com/stretchr/testify/require"
 )
 
 func TestClientReloaderSwapsClientOnSuccess(t *testing.T) {

@@ -7,9 +7,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/blueberrycongee/llmux/pkg/types"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 func TestProvider_SupportEmbedding(t *testing.T) {

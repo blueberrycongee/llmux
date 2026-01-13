@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/pkg/types"
-	"github.com/stretchr/testify/assert"
 )
 
 // MockMetricsProvider is a mock for OTelMetricsProvider

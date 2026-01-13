@@ -3,10 +3,11 @@ package types_test
 import (
 	"testing"
 
-	"github.com/blueberrycongee/llmux/pkg/types"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 func TestCompletionPrompt_UnmarshalString(t *testing.T) {

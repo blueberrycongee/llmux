@@ -8,9 +8,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/providers/openai"
-	"github.com/stretchr/testify/require"
 )
 
 func TestProber_RunOnce_FailureSetsCooldown(t *testing.T) {

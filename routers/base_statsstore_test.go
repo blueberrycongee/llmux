@@ -5,11 +5,12 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/blueberrycongee/llmux/routers"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 // =============================================================================

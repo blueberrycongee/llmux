@@ -3,6 +3,8 @@ package openailike_test
 import (
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+
 	"github.com/blueberrycongee/llmux/providers/deepseek"
 	"github.com/blueberrycongee/llmux/providers/fireworks"
 	"github.com/blueberrycongee/llmux/providers/groq"
@@ -10,7 +12,6 @@ import (
 	"github.com/blueberrycongee/llmux/providers/openrouter"
 	"github.com/blueberrycongee/llmux/providers/together"
 	"github.com/blueberrycongee/llmux/providers/vllm"
-	"github.com/stretchr/testify/assert"
 )
 
 // TestProviderEmbeddingSupport verifies that providers correctly declare embedding support.

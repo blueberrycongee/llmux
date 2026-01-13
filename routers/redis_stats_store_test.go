@@ -9,10 +9,11 @@ import (
 	"time"
 
 	"github.com/alicebob/miniredis/v2"
-	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
-	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/redis/go-redis/v9"
 	"github.com/stretchr/testify/require"
+
+	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
+	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
 func TestRedisStatsStore_FailureRateCooldown(t *testing.T) {

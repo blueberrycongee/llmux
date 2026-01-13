@@ -6,9 +6,10 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
-	"github.com/stretchr/testify/require"
 )
 
 func TestLatencyRouter_Pick_WeightedBufferPrefersWeight(t *testing.T) {

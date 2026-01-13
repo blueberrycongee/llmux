@@ -3,9 +3,10 @@ package semantic
 import (
 	"testing"
 
-	"github.com/blueberrycongee/llmux/pkg/types"
 	"github.com/goccy/go-json"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 func TestMessagesToPrompt(t *testing.T) {

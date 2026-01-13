@@ -5,9 +5,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/blueberrycongee/llmux/pkg/provider"
 )
 
 func TestRoundRobinRouter_Pick_RotatesInOrder(t *testing.T) {

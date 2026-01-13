@@ -5,10 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blueberrycongee/llmux/pkg/provider"
-	"github.com/blueberrycongee/llmux/pkg/router"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/blueberrycongee/llmux/pkg/provider"
+	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
 func TestLeastBusyRouter_DefaultProviderPreferred(t *testing.T) {

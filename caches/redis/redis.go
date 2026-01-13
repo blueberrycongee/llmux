@@ -8,9 +8,10 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/blueberrycongee/llmux/pkg/cache"
 	"github.com/goccy/go-json"
 	goredis "github.com/redis/go-redis/v9"
+
+	"github.com/blueberrycongee/llmux/pkg/cache"
 )
 
 // Cache implements cache.Cache interface using Redis as backend.

@@ -7,9 +7,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/redis/go-redis/v9"
+
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/router"
-	"github.com/redis/go-redis/v9"
 )
 
 // RedisStatsStore implements StatsStore using Redis for distributed statistics.

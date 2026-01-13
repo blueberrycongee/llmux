@@ -5,8 +5,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blueberrycongee/llmux/internal/resilience"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/blueberrycongee/llmux/internal/resilience"
 )
 
 // MockDistributedLimiter is a mock implementation of DistributedLimiter for testing purposes.

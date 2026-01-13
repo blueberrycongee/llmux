@@ -4,8 +4,9 @@ import (
 	"os"
 	"testing"
 
-	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/blueberrycongee/llmux/internal/config"
 )
 
 func TestLoadPricingFileConfig(t *testing.T) {

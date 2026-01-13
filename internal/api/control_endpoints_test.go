@@ -12,12 +12,13 @@ import (
 	"testing"
 	"time"
 
+	"github.com/goccy/go-json"
+
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/pkg/types"
-	"github.com/goccy/go-json"
 )
 
 type stubProvider struct {

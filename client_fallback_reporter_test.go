@@ -12,8 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/blueberrycongee/llmux/pkg/types"
 	"github.com/stretchr/testify/require"
+
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 type retryableHTTPProvider struct {

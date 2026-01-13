@@ -10,9 +10,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/pkg/types"
-	"github.com/stretchr/testify/require"
 )
 
 type fakeProvider struct {
