@@ -241,14 +241,19 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	}
 
 	// Check rate limit before processing request
+	_, canonicalModel := types.SplitProviderModel(req.Model)
+	if canonicalModel == "" {
+		canonicalModel = req.Model
+	}
+
 	apiKey := c.rateLimitAPIKey(ctx)
 	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
-	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
+	promptEstimate := tokenizer.EstimatePromptTokens(canonicalModel, req)
 	estimatedTokens := promptEstimate
 	if req.MaxTokens > 0 {
 		estimatedTokens += req.MaxTokens
 	}
-	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, estimatedTokens); err != nil {
+	if err := c.checkRateLimit(ctx, rateLimitKey, canonicalModel, estimatedTokens); err != nil {
 		return nil, err
 	}
 
@@ -269,7 +274,7 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 		if resp.Usage != nil {
 			provider = resp.Usage.Provider
 		}
-		if pricingErr := c.validatePricing(req.Model, provider); pricingErr != nil {
+		if pricingErr := c.validatePricing(canonicalModel, provider); pricingErr != nil {
 			return nil, pricingErr
 		}
 	}
@@ -364,14 +369,19 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	}
 
 	// Check rate limit before processing request
+	_, canonicalModel := types.SplitProviderModel(req.Model)
+	if canonicalModel == "" {
+		canonicalModel = req.Model
+	}
+
 	apiKey := c.rateLimitAPIKey(ctx)
 	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
-	promptEstimate := tokenizer.EstimatePromptTokens(req.Model, req)
+	promptEstimate := tokenizer.EstimatePromptTokens(canonicalModel, req)
 	estimatedTokens := promptEstimate
 	if req.MaxTokens > 0 {
 		estimatedTokens += req.MaxTokens
 	}
-	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, estimatedTokens); err != nil {
+	if err := c.checkRateLimit(ctx, rateLimitKey, canonicalModel, estimatedTokens); err != nil {
 		c.pipeline.PutContext(pCtx)
 		return nil, err
 	}
@@ -562,10 +572,16 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 	}
 
 	// Check rate limit before processing request
+	originalModel := req.Model
+	_, canonicalModel := types.SplitProviderModel(originalModel)
+	if canonicalModel == "" {
+		canonicalModel = originalModel
+	}
+
 	apiKey := c.rateLimitAPIKey(ctx)
 	rateLimitKey := c.buildRateLimitKey(req.Model, req.User, apiKey)
-	promptEstimate := tokenizer.EstimateEmbeddingTokens(req.Model, req)
-	if err := c.checkRateLimit(ctx, rateLimitKey, req.Model, promptEstimate); err != nil {
+	promptEstimate := tokenizer.EstimateEmbeddingTokens(canonicalModel, req)
+	if err := c.checkRateLimit(ctx, rateLimitKey, canonicalModel, promptEstimate); err != nil {
 		return nil, err
 	}
 
@@ -632,8 +648,11 @@ func (c *Client) Embedding(ctx context.Context, req *types.EmbeddingRequest) (*t
 		}
 
 		// Execute request
-		resp, err := c.executeEmbeddingOnce(ctx, prov, deployment, req, promptEstimate)
+		reqForProvider := *req
+		reqForProvider.Model = canonicalModel
+		resp, err := c.executeEmbeddingOnce(ctx, prov, deployment, &reqForProvider, promptEstimate)
 		if err == nil {
+			resp.Model = originalModel
 			if pendingFallback != nil {
 				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, pendingFallback.err, true)
 				pendingFallback = nil
@@ -1127,7 +1146,11 @@ func (c *Client) executeWithRetry(
 	req *ChatRequest,
 ) (*ChatResponse, error) {
 	var lastErr error
-	promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+	_, canonicalModel := types.SplitProviderModel(req.Model)
+	if canonicalModel == "" {
+		canonicalModel = req.Model
+	}
+	promptTokens := tokenizer.EstimatePromptTokens(canonicalModel, req)
 	var pendingFallback *fallbackAttempt
 
 	for attempt := 0; attempt <= c.config.RetryCount; attempt++ {
@@ -1200,7 +1223,13 @@ func (c *Client) executeOnce(
 ) (*ChatResponse, error) {
 	start := time.Now()
 
-	if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
+	originalModel := req.Model
+	_, canonicalModel := types.SplitProviderModel(originalModel)
+	if canonicalModel == "" {
+		canonicalModel = originalModel
+	}
+
+	if err := c.validatePricing(canonicalModel, deployment.ProviderName); err != nil {
 		return nil, err
 	}
 
@@ -1239,10 +1268,11 @@ func (c *Client) executeOnce(
 		c.router.ReportFailure(deployment, err)
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
+	chatResp.Model = originalModel
 
 	if chatResp.Usage == nil || chatResp.Usage.TotalTokens == 0 {
-		promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
-		completionTokens := tokenizer.EstimateCompletionTokens(req.Model, chatResp, "")
+		promptTokens := tokenizer.EstimatePromptTokens(canonicalModel, req)
+		completionTokens := tokenizer.EstimateCompletionTokens(canonicalModel, chatResp, "")
 		chatResp.Usage = &types.Usage{
 			PromptTokens:     promptTokens,
 			CompletionTokens: completionTokens,

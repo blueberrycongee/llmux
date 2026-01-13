@@ -42,3 +42,19 @@ func TestSanitizeChatRequestForProvider_NoTags(t *testing.T) {
 		t.Fatalf("expected same request when no tags are present")
 	}
 }
+
+func TestSanitizeChatRequestForProvider_StripsProviderPrefixInModel(t *testing.T) {
+	req := &types.ChatRequest{
+		Model: "openai/test-model",
+	}
+	sanitized := sanitizeChatRequestForProvider(req)
+	if sanitized == req {
+		t.Fatalf("expected sanitized request to be a copy when model has provider prefix")
+	}
+	if sanitized.Model != "test-model" {
+		t.Fatalf("expected provider prefix stripped, got %q", sanitized.Model)
+	}
+	if req.Model != "openai/test-model" {
+		t.Fatalf("expected original model to remain unchanged")
+	}
+}

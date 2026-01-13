@@ -22,11 +22,20 @@ func buildRouterRequestContext(req *types.ChatRequest, promptTokens int, isStrea
 }
 
 func sanitizeChatRequestForProvider(req *types.ChatRequest) *types.ChatRequest {
-	if req == nil || len(req.Tags) == 0 {
+	if req == nil {
+		return nil
+	}
+
+	_, modelName := types.SplitProviderModel(req.Model)
+	needsClone := len(req.Tags) > 0 || (modelName != "" && modelName != req.Model)
+	if !needsClone {
 		return req
 	}
 
 	cloned := *req
 	cloned.Tags = nil
+	if modelName != "" && modelName != cloned.Model {
+		cloned.Model = modelName
+	}
 	return &cloned
 }

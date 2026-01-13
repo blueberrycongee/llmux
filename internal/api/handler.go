@@ -106,7 +106,11 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Route to deployment
-	promptTokens := tokenizer.EstimatePromptTokens(req.Model, req)
+	_, canonicalModel := types.SplitProviderModel(req.Model)
+	if canonicalModel == "" {
+		canonicalModel = req.Model
+	}
+	promptTokens := tokenizer.EstimatePromptTokens(canonicalModel, req)
 	routeCtx := buildRouterRequestContext(req, promptTokens, req.Stream)
 	deployment, err := h.llmRouter.PickWithContext(r.Context(), routeCtx)
 	if err != nil {
@@ -177,6 +181,7 @@ func (h *Handler) ChatCompletions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer pool.PutChatResponse(chatResp)
+	chatResp.Model = req.Model
 
 	// Record success metrics
 	h.llmRouter.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
@@ -240,12 +245,21 @@ func buildRouterRequestContext(req *types.ChatRequest, promptTokens int, isStrea
 }
 
 func sanitizeChatRequestForProvider(req *types.ChatRequest) *types.ChatRequest {
-	if req == nil || len(req.Tags) == 0 {
+	if req == nil {
+		return nil
+	}
+
+	_, modelName := types.SplitProviderModel(req.Model)
+	needsClone := len(req.Tags) > 0 || (modelName != "" && modelName != req.Model)
+	if !needsClone {
 		return req
 	}
 
 	cloned := *req
 	cloned.Tags = nil
+	if modelName != "" && modelName != cloned.Model {
+		cloned.Model = modelName
+	}
 	return &cloned
 }
 
@@ -337,6 +351,8 @@ func (h *Handler) Embeddings(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	originalModel := req.Model
+
 	// Route to deployment
 	deployment, err := h.llmRouter.PickWithContext(r.Context(), &router.RequestContext{Model: req.Model})
 	if err != nil {
@@ -366,9 +382,14 @@ func (h *Handler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	reqCtx, reqCancel := context.WithTimeout(r.Context(), timeout)
 	defer reqCancel()
 
-	upstreamReq, err := prov.BuildEmbeddingRequest(reqCtx, &req)
+	_, canonicalModel := types.SplitProviderModel(req.Model)
+	reqForProvider := req
+	if canonicalModel != "" && canonicalModel != reqForProvider.Model {
+		reqForProvider.Model = canonicalModel
+	}
+	upstreamReq, err := prov.BuildEmbeddingRequest(reqCtx, &reqForProvider)
 	if err != nil {
-		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to build request: "+err.Error()))
+		h.writeError(w, llmerrors.NewInternalError(prov.Name(), originalModel, "failed to build request: "+err.Error()))
 		return
 	}
 
@@ -398,15 +419,16 @@ func (h *Handler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	embResp, err := prov.ParseEmbeddingResponse(resp)
 	if err != nil {
 		h.llmRouter.ReportFailure(deployment, err)
-		h.writeError(w, llmerrors.NewInternalError(prov.Name(), req.Model, "failed to parse response"))
+		h.writeError(w, llmerrors.NewInternalError(prov.Name(), originalModel, "failed to parse response"))
 		return
 	}
+	embResp.Model = originalModel
 
 	// Record success metrics
 	h.llmRouter.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
-	metrics.RecordRequest(prov.Name(), req.Model, http.StatusOK, latency)
+	metrics.RecordRequest(prov.Name(), originalModel, http.StatusOK, latency)
 	if embResp.Usage.TotalTokens > 0 {
-		metrics.RecordTokens(prov.Name(), req.Model, embResp.Usage.PromptTokens, 0)
+		metrics.RecordTokens(prov.Name(), originalModel, embResp.Usage.PromptTokens, 0)
 	}
 
 	// Write response
