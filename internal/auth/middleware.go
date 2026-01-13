@@ -107,12 +107,27 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		if key.Blocked {
+			m.writeUnauthorized(w, "api key is blocked")
+			return
+		}
+
 		// Load team if associated
 		var team *Team
 		if key.TeamID != nil {
 			team, err = m.store.GetTeam(r.Context(), *key.TeamID)
 			if err != nil {
 				m.logger.Error("failed to lookup team", "error", err, "team_id", *key.TeamID)
+				m.writeError(w, http.StatusInternalServerError, "internal error")
+				return
+			}
+			if team == nil {
+				m.writeUnauthorized(w, "invalid team")
+				return
+			}
+			if team.IsBlocked() {
+				m.writeUnauthorized(w, "team is blocked")
+				return
 			}
 		}
 
