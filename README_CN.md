@@ -10,9 +10,7 @@
 LLMux 是一个使用 Go 编写的高性能 LLM 网关。支持单体与分布式两种模式，
 分布式治理需要 Postgres + Redis。可选 Next.js 控制台提供管理与分析能力。
 
-<p align="center">
-  <img src="docs/architecture.png" alt="LLMux 架构" width="700">
-</p>
+
 
 ## 概览
 

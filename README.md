@@ -11,9 +11,7 @@ LLMux is a high-performance LLM gateway written in Go. It supports standalone
 deployments and distributed, enterprise-grade governance with optional Postgres
 and Redis. A Next.js dashboard provides management and analytics when enabled.
 
-<p align="center">
-  <img src="docs/architecture.png" alt="LLMux Architecture" width="700">
-</p>
+
 
 ## Overview
 
