@@ -114,6 +114,7 @@ type anthropicRequest struct {
 	Metadata      *metadata          `json:"metadata,omitempty"`
 	Tools         []anthropicTool    `json:"tools,omitempty"`
 	ToolChoice    *toolChoice        `json:"tool_choice,omitempty"`
+	Thinking      *thinkingConfig    `json:"thinking,omitempty"`
 }
 
 type anthropicMessage struct {
@@ -133,6 +134,11 @@ type contentBlock struct {
 
 type metadata struct {
 	UserID string `json:"user_id,omitempty"`
+}
+
+type thinkingConfig struct {
+	Type         string `json:"type"`
+	BudgetTokens int    `json:"budget_tokens,omitempty"`
 }
 
 type anthropicTool struct {
@@ -245,6 +251,15 @@ func (p *Provider) transformRequest(req *types.ChatRequest) (*anthropicRequest, 
 		tc, err := p.transformToolChoice(req.ToolChoice)
 		if err == nil && tc != nil {
 			anthropicReq.ToolChoice = tc
+		}
+	}
+
+	if req.Extra != nil {
+		if raw, ok := req.Extra["thinking"]; ok && len(raw) > 0 {
+			var thinking thinkingConfig
+			if err := json.Unmarshal(raw, &thinking); err == nil && thinking.Type != "" {
+				anthropicReq.Thinking = &thinking
+			}
 		}
 	}
 
