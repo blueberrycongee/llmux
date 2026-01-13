@@ -194,6 +194,11 @@ func run() error {
 	// Create AuditLogger
 	auditLogger := auth.NewAuditLogger(auditStore, true)
 
+	runner := startJobRunner(cfg, authStore, logger, nil)
+	if runner != nil {
+		defer runner.Stop()
+	}
+
 	governanceEngine := buildGovernanceEngine(cfg, authStore, auditLogger, logger)
 	if governanceEngine != nil {
 		cfgManager.OnChange(func(nextCfg *config.Config) {
