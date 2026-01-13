@@ -67,6 +67,13 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		// If another auth mechanism already authenticated this request (e.g. OIDC),
+		// do not force API key authentication.
+		if GetAuthContext(r.Context()) != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Extract API key from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		apiKey, err := ParseAuthHeader(authHeader)

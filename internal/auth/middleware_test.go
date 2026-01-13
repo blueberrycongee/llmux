@@ -105,6 +105,42 @@ func TestMiddleware_Authenticate(t *testing.T) {
 	}
 }
 
+func TestMiddleware_Authenticate_SkipsWhenAuthContextAlreadyPresent(t *testing.T) {
+	store := NewMemoryStore()
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	middleware := NewMiddleware(&MiddlewareConfig{
+		Store:     store,
+		Logger:    logger,
+		SkipPaths: nil,
+		Enabled:   true,
+	})
+
+	called := false
+	next := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	authCtx := &AuthContext{
+		User:     &User{ID: "u1", Role: string(UserRoleProxyAdmin)},
+		UserRole: UserRoleProxyAdmin,
+	}
+
+	req := httptest.NewRequest(http.MethodGet, "/key/list", nil)
+	req = req.WithContext(context.WithValue(req.Context(), AuthContextKey, authCtx))
+
+	rr := httptest.NewRecorder()
+	middleware.Authenticate(next).ServeHTTP(rr, req)
+
+	if rr.Code != http.StatusOK {
+		t.Fatalf("expected status %d, got %d", http.StatusOK, rr.Code)
+	}
+	if !called {
+		t.Fatalf("expected next handler to be called")
+	}
+}
+
 func TestMiddleware_LastUsedUpdateWindow(t *testing.T) {
 	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{Level: slog.LevelError}))
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
