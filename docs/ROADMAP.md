@@ -1,7 +1,7 @@
 # LLMux Governance Gateway Roadmap
 
 Document created: 2026-01-12T20:18:08Z
-Last updated: 2026-01-12T23:24:36Z
+Last updated: 2026-01-13T02:22:23Z
 
 ## Goals
 - Deliver an enterprise-grade governance gateway that supports both microservice and monolith modes.
@@ -70,8 +70,8 @@ Deliverables:
 ## Priority Refactor Items
 
 ### P0 - State Interfaces
-Status: not started
-Completed at (UTC):
+Status: done
+Completed at (UTC): 2026-01-13T02:22:23Z
 
 - Move RR, rate limiting, budgets, stats, and sessions to external storage adapters.
 - Provide local fallback for monolith mode.

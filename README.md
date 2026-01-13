@@ -5,75 +5,57 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-English | [简体中文](README_CN.md)
+English | [Simplified Chinese](README_CN.md)
 
-**LLMux** is a high-performance LLM Gateway written in Go, featuring an enterprise-grade Web Dashboard built with Next.js. Route requests across multiple LLM providers with intelligent load balancing, unified API, and comprehensive management capabilities.
+LLMux is a high-performance LLM gateway written in Go. It supports standalone
+deployments and distributed, enterprise-grade governance with optional Postgres
+and Redis. A Next.js dashboard provides management and analytics when enabled.
 
 <p align="center">
   <img src="docs/architecture.png" alt="LLMux Architecture" width="700">
 </p>
 
-## 🚀 Performance: LLMux vs LiteLLM
+## Overview
 
-We conducted a fair, head-to-head benchmark comparing LLMux (Go) against LiteLLM (Python).
-Both gateways were tested on identical hardware (limited to 4 CPU cores) against a local Mock Server with fixed 50ms latency.
+- Unified OpenAI-compatible APIs: chat, responses, embeddings, models
+- Multi-provider routing with six strategies (shuffle, round-robin, lowest-latency,
+  least-busy, lowest-tpm-rpm, lowest-cost)
+- Governance: multi-tenant auth, budgets, rate limits, audit logging
+- Ops-friendly: Prometheus metrics, OpenTelemetry tracing, health checks
+- Optional Next.js dashboard for management and analytics
 
-| Metric               | 🚀 LLMux (Go) | 🐢 LiteLLM (Python) | Difference             |
-| :------------------- | :----------- | :----------------- | :--------------------- |
-| **Throughput (RPS)** | **1943.35**  | **246.52**         | **~8x Faster**         |
-| **Mean Latency**     | **51.29 ms** | **403.94 ms**      | **~8x Lower Overhead** |
-| **P99 Latency**      | **91.71 ms** | **845.37 ms**      | **Stable vs Jittery**  |
+## Performance: LLMux vs LiteLLM
 
-*Benchmark Config: 10k requests, 100 concurrency, 4 CPU cores, 50ms backend latency.*
+We benchmarked LLMux (Go) against LiteLLM (Python) on identical hardware (4 CPU
+cores) using a local mock server with fixed 50ms latency.
 
-## ✨ Features
+| Metric               | LLMux (Go)  | LiteLLM (Python) | Difference             |
+| :------------------- | :---------- | :--------------- | :--------------------- |
+| **Throughput (RPS)** | **1943.35** | **246.52**       | **~8x Faster**         |
+| **Mean Latency**     | **51.29 ms**| **403.94 ms**    | **~8x Lower Overhead** |
+| **P99 Latency**      | **91.71 ms**| **845.37 ms**    | **Stable vs Jittery**  |
 
-### Core Gateway
-- **Unified OpenAI-Compatible API** - Single endpoint for all providers
-- **Multi-Provider Support** - OpenAI, Anthropic Claude, Google Gemini, Azure OpenAI, and any OpenAI-compatible API
-- **6 Routing Strategies** - simple-shuffle, lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
-- **Streaming Support** - Real-time SSE streaming with proper forwarding
-- **Response Caching** - In-memory, Redis, or dual-layer caching
-- **Observability** - Prometheus metrics + OpenTelemetry tracing
+Benchmark config: 10k requests, 100 concurrency, 4 CPU cores, 50ms backend latency.
 
-### Enterprise Features
-- **Multi-Tenant Authentication** - API keys, teams, users, organizations with hierarchical permissions
-- **Budget Management** - Per-key, per-user, per-team budget limits with automatic reset
-- **Rate Limiting** - TPM/RPM limits with model-level granularity
-- **SSO/OIDC Integration** - Enterprise single sign-on with JWT team synchronization
-- **Invitation System** - Self-service team/organization joining via invitation links
-- **Audit Logging** - Complete audit trail for compliance
-
-### Web Dashboard (New!)
-- **Modern UI** - Built with Next.js 14, shadcn/ui, and Tremor charts
-- **Real-time Analytics** - Request volume, token usage, cost tracking, model distribution
-- **Resource Management** - Full CRUD for API keys, users, teams, and organizations
-- **Responsive Design** - Works on desktop, tablet, and mobile
-
-## 🏁 Quick Start
+## Quick Start
 
 ### Prerequisites
 
 - Go 1.23+
-- Node.js 18+ (for dashboard)
-- (Optional) PostgreSQL for auth/usage tracking
-- (Optional) Redis for distributed caching
+- Node.js 18+ (dashboard)
+- Optional: PostgreSQL for auth/usage tracking
+- Optional: Redis for distributed routing + rate limiting
 
-### Build & Run
+### Build and Run
 
 ```bash
-# Clone
 git clone https://github.com/blueberrycongee/llmux.git
 cd llmux
 
-# Configure
 cp .env.example .env
 # Edit .env with your API keys
 
-# Build Gateway
 make build
-
-# Run Gateway
 ./bin/llmux --config config/config.yaml
 ```
 
@@ -81,25 +63,18 @@ make build
 
 ```bash
 cd ui
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
-
-# Open http://localhost:3000
 ```
 
 ### Docker
 
 ```bash
-# Build & run gateway
 docker build -t llmux .
 docker run -p 8080:8080 -v $(pwd)/config:/config llmux
 ```
 
-## ⚙️ Configuration
+## Configuration
 
 ### Environment Variables
 
@@ -124,12 +99,12 @@ REDIS_PASSWORD=xxx
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
-### config.yaml
+### config.yaml (minimal)
 
 ```yaml
 server:
   port: 8080
-  admin_port: 0 # optional: set to expose management/UI on a separate port
+  admin_port: 0
   read_timeout: 30s
   write_timeout: 120s
 
@@ -145,73 +120,36 @@ providers:
       - gpt-4o
       - gpt-4o-mini
 
-  - name: anthropic
-    type: anthropic
-    api_key: ${ANTHROPIC_API_KEY}
-    models:
-      - claude-3-5-sonnet-20241022
-
 routing:
-  strategy: simple-shuffle  # or: lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
+  strategy: simple-shuffle
   fallback_enabled: true
   retry_count: 3
-  distributed: false
-
-healthcheck:
-  enabled: false
-  interval: 30s
-  timeout: 10s
-
-cache:
-  enabled: true
-  type: local  # local, redis, dual
-  ttl: 1h
-
-rate_limit:
-  enabled: false
   distributed: false
 
 metrics:
   enabled: true
   path: /metrics
-
-tracing:
-  enabled: false
-  endpoint: localhost:4317
 ```
 
-### Deployment Modes & Consistency
+### Deployment Modes
 
-- `standalone` (default): in-memory state, intended for single-instance runs.
-- `distributed`: requires PostgreSQL for auth/usage state and Redis for routing stats + rate limiting; startup fails if missing.
-- `development`: explicit override that allows in-memory state for multi-instance testing (not consistent).
+- `standalone`: in-memory state, intended for single-instance runs.
+- `distributed`: requires PostgreSQL for auth/usage state and Redis for routing
+  stats and rate limiting.
+- `development`: allows in-memory state for multi-instance testing (not consistent).
 
-## Production Readiness Snapshot (Audit)
+## Routing Strategies
 
-This section summarizes the current architecture posture for distributed, production deployments.
+| Strategy         | Description                                                                 |
+| ---------------- | --------------------------------------------------------------------------- |
+| `simple-shuffle` | Random selection with optional weight/rpm/tpm weighting                     |
+| `round-robin`    | Cycles through deployments, Redis-backed when distributed                   |
+| `lowest-latency` | Selects deployment with lowest average latency (streaming-aware)            |
+| `least-busy`     | Selects deployment with fewest active requests                              |
+| `lowest-tpm-rpm` | Selects deployment with lowest TPM/RPM usage                                |
+| `lowest-cost`    | Selects deployment with lowest cost per token                               |
 
-- Control/data plane: single binary; admin APIs share the process with optional separate `server.admin_port` (architectural choice).
-- Statelessness: horizontal scale requires `deployment.mode=distributed` with Postgres + Redis; default in-memory stores are single-node only.
-- Distributed routing: Redis-backed stats enable least-busy/latency/TPM/RPM across instances; round-robin counters remain local per node (best-effort, not strict global RR).
-- Routing config parity: Redis stats store supports option overrides, but `main.go` does not pass routing-derived options yet, so distributed stats use defaults.
-- Feature scope vs LiteLLM: LLMux supports `/v1/chat/completions`, `/v1/completions`, `/v1/embeddings`, `/v1/models`, plus `/v1/responses` (mapped to chat completions). `/v1/audio/*` and `/v1/batches` return explicit `invalid_request_error` until provider support is implemented.
-- TPM/RPM estimation: uses tiktoken estimates; falls back to a fixed 100 tokens only when estimation is unavailable.
-
-### OpenAI-Compatible Providers
-
-LLMux works with any OpenAI-compatible API (SiliconFlow, Together AI, Groq, etc.):
-
-```yaml
-providers:
-  - name: siliconflow
-    type: openai
-    api_key: ${SILICONFLOW_API_KEY}
-    base_url: https://api.siliconflow.cn/v1
-    models:
-      - deepseek-ai/DeepSeek-V3
-```
-
-## 📡 API Reference
+## API Reference
 
 ### Chat Completions
 
@@ -251,173 +189,81 @@ curl http://localhost:8080/health/live
 curl http://localhost:8080/health/ready
 ```
 
-## 🔧 Management API
+## Management API
 
-When database is enabled, full management endpoints are available:
+Management endpoints are enabled when the database is configured.
 
-### Key Management
-| Endpoint        | Method | Description               |
-| --------------- | ------ | ------------------------- |
-| `/key/generate` | POST   | Generate API key          |
-| `/key/update`   | POST   | Update API key            |
-| `/key/delete`   | POST   | Delete API keys           |
-| `/key/info`     | GET    | Get key info              |
-| `/key/list`     | GET    | List keys with pagination |
-| `/key/block`    | POST   | Block an API key          |
-| `/key/unblock`  | POST   | Unblock an API key        |
+Key categories:
+- Keys: `/key/*`
+- Users: `/user/*`
+- Teams: `/team/*`
+- Organizations: `/organization/*`
+- Spend/usage: `/spend/*`, `/global/*`
+- Audit: `/audit/*`
+- Control: `/control/*`
 
-### User Management
-| Endpoint       | Method | Description                  |
-| -------------- | ------ | ---------------------------- |
-| `/user/new`    | POST   | Create user                  |
-| `/user/update` | POST   | Update user                  |
-| `/user/delete` | POST   | Delete users                 |
-| `/user/info`   | GET    | Get user info                |
-| `/user/list`   | GET    | List users (supports search) |
+## Operations and Observability
 
-### Team & Organization
-| Endpoint                | Method | Description               |
-| ----------------------- | ------ | ------------------------- |
-| `/team/new`             | POST   | Create team               |
-| `/team/update`          | POST   | Update team               |
-| `/team/member_add`      | POST   | Add member to team        |
-| `/organization/new`     | POST   | Create organization       |
-| `/organization/members` | GET    | List organization members |
+- Metrics: Prometheus at `metrics.path` (default `/metrics`)
+- Tracing: OpenTelemetry exporter configuration via `tracing.*` settings
+- Logs: structured JSON logs from the gateway and management APIs
+- Auditing: append-only audit logs when the audit store is configured
 
-### Analytics
-| Endpoint               | Method | Description             |
-| ---------------------- | ------ | ----------------------- |
-| `/spend/logs`          | GET    | Get spend logs          |
-| `/spend/keys`          | GET    | Spend by API keys       |
-| `/spend/teams`         | GET    | Spend by teams          |
-| `/global/activity`     | GET    | Global activity metrics |
-| `/global/spend/models` | GET    | Spend by models         |
-| `/audit/logs`          | GET    | Audit logs              |
+## Production Notes
 
-## 🛤️ Routing Strategies
+- Standalone mode is single-node and uses in-memory state only.
+- Distributed mode requires Postgres for auth/usage and Redis for routing stats
+  and rate limiting; missing dependencies degrade related features.
+- `/v1/audio/*` and `/v1/batches` currently return `invalid_request_error` until
+  provider support is implemented.
 
-| Strategy         | Description                                                                 |
-| ---------------- | --------------------------------------------------------------------------- |
-| `simple-shuffle` | Random selection with optional weight/rpm/tpm weighting                     |
-| `lowest-latency` | Select deployment with lowest average latency (supports TTFT for streaming) |
-| `least-busy`     | Select deployment with fewest active requests                               |
-| `lowest-tpm-rpm` | Select deployment with lowest TPM/RPM usage                                 |
-| `lowest-cost`    | Select deployment with lowest cost per token                                |
-| `tag-based`      | Filter deployments by request tags                                          |
-
-## 🚢 Deployment
-
-### Kubernetes
-
-```bash
-kubectl apply -f deploy/k8s/
-```
-
-### Helm
-
-```bash
-helm install llmux deploy/helm/llmux
-```
-
-## 🛠️ Development
-
-### Gateway (Go)
-
-```bash
-# Run tests
-make test
-
-# Run with coverage
-make coverage
-
-# Lint
-make lint
-
-# Format
-make fmt
-
-# All checks
-make check
-```
-
-### Dashboard (Next.js)
-
-```bash
-cd ui
-
-# Run tests
-npm run test
-
-# Run E2E tests
-npm run test:e2e
-
-# Lint
-npm run lint
-```
-
-## 📚 Documentation
-
-- **[Architecture Overview](.agent/docs/architecture/overview.md)**
-- **[Plugin System](.agent/docs/architecture/plugin_system.md)**
-- **[Developer Guide](.agent/docs/development/codebase_overview.md)**
-- **[CI/CD Guide](.agent/docs/development/ci_guide.md)**
-- **[Testing Guide](.agent/docs/development/testing.md)**
-
-## 📁 Project Structure
+## Project Structure
 
 ```
 llmux/
-├── cmd/server/           # Gateway entry point
-├── config/               # Configuration files
-├── internal/
-│   ├── api/              # HTTP handlers & management endpoints
-│   ├── auth/             # Authentication, authorization & stores
-│   ├── cache/            # Response caching (local/redis/dual)
-│   ├── config/           # Configuration loading
-│   ├── metrics/          # Prometheus & OpenTelemetry
-│   └── router/           # Request routing strategies
-├── providers/            # LLM provider adapters
-│   ├── openai/
-│   ├── anthropic/
-│   ├── azure/
-│   └── gemini/
-├── pkg/
-│   ├── types/            # Shared types
-│   └── errors/           # Error definitions
-├── ui/                   # Next.js Dashboard
-│   ├── src/
-│   │   ├── app/          # App Router pages
-│   │   ├── components/   # React components
-│   │   ├── hooks/        # Custom React hooks
-│   │   ├── lib/          # API client & utilities
-│   │   └── types/        # TypeScript types
-│   └── e2e/              # Playwright E2E tests
-├── deploy/               # Deployment configs
-│   ├── k8s/
-│   └── helm/
-├── bench/                # Benchmark tools
-└── tests/                # Integration tests
+|-- cmd/server/           # Gateway entry point
+|-- config/               # Configuration files
+|-- internal/
+|   |-- api/              # HTTP handlers & management endpoints
+|   |-- auth/             # Authentication, authorization & stores
+|   |-- cache/            # Response caching (local/redis/dual)
+|   |-- config/           # Configuration loading
+|   |-- metrics/          # Prometheus & OpenTelemetry
+|   `-- router/           # Request routing strategies
+|-- providers/            # LLM provider adapters
+|-- pkg/
+|   |-- types/            # Shared types
+|   `-- errors/           # Error definitions
+|-- ui/                   # Next.js Dashboard
+|-- deploy/               # Deployment configs
+|-- bench/                # Benchmark tools
+`-- tests/                # Integration tests
 ```
 
-## 🤝 Contributing
+## Developer Info
 
-We welcome contributions! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for guidelines.
+### Documentation
 
-### Development Setup
+- [Architecture Overview](.agent/docs/architecture/overview.md)
+- [Plugin System](.agent/docs/architecture/plugin_system.md)
+- [Developer Guide](.agent/docs/development/codebase_overview.md)
+- [CI/CD Guide](.agent/docs/development/ci_guide.md)
+- [Testing Guide](.agent/docs/development/testing.md)
 
-1. Fork the repository
-2. Clone your fork
-3. Create a feature branch
-4. Make your changes
-5. Run tests (`make check` for Go, `npm run test:all` for UI)
-6. Submit a pull request
+### Development Commands
 
-## 📄 License
+```bash
+make test
+make coverage
+make lint
+make fmt
+make check
+```
+
+### Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+
+### License
 
 MIT License - see [LICENSE](LICENSE)
-
-## 🙏 Acknowledgments
-
-- Inspired by [LiteLLM](https://github.com/BerriAI/litellm) for the proxy pattern
-- UI components from [shadcn/ui](https://ui.shadcn.com/)
-- Charts powered by [Tremor](https://tremor.so/)
