@@ -2,11 +2,13 @@ package llmux
 
 import (
 	"context"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"log/slog"
 	"math/rand"
 	"net/http"
+	"sort"
 	"sync"
 	"time"
 
@@ -1410,7 +1412,7 @@ func (c *Client) getFromCache(ctx context.Context, req *ChatRequest) (*ChatRespo
 		return nil, nil
 	}
 
-	key, err := c.generateCacheKey(req)
+	key, err := c.generateCacheKey(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -1437,7 +1439,7 @@ func (c *Client) storeInCache(ctx context.Context, req *ChatRequest, resp *ChatR
 		return
 	}
 
-	key, err := c.generateCacheKey(req)
+	key, err := c.generateCacheKey(ctx, req)
 	if err != nil {
 		return
 	}
@@ -1452,24 +1454,67 @@ func (c *Client) storeInCache(ctx context.Context, req *ChatRequest, resp *ChatR
 	}
 }
 
-func (c *Client) generateCacheKey(req *ChatRequest) (string, error) {
-	// Simple cache key generation based on model and messages
-	messages, err := json.Marshal(req.Messages)
-	if err != nil {
-		return "", err
+type cacheKeyExtraKV struct {
+	Key   string          `json:"key"`
+	Value json.RawMessage `json:"value"`
+}
+
+func (c *Client) generateCacheKey(ctx context.Context, req *ChatRequest) (string, error) {
+	if req == nil {
+		return "", fmt.Errorf("request is nil")
 	}
 
-	// Include relevant parameters in key
+	tenantID := ""
+	if authCtx := auth.GetAuthContext(ctx); authCtx != nil && authCtx.APIKey != nil {
+		tenantID = authCtx.APIKey.ID
+	}
+
+	extra := make([]cacheKeyExtraKV, 0, len(req.Extra))
+	for k, v := range req.Extra {
+		extra = append(extra, cacheKeyExtraKV{Key: k, Value: v})
+	}
+	sort.Slice(extra, func(i, j int) bool {
+		return extra[i].Key < extra[j].Key
+	})
+
 	keyData := struct {
-		Model       string          `json:"model"`
-		Messages    json.RawMessage `json:"messages"`
-		Temperature *float64        `json:"temperature,omitempty"`
-		MaxTokens   int             `json:"max_tokens,omitempty"`
+		Version          int               `json:"v"`
+		TenantID         string            `json:"tenant_id,omitempty"`
+		Model            string            `json:"model"`
+		Messages         []ChatMessage     `json:"messages"`
+		Temperature      *float64          `json:"temperature,omitempty"`
+		TopP             *float64          `json:"top_p,omitempty"`
+		MaxTokens        int               `json:"max_tokens,omitempty"`
+		N                int               `json:"n,omitempty"`
+		Stop             []string          `json:"stop,omitempty"`
+		PresencePenalty  *float64          `json:"presence_penalty,omitempty"`
+		FrequencyPenalty *float64          `json:"frequency_penalty,omitempty"`
+		User             string            `json:"user,omitempty"`
+		Tools            []Tool            `json:"tools,omitempty"`
+		ToolChoice       json.RawMessage   `json:"tool_choice,omitempty"`
+		ResponseFormat   *ResponseFormat   `json:"response_format,omitempty"`
+		StreamOptions    *StreamOptions    `json:"stream_options,omitempty"`
+		Tags             []string          `json:"tags,omitempty"`
+		Extra            []cacheKeyExtraKV `json:"extra,omitempty"`
 	}{
-		Model:       req.Model,
-		Messages:    messages,
-		Temperature: req.Temperature,
-		MaxTokens:   req.MaxTokens,
+		Version:          1,
+		TenantID:         tenantID,
+		Model:            req.Model,
+		Messages:         req.Messages,
+		Temperature:      req.Temperature,
+		TopP:             req.TopP,
+		MaxTokens:        req.MaxTokens,
+		N:                req.N,
+		Stop:             req.Stop,
+		PresencePenalty:  req.PresencePenalty,
+		FrequencyPenalty: req.FrequencyPenalty,
+		User:             req.User,
+		Tools:            req.Tools,
+		ToolChoice:       req.ToolChoice,
+		ResponseFormat:   req.ResponseFormat,
+		StreamOptions:    req.StreamOptions,
+		Tags:             req.Tags,
+		Extra:            extra,
 	}
 
 	data, err := json.Marshal(keyData)
@@ -1477,16 +1522,6 @@ func (c *Client) generateCacheKey(req *ChatRequest) (string, error) {
 		return "", err
 	}
 
-	// Use simple hash for key
-	return fmt.Sprintf("llmux:%x", hashBytes(data)), nil
-}
-
-// hashBytes returns a simple hash of the input bytes.
-func hashBytes(data []byte) uint64 {
-	var h uint64 = 14695981039346656037 // FNV offset basis
-	for _, b := range data {
-		h ^= uint64(b)
-		h *= 1099511628211 // FNV prime
-	}
-	return h
+	sum := sha256.Sum256(data)
+	return fmt.Sprintf("chat:%x", sum[:]), nil
 }
