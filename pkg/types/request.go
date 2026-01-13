@@ -237,6 +237,7 @@ func (r *ChatRequest) Reset() {
 	r.Tools = r.Tools[:0]
 	r.ToolChoice = nil
 	r.ResponseFormat = nil
+	r.StreamOptions = nil
 	r.Tags = nil
 	// Clear map but keep it if possible, or just nil it.
 	// For simplicity and safety, nil it.

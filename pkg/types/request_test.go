@@ -81,3 +81,17 @@ func TestChatRequestUnmarshal_DoesNotOverrideMaxTokens(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, 5, req.MaxTokens)
 }
+
+func TestChatRequestReset_ClearsStreamOptions(t *testing.T) {
+	req := &ChatRequest{
+		Model: "gpt-4",
+		Messages: []ChatMessage{
+			{Role: "user", Content: json.RawMessage(`"hi"`)},
+		},
+		StreamOptions: &StreamOptions{IncludeUsage: true},
+	}
+
+	req.Reset()
+
+	assert.Nil(t, req.StreamOptions)
+}
