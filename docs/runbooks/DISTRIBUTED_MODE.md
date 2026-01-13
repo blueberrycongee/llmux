@@ -41,6 +41,7 @@ Minimum templates:
 
 ## Startup
 ```
+cp config/config.example.yaml config/config.yaml
 LLMUX_CONFIG=config/config.yaml ./llmux
 ```
 

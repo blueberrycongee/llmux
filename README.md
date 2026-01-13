@@ -54,6 +54,7 @@ cp .env.example .env
 # Edit .env with your API keys
 
 make build
+cp config/config.example.yaml config/config.yaml
 ./bin/llmux --config config/config.yaml
 ```
 

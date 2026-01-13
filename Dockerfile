@@ -26,7 +26,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 COPY --from=builder /llmux /llmux
 
 # Copy default config
-COPY --from=builder /app/config/config.yaml /config/config.yaml
+COPY --from=builder /app/config/config.example.yaml /config/config.yaml
 
 # Use non-root user
 USER nonroot:nonroot

@@ -28,7 +28,7 @@ build:
 
 # Run the server
 run: build
-	./$(BUILD_DIR)/$(BINARY_NAME) --config config/config.yaml
+	./$(BUILD_DIR)/$(BINARY_NAME) --config config/config.example.yaml
 
 # Run tests
 test:

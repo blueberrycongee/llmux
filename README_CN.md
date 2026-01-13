@@ -52,6 +52,7 @@ cp .env.example .env
 # 编辑 .env 填入 API 密钥
 
 make build
+cp config/config.example.yaml config/config.yaml
 ./bin/llmux --config config/config.yaml
 ```
 

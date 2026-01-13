@@ -41,7 +41,7 @@ func main() {
 }
 
 func run() error {
-	configPath := flag.String("config", "config/config.yaml", "path to configuration file")
+	configPath := flag.String("config", "config/config.example.yaml", "path to configuration file")
 	flag.Parse()
 
 	// Initialize structured logger

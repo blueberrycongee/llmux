@@ -31,6 +31,8 @@ Thumbs.db
 # Config with secrets
 config/config.local.yaml
 *.local.yaml
+config/config.yaml
+config/config.dev.yaml
 
 # Environment files
 .env
@@ -44,6 +46,8 @@ dist/
 # Benchmark results and local configs
 bench/results/*.json
 bench/llmux_bench_config.yaml
+full_diff.txt
+deploy/k8s/secret.yaml
 
 # Local skills
 skills/

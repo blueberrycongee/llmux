@@ -22,6 +22,7 @@ docker run -d \
 kubectl apply -f k8s/namespace.yaml
 
 # Create secrets (edit with real keys first!)
+cp k8s/secret.example.yaml k8s/secret.yaml
 kubectl apply -f k8s/secret.yaml
 
 # Deploy
