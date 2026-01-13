@@ -1,0 +1,76 @@
+# LLMux test config (distributed mode via Postgres + Redis)
+
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 120s
+
+deployment:
+  mode: distributed
+
+providers:
+  - name: openai
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+    models:
+      - gpt-4o-mini
+      - gpt-4o
+    max_concurrent: 50
+    timeout: 60s
+
+routing:
+  default_provider: openai
+  strategy: lowest-latency
+  fallback_enabled: true
+  retry_count: 3
+  cooldown_period: 30s
+  distributed: true
+
+auth:
+  enabled: true
+  skip_paths:
+    - /health/ready
+    - /health/live
+    - /metrics
+  last_used_update_interval: 1m
+
+database:
+  enabled: true
+  host: ${DB_HOST:localhost}
+  port: 5432
+  user: ${DB_USER:llmux}
+  password: ${DB_PASSWORD}
+  database: ${DB_NAME:llmux}
+  ssl_mode: disable
+  max_open_conns: 25
+
+cache:
+  enabled: true
+  type: dual
+  namespace: llmux
+  ttl: 1h
+  memory:
+    max_size: 500
+    default_ttl: 5m
+  redis:
+    addr: ${REDIS_ADDR:localhost:6379}
+    pool_size: 10
+
+rate_limit:
+  enabled: true
+  requests_per_minute: 100
+  burst_size: 20
+  distributed: true
+  fail_open: true
+
+governance:
+  enabled: false
+
+logging:
+  level: info
+  format: json
+
+metrics:
+  enabled: true
+  path: /metrics

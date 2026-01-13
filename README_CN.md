@@ -7,31 +7,28 @@
 
 [English](README.md) | 简体中文
 
-LLMux 是一个使用 Go 编写的高性能 LLM 网关。支持单体与分布式两种模式，
-分布式治理需要 Postgres + Redis。可选 Next.js 控制台提供管理与分析能力。
-
-
+LLMux 是一个使用 Go 编写的高性能 LLM 网关。它支持单机部署与分布式企业治理（可选 Postgres + Redis）。
+当启用 UI 时，Next.js 控制台提供管理与分析能力。
 
 ## 概览
 
 - 统一 OpenAI 兼容 API：chat、responses、embeddings、models
-- 多提供商路由，六种策略（shuffle、round-robin、lowest-latency、
-  least-busy、lowest-tpm-rpm、lowest-cost）
+- 多 Provider 路由（shuffle、round-robin、lowest-latency、least-busy、lowest-tpm-rpm、lowest-cost）
 - 治理能力：多租户认证、预算、限流、审计
-- 运维友好：Prometheus 指标、OpenTelemetry 追踪、健康检查
-- 可选 Next.js 控制台用于管理与分析
+- 运维友好：Prometheus 指标、OpenTelemetry、健康检查
+- 可选 Next.js 控制台（管理 + 分析）
 
 ## 性能对比：LLMux vs LiteLLM
 
-在相同硬件（4 CPU 核）上，使用固定 50ms 延迟的本地 Mock Server 进行对比。
+在相同硬件（4 CPU 核）上，使用固定 50ms 后端延迟的本地 Mock Server 对比：
 
 | 指标               | LLMux (Go)  | LiteLLM (Python) | 差异                 |
 | :----------------- | :---------- | :--------------- | :------------------- |
-| **吞吐量 (RPS)**   | **1943.35** | **246.52**       | **约 8x 更快**       |
-| **平均延迟**       | **51.29 ms**| **403.94 ms**    | **约 8x 更低开销**   |
-| **P99 延迟**       | **91.71 ms**| **845.37 ms**    | **更稳定、抖动更小** |
+| **吞吐（RPS）**     | **1943.35** | **246.52**       | **约 8x 更快**       |
+| **平均延迟**        | **51.29 ms**| **403.94 ms**    | **约 8x 更低开销**   |
+| **P99 延迟**        | **91.71 ms**| **845.37 ms**    | **更稳定**           |
 
-测试配置：10k 请求、100 并发、4 CPU 核、50ms 后端延迟。
+基准配置：10k 请求、100 并发、4 CPU 核、后端固定 50ms 延迟。
 
 ## 快速开始
 
@@ -39,8 +36,8 @@ LLMux 是一个使用 Go 编写的高性能 LLM 网关。支持单体与分布�
 
 - Go 1.23+
 - Node.js 18+（控制台）
-- 可选：PostgreSQL（认证/用量）
-- 可选：Redis（分布式路由与限流）
+- 可选：PostgreSQL（认证/用量/审计）
+- 可选：Redis（分布式路由统计/分布式限流）
 
 ### 构建与运行
 
@@ -82,21 +79,21 @@ ANTHROPIC_API_KEY=sk-ant-xxx
 GOOGLE_API_KEY=xxx
 AZURE_OPENAI_API_KEY=xxx
 
-# 数据库（可选，启用企业功能）
+# Database（可选，启用企业功能）
 DB_HOST=localhost
 DB_USER=llmux
 DB_PASSWORD=xxx
 DB_NAME=llmux
 
-# Redis（可选，分布式缓存/路由/限流）
+# Redis（可选，用于分布式缓存/路由/限流）
 REDIS_ADDR=localhost:6379
 REDIS_PASSWORD=xxx
 
-# 控制台
+# Dashboard
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
-### config.yaml（最小）
+### config.yaml（最小示例）
 
 ```yaml
 server:
@@ -130,20 +127,20 @@ metrics:
 
 ### 部署模式
 
-- `standalone`：单机内存态。
-- `distributed`：需要 Postgres + Redis。
-- `development`：多实例测试用（不保证一致性）。
+- `standalone`：单机内存状态，适用于单实例运行。
+- `distributed`：需要 Postgres（认证/用量）+ Redis（路由统计/限流等）。
+- `development`：允许多实例的内存状态测试（不保证一致性）。
 
 ## 路由策略
 
-| 策略             | 说明                                                                 |
-| ---------------- | -------------------------------------------------------------------- |
-| `simple-shuffle` | 随机选择，可结合权重/TPM/RPM                                          |
-| `round-robin`    | 轮询，分布式模式下可使用 Redis 计数                                  |
-| `lowest-latency` | 选择平均延迟最低的部署（支持流式 TTFT）                              |
-| `least-busy`     | 选择当前活跃请求最少的部署                                           |
-| `lowest-tpm-rpm` | 选择 TPM/RPM 最低的部署                                              |
-| `lowest-cost`    | 选择 token 成本最低的部署                                            |
+| 策略             | 说明 |
+| ---------------- | ---- |
+| `simple-shuffle` | 随机选择，可结合权重/TPM/RPM |
+| `round-robin`    | 轮询；分布式模式下可用 Redis 计数 |
+| `lowest-latency` | 选择平均延迟最低的部署（支持流式 TTFT） |
+| `least-busy`     | 选择当前活跃请求最少的部署 |
+| `lowest-tpm-rpm` | 选择 TPM/RPM 使用最低的部署 |
+| `lowest-cost`    | 选择 token 成本最低的部署 |
 
 ## API 参考
 
@@ -155,7 +152,7 @@ curl http://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer $API_KEY" \
   -d '{
     "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "你好"}],
+    "messages": [{"role": "user", "content": "Hello!"}],
     "stream": false
   }'
 ```
@@ -187,7 +184,7 @@ curl http://localhost:8080/health/ready
 
 ## 管理 API
 
-启用数据库后可使用完整的管理端点。
+当数据库配置启用后，会开放完整的管理端点。
 
 分类示例：
 - Keys：`/key/*`
@@ -198,48 +195,43 @@ curl http://localhost:8080/health/ready
 - Audit：`/audit/*`
 - Control：`/control/*`
 
-## 运维与观测
+## 运维与可观测性
 
-- 指标：Prometheus `metrics.path`（默认 `/metrics`）
+- 指标：Prometheus（默认 `GET /metrics`）
 - 追踪：OpenTelemetry（`tracing.*` 配置）
-- 日志：结构化 JSON 日志
-- 审计：审计存储启用时写入审计日志
+- 日志：结构化 JSON 或 text（`logging.*` 配置）
+- 审计：当审计存储启用后写入审计日志
 
 ## 生产注意事项
 
-- standalone 为单机内存态。
-- distributed 依赖 Postgres/Redis，缺失将影响相关功能。
-- `/v1/audio/*` 与 `/v1/batches` 暂返回 `invalid_request_error`。
+- standalone 为单机内存状态。
+- distributed 依赖 Postgres/Redis；缺失会影响对应能力（或按配置 fail-fast）。
+- `/v1/audio/*` 与 `/v1/batches` 目前会返回 `invalid_request_error`（待补齐 provider 支持）。
 
 ## 项目结构
 
 ```
 llmux/
 |-- cmd/server/           # 网关入口
-|-- config/               # 配置文件
+|-- config/               # 配置文件模板
 |-- internal/
-|   |-- api/              # HTTP 处理器 & 管理端点
+|   |-- api/              # HTTP handlers & 管理端点
 |   |-- auth/             # 认证、授权与存储
-|   |-- cache/            # 缓存
+|   |-- cache/            # 响应缓存（local/redis/dual）
 |   |-- config/           # 配置加载
 |   |-- metrics/          # Prometheus & OpenTelemetry
 |   `-- router/           # 路由策略
-|-- providers/            # Provider 适配
+|-- providers/            # Provider 适配器
 |-- pkg/
 |   |-- types/            # 共享类型
 |   `-- errors/           # 错误定义
 |-- ui/                   # Next.js 控制台
 |-- deploy/               # 部署配置
-|-- bench/                # 基准测试
+|-- bench/                # 基准测试工具
 `-- tests/                # 集成测试
 ```
 
-## 开发者信息
-
-### 文档
-
-
-### 开发命令
+## 开发命令
 
 ```bash
 make test
@@ -249,10 +241,11 @@ make fmt
 make check
 ```
 
-### 贡献
+## 贡献
 
 详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-### License
+## License
 
-MIT License - 见 [LICENSE](LICENSE)
+MIT License - 详见 [LICENSE](LICENSE)
+

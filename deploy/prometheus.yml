@@ -1,0 +1,7 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: 'llmux'
+    static_configs:
+      - targets: ['llmux:8080']

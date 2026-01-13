@@ -1,0 +1,51 @@
+# LLMux test config (single instance, minimal deps)
+
+server:
+  port: 8080
+  read_timeout: 30s
+  write_timeout: 120s
+
+deployment:
+  mode: standalone
+
+providers:
+  - name: openai
+    type: openai
+    api_key: ${OPENAI_API_KEY}
+    base_url: https://api.openai.com/v1
+    models:
+      - gpt-4o-mini
+    max_concurrent: 10
+    timeout: 60s
+
+routing:
+  default_provider: openai
+  strategy: simple-shuffle
+  fallback_enabled: true
+  retry_count: 2
+
+auth:
+  enabled: false
+
+database:
+  enabled: false
+
+cache:
+  enabled: true
+  type: local
+  memory:
+    max_size: 100
+
+rate_limit:
+  enabled: false
+
+governance:
+  enabled: false
+
+logging:
+  level: debug
+  format: text
+
+metrics:
+  enabled: true
+  path: /metrics

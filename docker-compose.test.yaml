@@ -1,0 +1,82 @@
+# LLMux 完整测试环境
+version: '3.8'
+
+services:
+  # PostgreSQL - 存储 API Keys、Teams、Usage Logs
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: llmux
+      POSTGRES_PASSWORD: llmux_test_pwd
+      POSTGRES_DB: llmux
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./:/workspace:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U llmux"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Redis - 分布式缓存、限流、路由统计
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # LLMux Gateway
+  llmux:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - DB_HOST=postgres
+      - DB_USER=llmux
+      - DB_PASSWORD=llmux_test_pwd
+      - DB_NAME=llmux
+      - REDIS_ADDR=redis:6379
+    volumes:
+      - ./config/config.distributed.yaml:/config/config.yaml:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  # Prometheus - 指标收集（可选）
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./deploy/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    profiles:
+      - monitoring
+
+  # Grafana - 可视化（可选）
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    profiles:
+      - monitoring
+
+volumes:
+  postgres_data:
+  redis_data:
