@@ -7,116 +7,89 @@
 
 [English](README.md) | 简体中文
 
-**LLMux** 是一个使用 Go 编写的高性能 LLM 网关，配备基于 Next.js 构建的企业级 Web 控制台。支持多提供商智能路由、统一 API 接口和全面的资源管理能力。
+LLMux 是一个使用 Go 编写的高性能 LLM 网关。支持单体与分布式两种模式，
+分布式治理需要 Postgres + Redis。可选 Next.js 控制台提供管理与分析能力。
 
 <p align="center">
   <img src="docs/architecture.png" alt="LLMux 架构" width="700">
 </p>
 
-## 🚀 性能对比: LLMux vs LiteLLM
+## 概览
 
-我们进行了一次公平的正面基准测试，对比了 LLMux (Go) 和 LiteLLM (Python)。
-两个网关都在相同的硬件（限制为 4 个 CPU 核心）上针对具有固定 50ms 延迟的本地 Mock Server 进行了测试。
+- 统一 OpenAI 兼容 API：chat、responses、embeddings、models
+- 多提供商路由，六种策略（shuffle、round-robin、lowest-latency、
+  least-busy、lowest-tpm-rpm、lowest-cost）
+- 治理能力：多租户认证、预算、限流、审计
+- 运维友好：Prometheus 指标、OpenTelemetry 追踪、健康检查
+- 可选 Next.js 控制台用于管理与分析
 
-| 指标             | 🚀 LLMux (Go) | 🐢 LiteLLM (Python) | 差异              |
-| :--------------- | :----------- | :----------------- | :---------------- |
-| **吞吐量 (RPS)** | **1943.35**  | **246.52**         | **~8 倍更快**     |
-| **平均延迟**     | **51.29 ms** | **403.94 ms**      | **~8 倍更低开销** |
-| **P99 延迟**     | **91.71 ms** | **845.37 ms**      | **稳定 vs 抖动**  |
+## 性能对比：LLMux vs LiteLLM
 
-*测试配置: 10k 请求, 100 并发, 4 CPU 核心, 50ms 后端延迟。*
+在相同硬件（4 CPU 核）上，使用固定 50ms 延迟的本地 Mock Server 进行对比。
 
-## ✨ 特性
+| 指标               | LLMux (Go)  | LiteLLM (Python) | 差异                 |
+| :----------------- | :---------- | :--------------- | :------------------- |
+| **吞吐量 (RPS)**   | **1943.35** | **246.52**       | **约 8x 更快**       |
+| **平均延迟**       | **51.29 ms**| **403.94 ms**    | **约 8x 更低开销**   |
+| **P99 延迟**       | **91.71 ms**| **845.37 ms**    | **更稳定、抖动更小** |
 
-### 核心网关
-- **统一 OpenAI 兼容 API** - 单一端点访问所有提供商
-- **多提供商支持** - OpenAI、Anthropic Claude、Google Gemini、Azure OpenAI 及任意 OpenAI 兼容 API
-- **6 种路由策略** - 随机轮询、最低延迟、最少请求、最低使用率、最低成本、标签路由
-- **流式响应** - 实时 SSE 流式传输，正确转发
-- **响应缓存** - 内存、Redis 或双层缓存
-- **可观测性** - Prometheus 指标 + OpenTelemetry 链路追踪
+测试配置：10k 请求、100 并发、4 CPU 核、50ms 后端延迟。
 
-### 企业级功能
-- **多租户认证** - API 密钥、团队、用户、组织的层级权限管理
-- **预算管理** - 按密钥、用户、团队的预算限制，支持自动重置
-- **速率限制** - TPM/RPM 限制，可细化到模型级别
-- **SSO/OIDC 集成** - 企业单点登录及 JWT 团队同步
-- **邀请系统** - 通过邀请链接自助加入团队/组织
-- **审计日志** - 完整的操作审计轨迹，满足合规要求
+## 快速开始
 
-### Web 控制台（新功能！）
-- **现代化 UI** - 基于 Next.js 14、shadcn/ui 和 Tremor 图表构建
-- **实时分析** - 请求量、Token 使用量、成本追踪、模型分布
-- **资源管理** - API 密钥、用户、团队、组织的完整增删改查
-- **响应式设计** - 适配桌面端、平板和移动端
-
-## 🏁 快速开始
-
-### 环境要求
+### 依赖
 
 - Go 1.23+
 - Node.js 18+（控制台）
-- (可选) PostgreSQL 用于认证/使用量追踪
-- (可选) Redis 用于分布式缓存
+- 可选：PostgreSQL（认证/用量）
+- 可选：Redis（分布式路由与限流）
 
 ### 构建与运行
 
 ```bash
-# 克隆
 git clone https://github.com/blueberrycongee/llmux.git
 cd llmux
 
-# 配置
 cp .env.example .env
-# 编辑 .env 填入你的 API 密钥
+# 编辑 .env 填入 API 密钥
 
-# 构建网关
 make build
-
-# 运行网关
 ./bin/llmux --config config/config.yaml
 ```
 
-### 运行控制台
+### 启动控制台
 
 ```bash
 cd ui
-
-# 安装依赖
 npm install
-
-# 启动开发服务器
 npm run dev
-
-# 打开 http://localhost:3000
 ```
 
 ### Docker
 
 ```bash
-# 构建并运行网关
 docker build -t llmux .
 docker run -p 8080:8080 -v $(pwd)/config:/config llmux
 ```
 
-## ⚙️ 配置
+## 配置
 
 ### 环境变量
 
 ```bash
-# 提供商 API 密钥
+# Provider API Keys
 OPENAI_API_KEY=sk-xxx
 ANTHROPIC_API_KEY=sk-ant-xxx
 GOOGLE_API_KEY=xxx
 AZURE_OPENAI_API_KEY=xxx
 
-# 数据库 (可选，启用企业功能)
+# 数据库（可选，启用企业功能）
 DB_HOST=localhost
 DB_USER=llmux
 DB_PASSWORD=xxx
 DB_NAME=llmux
 
-# Redis (可选，用于分布式缓存)
+# Redis（可选，分布式缓存/路由/限流）
 REDIS_ADDR=localhost:6379
 REDIS_PASSWORD=xxx
 
@@ -124,12 +97,12 @@ REDIS_PASSWORD=xxx
 NEXT_PUBLIC_API_URL=http://localhost:8080
 ```
 
-### config.yaml
+### config.yaml（最小）
 
 ```yaml
 server:
   port: 8080
-  admin_port: 0 # 可选：设置后将管理/UI 挂在独立端口
+  admin_port: 0
   read_timeout: 30s
   write_timeout: 120s
 
@@ -145,75 +118,37 @@ providers:
       - gpt-4o
       - gpt-4o-mini
 
-  - name: anthropic
-    type: anthropic
-    api_key: ${ANTHROPIC_API_KEY}
-    models:
-      - claude-3-5-sonnet-20241022
-
 routing:
-  strategy: simple-shuffle  # 可选: lowest-latency, least-busy, lowest-tpm-rpm, lowest-cost, tag-based
+  strategy: simple-shuffle
   fallback_enabled: true
   retry_count: 3
-  distributed: false
-
-healthcheck:
-  enabled: false
-  interval: 30s
-  timeout: 10s
-
-cache:
-  enabled: true
-  type: local  # local, redis, dual
-  ttl: 1h
-
-rate_limit:
-  enabled: false
   distributed: false
 
 metrics:
   enabled: true
   path: /metrics
-
-tracing:
-  enabled: false
-  endpoint: localhost:4317
 ```
 
-### 部署模式与一致性
+### 部署模式
 
-- `standalone`（默认）：使用内存状态，适合单实例运行。
-- `distributed`：需要 PostgreSQL 保存认证/用量状态，Redis 保存路由统计与限流；缺失则启动失败。
-- `development`：显式允许内存状态用于多实例测试（不保证一致性）。
+- `standalone`：单机内存态。
+- `distributed`：需要 Postgres + Redis。
+- `development`：多实例测试用（不保证一致性）。
 
-## 生产级就绪度快照（审计）
+## 路由策略
 
-本节概述现有架构在分布式/生产部署下的真实状态:
+| 策略             | 说明                                                                 |
+| ---------------- | -------------------------------------------------------------------- |
+| `simple-shuffle` | 随机选择，可结合权重/TPM/RPM                                          |
+| `round-robin`    | 轮询，分布式模式下可使用 Redis 计数                                  |
+| `lowest-latency` | 选择平均延迟最低的部署（支持流式 TTFT）                              |
+| `least-busy`     | 选择当前活跃请求最少的部署                                           |
+| `lowest-tpm-rpm` | 选择 TPM/RPM 最低的部署                                              |
+| `lowest-cost`    | 选择 token 成本最低的部署                                            |
 
-- 控制面/数据面：单二进制，同一进程；可通过 `server.admin_port` 独立管理端口（架构取舍）。
-- 无状态扩展：需打开 `deployment.mode=distributed` 并启用 Postgres + Redis，否则默认内存存储仅适合单节点。
-- 分布式路由：Redis 统计支持 least-busy/latency/TPM/RPM，但 round-robin 计数仍为本地实例级（尽力均衡，非严格全局 RR）。
-- 路由配置一致性：Redis stats store 支持 option 覆盖，但 `main.go` 尚未把路由配置转成 option，分布式统计仍用默认值。
-- 对标 LiteLLM：目前覆盖 `/v1/chat/completions`、`/v1/completions`、`/v1/embeddings`、`/v1/models`，并支持 `/v1/responses`（映射到 chat completions）。`/v1/audio/*` 与 `/v1/batches` 暂返回明确的 `invalid_request_error`，待后续接入真实 provider 支持。
-- TPM/RPM 估算：正常使用 tiktoken 估算；仅在估算不可用时回退为固定 100 tokens。
+## API 参考
 
-### OpenAI 兼容提供商
-
-LLMux 支持任何 OpenAI 兼容的 API（硅基流动、Together AI、Groq 等）：
-
-```yaml
-providers:
-  - name: siliconflow
-    type: openai
-    api_key: ${SILICONFLOW_API_KEY}
-    base_url: https://api.siliconflow.cn/v1
-    models:
-      - deepseek-ai/DeepSeek-V3
-```
-
-## 📡 API 参考
-
-### 聊天补全
+### Chat Completions
 
 ```bash
 curl http://localhost:8080/v1/chat/completions \
@@ -221,7 +156,7 @@ curl http://localhost:8080/v1/chat/completions \
   -H "Authorization: Bearer $API_KEY" \
   -d '{
     "model": "gpt-4o",
-    "messages": [{"role": "user", "content": "你好！"}],
+    "messages": [{"role": "user", "content": "你好"}],
     "stream": false
   }'
 ```
@@ -251,165 +186,79 @@ curl http://localhost:8080/health/live
 curl http://localhost:8080/health/ready
 ```
 
-## 🔧 管理 API
+## 管理 API
 
-启用数据库后，可使用完整的管理端点：
+启用数据库后可使用完整的管理端点。
 
-### 密钥管理
-| 端点            | 方法 | 描述             |
-| --------------- | ---- | ---------------- |
-| `/key/generate` | POST | 生成 API 密钥    |
-| `/key/update`   | POST | 更新 API 密钥    |
-| `/key/delete`   | POST | 删除 API 密钥    |
-| `/key/info`     | GET  | 获取密钥信息     |
-| `/key/list`     | GET  | 列出密钥（分页） |
-| `/key/block`    | POST | 封禁密钥         |
-| `/key/unblock`  | POST | 解封密钥         |
+分类示例：
+- Keys：`/key/*`
+- Users：`/user/*`
+- Teams：`/team/*`
+- Organizations：`/organization/*`
+- Spend/Usage：`/spend/*`、`/global/*`
+- Audit：`/audit/*`
+- Control：`/control/*`
 
-### 用户管理
-| 端点           | 方法 | 描述                 |
-| -------------- | ---- | -------------------- |
-| `/user/new`    | POST | 创建用户             |
-| `/user/update` | POST | 更新用户             |
-| `/user/delete` | POST | 删除用户             |
-| `/user/info`   | GET  | 获取用户信息         |
-| `/user/list`   | GET  | 列出用户（支持搜索） |
+## 运维与观测
 
-### 团队与组织
-| 端点                    | 方法 | 描述         |
-| ----------------------- | ---- | ------------ |
-| `/team/new`             | POST | 创建团队     |
-| `/team/update`          | POST | 更新团队     |
-| `/team/member_add`      | POST | 添加团队成员 |
-| `/organization/new`     | POST | 创建组织     |
-| `/organization/members` | GET  | 列出组织成员 |
+- 指标：Prometheus `metrics.path`（默认 `/metrics`）
+- 追踪：OpenTelemetry（`tracing.*` 配置）
+- 日志：结构化 JSON 日志
+- 审计：审计存储启用时写入审计日志
 
-### 数据分析
-| 端点                   | 方法 | 描述           |
-| ---------------------- | ---- | -------------- |
-| `/spend/logs`          | GET  | 获取消费日志   |
-| `/spend/keys`          | GET  | 按密钥统计消费 |
-| `/spend/teams`         | GET  | 按团队统计消费 |
-| `/global/activity`     | GET  | 全局活动指标   |
-| `/global/spend/models` | GET  | 按模型统计消费 |
-| `/audit/logs`          | GET  | 审计日志       |
+## 生产注意事项
 
-## 🛤️ 路由策略
+- standalone 为单机内存态。
+- distributed 依赖 Postgres/Redis，缺失将影响相关功能。
+- `/v1/audio/*` 与 `/v1/batches` 暂返回 `invalid_request_error`。
 
-| 策略             | 描述                                        |
-| ---------------- | ------------------------------------------- |
-| `simple-shuffle` | 随机选择，支持权重/rpm/tpm 加权             |
-| `lowest-latency` | 选择平均延迟最低的部署（流式请求支持 TTFT） |
-| `least-busy`     | 选择当前活跃请求数最少的部署                |
-| `lowest-tpm-rpm` | 选择 TPM/RPM 使用率最低的部署               |
-| `lowest-cost`    | 选择每 token 成本最低的部署                 |
-| `tag-based`      | 根据请求标签过滤部署                        |
-
-## 🚢 部署
-
-### Kubernetes
-
-```bash
-kubectl apply -f deploy/k8s/
-```
-
-### Helm
-
-```bash
-helm install llmux deploy/helm/llmux
-```
-
-## 🛠️ 开发
-
-### 网关 (Go)
-
-```bash
-# 运行测试
-make test
-
-# 覆盖率测试
-make coverage
-
-# 代码检查
-make lint
-
-# 格式化
-make fmt
-
-# 全部检查
-make check
-```
-
-### 控制台 (Next.js)
-
-```bash
-cd ui
-
-# 运行单元测试
-npm run test
-
-# 运行 E2E 测试
-npm run test:e2e
-
-# 代码检查
-npm run lint
-```
-
-## 📁 项目结构
+## 项目结构
 
 ```
 llmux/
-├── cmd/server/           # 网关入口
-├── config/               # 配置文件
-├── internal/
-│   ├── api/              # HTTP 处理器 & 管理端点
-│   ├── auth/             # 认证、授权 & 存储层
-│   ├── cache/            # 响应缓存 (本地/redis/双层)
-│   ├── config/           # 配置加载
-│   ├── metrics/          # Prometheus & OpenTelemetry
-│   └── router/           # 请求路由策略
-├── providers/            # LLM 提供商适配器
-│   ├── openai/
-│   ├── anthropic/
-│   ├── azure/
-│   └── gemini/
-├── pkg/
-│   ├── types/            # 共享类型
-│   └── errors/           # 错误定义
-├── ui/                   # Next.js 控制台
-│   ├── src/
-│   │   ├── app/          # App Router 页面
-│   │   ├── components/   # React 组件
-│   │   ├── hooks/        # 自定义 React Hooks
-│   │   ├── lib/          # API 客户端 & 工具库
-│   │   └── types/        # TypeScript 类型
-│   └── e2e/              # Playwright E2E 测试
-├── deploy/               # 部署配置
-│   ├── k8s/
-│   └── helm/
-├── bench/                # 基准测试工具
-└── tests/                # 集成测试
+|-- cmd/server/           # 网关入口
+|-- config/               # 配置文件
+|-- internal/
+|   |-- api/              # HTTP 处理器 & 管理端点
+|   |-- auth/             # 认证、授权与存储
+|   |-- cache/            # 缓存
+|   |-- config/           # 配置加载
+|   |-- metrics/          # Prometheus & OpenTelemetry
+|   `-- router/           # 路由策略
+|-- providers/            # Provider 适配
+|-- pkg/
+|   |-- types/            # 共享类型
+|   `-- errors/           # 错误定义
+|-- ui/                   # Next.js 控制台
+|-- deploy/               # 部署配置
+|-- bench/                # 基准测试
+`-- tests/                # 集成测试
 ```
 
-## 🤝 贡献
+## 开发者信息
 
-欢迎贡献！请阅读 [CONTRIBUTING.md](CONTRIBUTING.md) 了解贡献指南。
+### 文档
 
-### 开发环境设置
+- [Architecture Overview](.agent/docs/architecture/overview.md)
+- [Plugin System](.agent/docs/architecture/plugin_system.md)
+- [Developer Guide](.agent/docs/development/codebase_overview.md)
+- [CI/CD Guide](.agent/docs/development/ci_guide.md)
+- [Testing Guide](.agent/docs/development/testing.md)
 
-1. Fork 本仓库
-2. 克隆你的 Fork
-3. 创建特性分支
-4. 进行修改
-5. 运行测试（Go: `make check`，UI: `npm run test:all`）
-6. 提交 Pull Request
+### 开发命令
 
-## 📄 许可证
+```bash
+make test
+make coverage
+make lint
+make fmt
+make check
+```
 
-MIT License - 详见 [LICENSE](LICENSE)
+### 贡献
 
-## 🙏 致谢
+详见 [CONTRIBUTING.md](CONTRIBUTING.md)。
 
-- 代理模式灵感来自 [LiteLLM](https://github.com/BerriAI/litellm)
-- UI 组件来自 [shadcn/ui](https://ui.shadcn.com/)
-- 图表由 [Tremor](https://tremor.so/) 提供支持
+### License
+
+MIT License - 见 [LICENSE](LICENSE)
