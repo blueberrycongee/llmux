@@ -84,10 +84,13 @@ func (h *InvitationHandler) CreateInvitation(w http.ResponseWriter, r *http.Requ
 		return
 	}
 
-	// Get creator from context (assuming auth middleware sets this)
-	createdBy := r.Header.Get("X-User-ID")
-	if createdBy == "" {
-		createdBy = "system"
+	createdBy := "system"
+	if authCtx := auth.GetAuthContext(r.Context()); authCtx != nil {
+		if authCtx.User != nil && authCtx.User.ID != "" {
+			createdBy = authCtx.User.ID
+		} else if authCtx.APIKey != nil && authCtx.APIKey.ID != "" {
+			createdBy = authCtx.APIKey.ID
+		}
 	}
 
 	createReq := &auth.CreateInvitationRequest{
