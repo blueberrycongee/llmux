@@ -194,6 +194,13 @@ func run() error {
 	// Create AuditLogger
 	auditLogger := auth.NewAuditLogger(auditStore, true)
 
+	if provider, ok := authStore.(dbStatsProvider); ok {
+		stopMetrics := startDBPoolMetrics(ctx, provider, logger, 30*time.Second)
+		if stopMetrics != nil {
+			defer stopMetrics()
+		}
+	}
+
 	runner := startJobRunner(cfg, authStore, logger, nil)
 	if runner != nil {
 		defer runner.Stop()

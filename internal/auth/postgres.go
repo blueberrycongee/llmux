@@ -78,6 +78,11 @@ func (s *PostgresStore) Close() error {
 	return s.db.Close()
 }
 
+// DBStats returns database connection pool stats for metrics reporting.
+func (s *PostgresStore) DBStats() sql.DBStats {
+	return s.db.Stats()
+}
+
 // GetAPIKeyByHash retrieves an API key by its hash.
 func (s *PostgresStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIKey, error) {
 	query := `
