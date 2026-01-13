@@ -155,6 +155,19 @@ func RegisterBuiltins() {
 		Register("watsonx", watsonx.NewFromConfig)
 		Register("cloudflare", cloudflare.NewFromConfig)
 		Register("github", github.NewFromConfig)
+
+		// --- LiteLLM provider type aliases (naming parity) ---
+		Register("openai_like", openaiLikeFactory)
+		Register("lm_studio", lmstudio.NewFromConfig)
+		Register("vertex_ai", vertexai.NewFromConfig)
+		Register("together_ai", together.NewFromConfig)
+		Register("fireworks_ai", fireworks.NewFromConfig)
+		Register("lambda_ai", lambda.NewFromConfig)
+		Register("nvidia_nim", nvidia.NewFromConfig)
+		Register("hosted_vllm", vllm.NewFromConfig)
+
+		// --- LiteLLM OpenAI-compatible providers (fallback adapters) ---
+		registerLiteLLMOpenAICompat()
 	})
 }
 

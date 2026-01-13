@@ -65,63 +65,63 @@ linters:
           - revive
         text: "stutters"
 
-  settings:
-    errcheck:
-      check-type-assertions: true
-      check-blank: false
-      exclude-functions:
-        - io.Copy
-        - io.ReadAll
-        - (io.Closer).Close
-        - (*os.File).Close
-        - (net/http.ResponseWriter).Write
-        - (*github.com/goccy/go-json.Encoder).Encode
-        - (*encoding/json.Encoder).Encode
-        - fmt.Fprintf
-        - fmt.Fprint
-        - fmt.Fprintln
+linters-settings:
+  errcheck:
+    check-type-assertions: true
+    check-blank: false
+    exclude-functions:
+      - io.Copy
+      - io.ReadAll
+      - (io.Closer).Close
+      - (*os.File).Close
+      - (net/http.ResponseWriter).Write
+      - (*github.com/goccy/go-json.Encoder).Encode
+      - (*encoding/json.Encoder).Encode
+      - fmt.Fprintf
+      - fmt.Fprint
+      - fmt.Fprintln
 
-    govet:
-      enable-all: true
-      disable:
-        - fieldalignment
+  govet:
+    enable-all: true
+    disable:
+      - fieldalignment
 
-    misspell:
-      locale: US
+  misspell:
+    locale: US
 
-    gocritic:
-      enabled-tags:
-        - diagnostic
-        - style
-        - performance
-      disabled-checks:
-        - hugeParam
-        - paramTypeCombine
-        - unnamedResult
-        - ifElseChain
-        - importShadow
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - hugeParam
+      - paramTypeCombine
+      - unnamedResult
+      - ifElseChain
+      - importShadow
 
-    revive:
-      rules:
-        - name: blank-imports
-        - name: context-as-argument
-        - name: context-keys-type
-        - name: dot-imports
-        - name: error-return
-        - name: error-strings
-        - name: error-naming
-        - name: increment-decrement
-        - name: var-naming
-        - name: var-declaration
-        - name: package-comments
-        - name: range
-        - name: receiver-naming
-        - name: time-naming
-        - name: unexported-return
-        - name: indent-error-flow
-        - name: errorf
+  revive:
+    rules:
+      - name: blank-imports
+      - name: context-as-argument
+      - name: context-keys-type
+      - name: dot-imports
+      - name: error-return
+      - name: error-strings
+      - name: error-naming
+      - name: increment-decrement
+      - name: var-naming
+      - name: var-declaration
+      - name: package-comments
+      - name: range
+      - name: receiver-naming
+      - name: time-naming
+      - name: unexported-return
+      - name: indent-error-flow
+      - name: errorf
 
 output:
   formats:
-    text:
+    - format: colored-line-number
       print-linter-name: true

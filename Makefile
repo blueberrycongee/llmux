@@ -12,6 +12,14 @@ GOBUILD=$(GOCMD) build
 GOTEST=$(GOCMD) test
 GOVET=$(GOCMD) vet
 GOFMT=gofmt
+GOIMPORTS?=$(shell command -v goimports 2>/dev/null)
+ifeq ($(GOIMPORTS),)
+GOIMPORTS=$(shell go env GOPATH)/bin/goimports
+endif
+GOLANGCI_LINT?=$(shell command -v golangci-lint 2>/dev/null)
+ifeq ($(GOLANGCI_LINT),)
+GOLANGCI_LINT=$(shell go env GOPATH)/bin/golangci-lint
+endif
 GOMOD=$(GOCMD) mod
 
 # Build the binary
@@ -34,12 +42,12 @@ coverage:
 
 # Run linter
 lint:
-	golangci-lint run ./...
+	$(GOLANGCI_LINT) run ./...
 
 # Format code
 fmt:
 	$(GOFMT) -s -w .
-	goimports -w .
+	$(GOIMPORTS) -w .
 
 # Run go vet
 vet:
