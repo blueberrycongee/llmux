@@ -35,9 +35,7 @@ var (
 			Help:      "Total number of proxy requests",
 		},
 		[]string{
-			"end_user", "user", "hashed_api_key", "api_key_alias",
-			"team", "team_alias", "requested_model", "model",
-			"model_group", "api_provider", "status_code",
+			"model", "model_group", "api_provider", "status_code",
 		},
 	)
 
@@ -49,9 +47,7 @@ var (
 			Help:      "Total number of failed proxy requests",
 		},
 		[]string{
-			"end_user", "user", "hashed_api_key", "api_key_alias",
-			"team", "team_alias", "requested_model", "model",
-			"model_group", "api_provider", "exception_status", "exception_class",
+			"model", "model_group", "api_provider", "exception_status", "exception_class",
 		},
 	)
 )
@@ -70,8 +66,7 @@ var (
 			Buckets:   LatencyBuckets,
 		},
 		[]string{
-			"end_user", "user", "hashed_api_key", "api_key_alias",
-			"team", "team_alias", "model", "model_group", "api_provider",
+			"model", "model_group", "api_provider",
 		},
 	)
 
@@ -139,8 +134,7 @@ var (
 			Help:      "Total tokens used",
 		},
 		[]string{
-			"end_user", "user", "hashed_api_key", "api_key_alias",
-			"team", "team_alias", "model", "model_group", "api_provider",
+			"model", "model_group", "api_provider",
 		},
 	)
 
@@ -152,8 +146,7 @@ var (
 			Help:      "Total input tokens",
 		},
 		[]string{
-			"end_user", "user", "hashed_api_key", "api_key_alias",
-			"team", "team_alias", "model", "model_group", "api_provider",
+			"model", "model_group", "api_provider",
 		},
 	)
 
@@ -165,8 +158,7 @@ var (
 			Help:      "Total output tokens",
 		},
 		[]string{
-			"end_user", "user", "hashed_api_key", "api_key_alias",
-			"team", "team_alias", "model", "model_group", "api_provider",
+			"model", "model_group", "api_provider",
 		},
 	)
 )
@@ -184,8 +176,7 @@ var (
 			Help:      "Total spend in USD",
 		},
 		[]string{
-			"end_user", "user", "hashed_api_key", "api_key_alias",
-			"team", "team_alias", "model", "model_group", "api_provider",
+			"model", "model_group", "api_provider",
 		},
 	)
 )

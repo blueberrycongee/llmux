@@ -137,26 +137,6 @@ var (
 		},
 		[]string{"model", "api_provider", "api_base"},
 	)
-
-	// APIKeyRemainingRequestsForModel tracks remaining requests per API key per model.
-	APIKeyRemainingRequestsForModel = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "api_key_remaining_requests_for_model",
-			Help:      "Remaining requests for API key on specific model",
-		},
-		[]string{"hashed_api_key", "api_key_alias", "model"},
-	)
-
-	// APIKeyRemainingTokensForModel tracks remaining tokens per API key per model.
-	APIKeyRemainingTokensForModel = promauto.NewGaugeVec(
-		prometheus.GaugeOpts{
-			Namespace: namespace,
-			Name:      "api_key_remaining_tokens_for_model",
-			Help:      "Remaining tokens for API key on specific model",
-		},
-		[]string{"hashed_api_key", "api_key_alias", "model"},
-	)
 )
 
 // =============================================================================
