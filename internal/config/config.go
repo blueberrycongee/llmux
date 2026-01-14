@@ -450,15 +450,34 @@ func DefaultConfig() *Config {
 }
 
 // LoadFromFile reads and parses a YAML configuration file.
-// Environment variables in the format ${VAR_NAME} are expanded.
+// Environment variables in the format ${VAR_NAME} and ${VAR_NAME:default} are expanded.
 func LoadFromFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read config file: %w", err)
 	}
 
-	// Expand environment variables
-	expanded := os.ExpandEnv(string(data))
+	// Expand environment variables.
+	//
+	// Supports:
+	// - ${VAR_NAME}
+	// - ${VAR_NAME:default} (use default when VAR_NAME is unset or empty)
+	expanded := os.Expand(string(data), func(key string) string {
+		name := key
+		def := ""
+		if idx := strings.IndexByte(key, ':'); idx >= 0 {
+			name = key[:idx]
+			def = key[idx+1:]
+		}
+
+		if val, ok := os.LookupEnv(name); ok && val != "" {
+			return val
+		}
+		if def != "" || strings.Contains(key, ":") {
+			return def
+		}
+		return ""
+	})
 
 	cfg := DefaultConfig()
 	if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil {
