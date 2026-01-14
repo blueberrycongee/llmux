@@ -400,7 +400,7 @@ func DefaultConfig() *Config {
 		},
 		Auth: AuthConfig{
 			Enabled:                false,
-			SkipPaths:              []string{"/health/live", "/health/ready", "/metrics"},
+			SkipPaths:              []string{"/health/live", "/health/ready"},
 			LastUsedUpdateInterval: time.Minute,
 		},
 		Database: DatabaseConfig{

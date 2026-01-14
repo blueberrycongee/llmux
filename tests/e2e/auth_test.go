@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/tests/testutil"
 )
 
@@ -35,7 +36,14 @@ func TestAuth_ValidAPIKey(t *testing.T) {
 		return
 	}
 
-	// Client with valid API key
+	err = server.Store().CreateAPIKey(context.Background(), &auth.APIKey{
+		ID:       "valid-test-key-id",
+		KeyHash:  auth.HashKey("valid-test-key"),
+		KeyType:  auth.KeyTypeLLMAPI,
+		IsActive: true,
+	})
+	require.NoError(t, err)
+
 	client := testutil.NewTestClient(server.URL()).WithAPIKey("valid-test-key")
 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -51,14 +59,8 @@ func TestAuth_ValidAPIKey(t *testing.T) {
 	resp, httpResp, err := client.ChatCompletion(ctx, req)
 	require.NoError(t, err)
 
-	// If auth is properly implemented, should succeed with valid key
-	// If auth is not implemented yet, this documents expected behavior
-	switch httpResp.StatusCode {
-	case http.StatusOK:
-		testutil.AssertChatResponse(t, resp)
-	case http.StatusUnauthorized:
-		t.Log("Auth is enabled but key validation not implemented yet")
-	}
+	require.Equal(t, http.StatusOK, httpResp.StatusCode)
+	testutil.AssertChatResponse(t, resp)
 }
 
 // TestAuth_InvalidAPIKey tests that invalid API key is rejected.
@@ -98,13 +100,7 @@ func TestAuth_InvalidAPIKey(t *testing.T) {
 	_, httpResp, err := client.ChatCompletion(ctx, req)
 	require.NoError(t, err)
 
-	// When auth is properly implemented, should return 401
-	// Currently documents expected behavior
-	if httpResp.StatusCode == http.StatusUnauthorized {
-		t.Log("Auth correctly rejected invalid key")
-	} else {
-		t.Logf("Auth returned %d (may not be fully implemented)", httpResp.StatusCode)
-	}
+	require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode)
 }
 
 // TestAuth_MissingAPIKey tests that missing API key is rejected.
@@ -144,12 +140,7 @@ func TestAuth_MissingAPIKey(t *testing.T) {
 	_, httpResp, err := client.ChatCompletion(ctx, req)
 	require.NoError(t, err)
 
-	// When auth is properly implemented, should return 401
-	if httpResp.StatusCode == http.StatusUnauthorized {
-		t.Log("Auth correctly rejected missing key")
-	} else {
-		t.Logf("Auth returned %d (may not be fully implemented)", httpResp.StatusCode)
-	}
+	require.Equal(t, http.StatusUnauthorized, httpResp.StatusCode)
 }
 
 // TestAuth_HealthEndpointsSkipAuth tests that health endpoints don't require auth.
@@ -187,8 +178,8 @@ func TestAuth_HealthEndpointsSkipAuth(t *testing.T) {
 	assert.Equal(t, http.StatusOK, resp.StatusCode, "health endpoint should not require auth")
 }
 
-// TestAuth_MetricsEndpointSkipAuth tests that metrics endpoint doesn't require auth.
-func TestAuth_MetricsEndpointSkipAuth(t *testing.T) {
+// TestAuth_MetricsEndpointRequiresAuth tests that metrics endpoint requires auth when auth is enabled.
+func TestAuth_MetricsEndpointRequiresAuth(t *testing.T) {
 	localMock := testutil.NewMockLLMServer()
 	defer localMock.Close()
 
@@ -214,11 +205,21 @@ func TestAuth_MetricsEndpointSkipAuth(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	// Metrics endpoint should work without auth
-	metrics, err := client.GetMetrics(ctx)
+	metricsUnauthed, err := client.GetMetrics(ctx)
+	require.NoError(t, err)
+	assert.NotContains(t, metricsUnauthed, "# HELP", "metrics should not be accessible without auth when auth is enabled")
+
+	err = server.Store().CreateAPIKey(context.Background(), &auth.APIKey{
+		ID:       "metrics-test-key-id",
+		KeyHash:  auth.HashKey("metrics-test-key"),
+		KeyType:  auth.KeyTypeLLMAPI,
+		IsActive: true,
+	})
 	require.NoError(t, err)
 
-	assert.Contains(t, metrics, "# HELP", "metrics should be accessible without auth")
+	metricsAuthed, err := client.WithAPIKey("metrics-test-key").GetMetrics(ctx)
+	require.NoError(t, err)
+	assert.Contains(t, metricsAuthed, "# HELP", "metrics should be accessible with auth")
 }
 
 // TestAuth_BearerTokenFormat tests that Bearer token format is accepted.

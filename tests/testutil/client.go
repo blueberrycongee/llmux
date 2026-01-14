@@ -335,6 +335,10 @@ func (c *TestClient) GetMetrics(ctx context.Context) (string, error) {
 		return "", fmt.Errorf("create request: %w", err)
 	}
 
+	if c.apiKey != "" {
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+	}
+
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
 		return "", fmt.Errorf("do request: %w", err)

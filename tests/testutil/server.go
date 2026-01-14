@@ -261,7 +261,18 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 
 	// Apply middleware
 	var httpHandler http.Handler = mux
-	httpHandler = metrics.Middleware(httpHandler)
+
+	var authMiddleware *auth.Middleware
+	if options.authEnabled {
+		authMiddleware = auth.NewMiddleware(&auth.MiddlewareConfig{
+			Store:                  store,
+			Logger:                 logger,
+			SkipPaths:              cfg.Auth.SkipPaths,
+			Enabled:                true,
+			LastUsedUpdateInterval: cfg.Auth.LastUsedUpdateInterval,
+		})
+		httpHandler = authMiddleware.Authenticate(httpHandler)
+	}
 
 	// Apply OIDC authentication middleware if configured
 	if options.oidcConfig != nil && options.oidcConfig.IssuerURL != "" {
@@ -282,6 +293,8 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		}
 		httpHandler = oidcMiddleware(httpHandler)
 	}
+
+	httpHandler = metrics.Middleware(httpHandler)
 
 	// Create listener
 	addr := fmt.Sprintf("127.0.0.1:%d", options.port)

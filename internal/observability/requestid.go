@@ -6,10 +6,13 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"net/http"
+	"strings"
 )
 
 // RequestIDHeader is the HTTP header name for request IDs.
 const RequestIDHeader = "X-Request-ID"
+
+const maxRequestIDLen = 128
 
 // requestIDKey is the context key for request IDs.
 type requestIDKey struct{}
@@ -42,7 +45,9 @@ func RequestIDMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Check for existing request ID in header
 		requestID := r.Header.Get(RequestIDHeader)
-		if requestID == "" {
+		if sanitized, ok := sanitizeRequestID(requestID); ok {
+			requestID = sanitized
+		} else {
 			requestID = GenerateRequestID()
 		}
 
@@ -62,4 +67,22 @@ func GetOrCreateRequestID(ctx context.Context) (context.Context, string) {
 	}
 	id := GenerateRequestID()
 	return ContextWithRequestID(ctx, id), id
+}
+
+func sanitizeRequestID(value string) (string, bool) {
+	value = strings.TrimSpace(value)
+	if value == "" || len(value) > maxRequestIDLen {
+		return "", false
+	}
+	for _, r := range value {
+		switch {
+		case r >= 'a' && r <= 'z':
+		case r >= 'A' && r <= 'Z':
+		case r >= '0' && r <= '9':
+		case r == '-', r == '_', r == '.':
+		default:
+			return "", false
+		}
+	}
+	return value, true
 }
