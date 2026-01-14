@@ -49,6 +49,8 @@ cache:
   type: dual
   namespace: llmux
   ttl: 1h
+  # Multi-tenant distributed deployments should keep auth.enabled=true to ensure tenant-scoped caching.
+  # Disabling auth removes tenant_id isolation for response caching.
   memory:
     max_size: 500
     default_ttl: 5m

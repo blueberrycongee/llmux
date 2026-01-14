@@ -37,6 +37,31 @@ type Config struct {
 	PricingFile   string                            `yaml:"pricing_file"`
 }
 
+type Warning struct {
+	Code    string
+	Message string
+}
+
+const (
+	WarningCacheWithoutAuth = "cache_without_auth"
+)
+
+func (c *Config) Warnings() []Warning {
+	if c == nil {
+		return nil
+	}
+
+	var out []Warning
+	if c.Cache.Enabled && !c.Auth.Enabled {
+		out = append(out, Warning{
+			Code: WarningCacheWithoutAuth,
+			Message: "cache.enabled=true with auth.enabled=false disables tenant_id isolation; " +
+				"this is OK for single-tenant/trusted deployments, but unsafe for multi-tenant or untrusted callers",
+		})
+	}
+	return out
+}
+
 // DeploymentConfig contains deployment mode settings.
 // Modes: standalone, distributed, development.
 type DeploymentConfig struct {

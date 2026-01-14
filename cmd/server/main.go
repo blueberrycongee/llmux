@@ -71,6 +71,9 @@ func run() error {
 	defer func() { _ = cfgManager.Close() }()
 
 	cfg := cfgManager.Get()
+	for _, w := range cfg.Warnings() {
+		logger.Warn(w.Message, "code", w.Code)
+	}
 
 	// Register 'vault' provider if configured
 	var vConfig vault.Config
@@ -150,6 +153,11 @@ func run() error {
 		return llmux.New(nextOpts...)
 	})
 	cfgManager.OnChange(reloader.Reload)
+	cfgManager.OnChange(func(nextCfg *config.Config) {
+		for _, w := range nextCfg.Warnings() {
+			logger.Warn(w.Message, "code", w.Code)
+		}
+	})
 
 	if watchErr := cfgManager.Watch(ctx); watchErr != nil {
 		logger.Warn("config hot-reload disabled", "error", watchErr)

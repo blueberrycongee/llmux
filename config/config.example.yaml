@@ -189,6 +189,9 @@ cache:
   type: local               # local (in-memory), redis, dual (local + redis)
   namespace: llmux          # Key namespace prefix for isolation
   ttl: 1h                   # Default cache TTL
+  # NOTE: In multi-tenant or untrusted-caller deployments, enable auth.enabled=true.
+  # With auth disabled, response caching has no tenant_id isolation and can cross-hit
+  # between different callers if requests are identical.
 
   # In-memory cache settings (used for 'local' and 'dual' types)
   memory:

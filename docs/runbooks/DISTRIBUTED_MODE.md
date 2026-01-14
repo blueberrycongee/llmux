@@ -54,6 +54,7 @@ LLMUX_CONFIG=config/config.yaml ./llmux
 - Governance idempotency uses Redis in distributed mode when configured; otherwise it falls back to memory.
 - Governance config hot reload is supported for runtime policy changes.
 - If Postgres is unavailable and auth is enabled, startup will fail in distributed mode.
+- Keep `auth.enabled=true` in multi-tenant deployments, especially when `cache.enabled=true`, to preserve tenant-scoped caching.
 - Use `server.admin_port` if you need a separate admin plane port.
 
 ## Rollback
