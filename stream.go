@@ -91,8 +91,9 @@ func newStreamReader(
 	release func(),
 ) *StreamReader {
 	scanner := bufio.NewScanner(body)
-	// Increase buffer size for large chunks
-	scanner.Buffer(make([]byte, 4096), 4096*4)
+	// Allow larger SSE lines (bufio.Scanner defaults to 64K, and old code used 16KB).
+	// Keep a small initial buffer to reduce allocations.
+	scanner.Buffer(make([]byte, 4096), 256*1024)
 
 	return &StreamReader{
 		body:            body,
@@ -407,7 +408,7 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	s.release = release
 	s.mu.Unlock()
 
-	resp, err := s.client.httpClient.Do(httpReq)
+	resp, err := s.client.streamHTTPClient.Do(httpReq)
 	if err != nil {
 		release()
 		if s.router != nil && deployment != nil {
@@ -444,7 +445,7 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	}
 	s.body = resp.Body
 	s.scanner = bufio.NewScanner(resp.Body)
-	s.scanner.Buffer(make([]byte, 4096), 4096*4)
+	s.scanner.Buffer(make([]byte, 4096), 256*1024)
 	s.provider = prov
 	s.deployment = deployment
 	if s.pluginCtx != nil {

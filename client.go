@@ -41,6 +41,7 @@ type Client struct {
 	cache            cache.Cache
 	cacheTypeLabel   string
 	httpClient       *http.Client
+	streamHTTPClient *http.Client
 	logger           *slog.Logger
 	config           *ClientConfig
 	pricing          *pricing.Registry
@@ -104,14 +105,20 @@ func New(opts ...Option) (*Client, error) {
 	}
 
 	// Initialize HTTP client with connection pooling
-	c.httpClient = &http.Client{
-		Transport: &http.Transport{
-			MaxIdleConns:        100,
-			MaxIdleConnsPerHost: 10,
-			IdleConnTimeout:     90 * time.Second,
-		},
-		Timeout: cfg.Timeout,
+	transport := &http.Transport{
+		MaxIdleConns:        100,
+		MaxIdleConnsPerHost: 10,
+		IdleConnTimeout:     90 * time.Second,
 	}
+	c.httpClient = &http.Client{Transport: transport, Timeout: cfg.Timeout}
+	// Streaming should be controlled via ctx deadlines, not a global http.Client timeout.
+	streamTransport := transport.Clone()
+	if cfg.Timeout > 0 {
+		// Apply the configured timeout to the response headers only (TTFB), so long-running
+		// streams are not killed mid-flight.
+		streamTransport.ResponseHeaderTimeout = cfg.Timeout
+	}
+	c.streamHTTPClient = &http.Client{Transport: streamTransport}
 
 	// Register built-in provider factories
 	c.registerBuiltinFactories()
@@ -485,7 +492,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 		c.router.ReportRequestStart(deployment)
 
-		resp, err := c.httpClient.Do(httpReq)
+		resp, err := c.streamHTTPClient.Do(httpReq)
 		if err != nil {
 			release()
 			c.router.ReportFailure(deployment, err)

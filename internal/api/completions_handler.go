@@ -154,7 +154,7 @@ func (h *Handler) handleCompletionStreamResponse(w http.ResponseWriter, r *http.
 
 	scanner := bufio.NewScanner(resp.Body)
 	buf := make([]byte, streaming.DefaultBufferSize)
-	scanner.Buffer(buf, streaming.DefaultBufferSize*4)
+	scanner.Buffer(buf, streaming.MaxSSELineSize)
 
 	for scanner.Scan() {
 		select {
