@@ -432,6 +432,10 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 			APIKey:  provCfg.APIKey,
 			BaseURL: provCfg.BaseURL,
 			Models:  provCfg.Models,
+			Timeout: provCfg.Timeout,
+			// MaxConcurrent is enforced by the client semaphore per deployment.
+			MaxConcurrent: provCfg.MaxConcurrent,
+			Headers:       provCfg.Headers,
 		}
 
 		// Check if APIKey is a secret URI (contains "://")
