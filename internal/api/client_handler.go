@@ -167,8 +167,6 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 		// Force include_usage to get accurate token counts from supported providers (e.g. OpenAI)
 		if req.StreamOptions == nil {
 			req.StreamOptions = &llmux.StreamOptions{IncludeUsage: true}
-		} else {
-			req.StreamOptions.IncludeUsage = true
 		}
 
 		h.handleStreamResponse(ctx, w, r, client, req, start, requestID, payload)
@@ -461,8 +459,6 @@ func (h *ClientHandler) Completions(w http.ResponseWriter, r *http.Request) {
 		// Force include_usage to get accurate token counts from supported providers (e.g. OpenAI)
 		if chatReq.StreamOptions == nil {
 			chatReq.StreamOptions = &llmux.StreamOptions{IncludeUsage: true}
-		} else {
-			chatReq.StreamOptions.IncludeUsage = true
 		}
 
 		h.handleCompletionStreamResponse(w, r, client, chatReq, start, requestID)

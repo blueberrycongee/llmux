@@ -56,7 +56,9 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if chatReq.Stream {
-		chatReq.StreamOptions = &types.StreamOptions{IncludeUsage: true}
+		if chatReq.StreamOptions == nil {
+			chatReq.StreamOptions = &types.StreamOptions{IncludeUsage: true}
+		}
 	}
 
 	promptTokens := tokenizer.EstimatePromptTokens(chatReq.Model, chatReq)
