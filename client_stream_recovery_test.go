@@ -249,6 +249,27 @@ func TestStreamRecovery_AccumulatedCap_TruncatesRecoveryContext(t *testing.T) {
 	trackingR := newTrackingRouter(client.router)
 	client.router = trackingR
 
+	deployments := trackingR.GetDeployments("gpt-test")
+	if len(deployments) < 2 {
+		t.Fatalf("expected 2 deployments, got %d", len(deployments))
+	}
+
+	var depA, depB *provider.Deployment
+	for _, d := range deployments {
+		switch d.ProviderName {
+		case "providerA":
+			depA = d
+		case "providerB":
+			depB = d
+		}
+	}
+	if depA == nil || depB == nil {
+		t.Fatalf("could not find deployments for providerA and providerB")
+	}
+
+	// Force order: A (stream fails / retry fails), then B (recovers).
+	trackingR.pickDeployments = []*provider.Deployment{depA, depB}
+
 	req := &types.ChatRequest{
 		Model: "gpt-test",
 		Messages: []types.ChatMessage{
