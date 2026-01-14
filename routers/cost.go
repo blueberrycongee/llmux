@@ -2,7 +2,6 @@ package routers
 
 import (
 	"context"
-	"fmt"
 	"sort"
 
 	"github.com/blueberrycongee/llmux/pkg/pricing"
@@ -44,9 +43,9 @@ func NewCostRouterWithConfig(config router.Config) *CostRouter {
 		registry:   pricing.NewRegistry(),
 	}
 	if config.PricingFile != "" {
-		if err := r.registry.Load(config.PricingFile); err != nil {
-			panic(fmt.Errorf("failed to load pricing file %s: %w", config.PricingFile, err))
-		}
+		// Do not panic on configuration errors; the caller should handle this.
+		// If the file cannot be loaded, we keep defaults and rely on UnknownModelCost fallback.
+		_ = r.registry.Load(config.PricingFile)
 	}
 	return r
 }
@@ -65,9 +64,7 @@ func newCostRouterWithStore(config router.Config, store router.StatsStore) *Cost
 		registry:   pricing.NewRegistry(),
 	}
 	if config.PricingFile != "" {
-		if err := r.registry.Load(config.PricingFile); err != nil {
-			panic(fmt.Errorf("failed to load pricing file %s: %w", config.PricingFile, err))
-		}
+		_ = r.registry.Load(config.PricingFile)
 	}
 	return r
 }

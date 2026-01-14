@@ -32,9 +32,9 @@ func NewRegistry() *Registry {
 	}
 	// Load defaults
 	if err := r.loadBytes(defaultPrices); err != nil {
-		// This should not happen in production if defaults.json is correct
-		// But we can log it or panic since it's embedded data
-		panic(fmt.Sprintf("failed to load default prices: %v", err))
+		// Embedded defaults should always be valid; never panic in library code.
+		// If this fails, we fall back to an empty registry and UnknownModelCost handling.
+		return r
 	}
 	return r
 }

@@ -3,6 +3,7 @@ package routers
 import (
 	"fmt"
 
+	"github.com/blueberrycongee/llmux/pkg/pricing"
 	"github.com/blueberrycongee/llmux/pkg/router"
 )
 
@@ -35,6 +36,12 @@ func NewWithStores(config router.Config, statsStore router.StatsStore, rrStore r
 	case router.StrategyLowestTPMRPM:
 		return newTPMRPMRouterWithStore(config, statsStore), nil
 	case router.StrategyLowestCost:
+		if config.PricingFile != "" {
+			reg := pricing.NewRegistry()
+			if err := reg.Load(config.PricingFile); err != nil {
+				return nil, fmt.Errorf("load pricing file %s: %w", config.PricingFile, err)
+			}
+		}
 		return newCostRouterWithStore(config, statsStore), nil
 	case router.StrategyTagBased:
 		return newTagBasedRouterWithStore(config, statsStore), nil
@@ -47,7 +54,9 @@ func NewWithStores(config router.Config, statsStore router.StatsStore, rrStore r
 func MustNew(config router.Config) router.Router {
 	r, err := New(config)
 	if err != nil {
-		panic(err)
+		// Avoid panicking in production code paths; fall back to a safe default.
+		config.Strategy = router.StrategySimpleShuffle
+		r, _ = New(config)
 	}
 	return r
 }
