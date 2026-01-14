@@ -27,6 +27,12 @@ func (fakeManagementHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /key/list", func(http.ResponseWriter, *http.Request) {})
 }
 
+type fakeInvitationHandler struct{}
+
+func (fakeInvitationHandler) RegisterRoutes(mux *http.ServeMux) {
+	mux.HandleFunc("POST /invitation/new", func(http.ResponseWriter, *http.Request) {})
+}
+
 func TestBuildMuxes_AdminPortDisabled_RegistersOnlyDataRoutes(t *testing.T) {
 	cfg := &config.Config{
 		Server:  config.ServerConfig{Port: 8080},
@@ -85,7 +91,7 @@ func TestBuildMuxes_AdminPortEnabled_SplitsRoutes(t *testing.T) {
 		Metrics: config.MetricsConfig{Enabled: true, Path: "/metrics"},
 	}
 
-	muxes, err := buildMuxes(cfg, fakeDataHandler{}, fakeManagementHandler{}, nil, nil)
+	muxes, err := buildMuxes(cfg, fakeDataHandler{}, multiRegistrar{fakeManagementHandler{}, fakeInvitationHandler{}}, nil, nil)
 	if err != nil {
 		t.Fatalf("buildMuxes() error = %v", err)
 	}
@@ -132,6 +138,10 @@ func TestBuildMuxes_AdminPortEnabled_SplitsRoutes(t *testing.T) {
 
 	if got := routePattern(muxes.Admin, http.MethodGet, "/key/list"); got != "GET /key/list" {
 		t.Fatalf("admin mux missing management routes, got pattern %q", got)
+	}
+
+	if got := routePattern(muxes.Admin, http.MethodPost, "/invitation/new"); got != "POST /invitation/new" {
+		t.Fatalf("admin mux missing invitation routes, got pattern %q", got)
 	}
 }
 

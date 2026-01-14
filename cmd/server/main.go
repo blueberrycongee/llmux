@@ -258,8 +258,18 @@ func run() error {
 	// Initialize ManagementHandler for enterprise API endpoints
 	mgmtHandler := api.NewManagementHandler(authStore, auditStore, logger, clientSwapper, cfgManager, auditLogger)
 
+	// Initialize Invitation endpoints (LiteLLM-compatible enterprise surface)
+	var invitationStore auth.InvitationLinkStore
+	if pg, ok := authStore.(*auth.PostgresStore); ok {
+		invitationStore = pg
+	} else {
+		invitationStore = auth.NewMemoryInvitationLinkStore()
+	}
+	invitationService := auth.NewInvitationService(invitationStore, authStore, logger)
+	invitationHandler := api.NewInvitationHandler(invitationService, invitationStore, logger)
+
 	// Setup HTTP routes
-	muxes, err := buildMuxes(cfg, handler, mgmtHandler, logger, uiAssets)
+	muxes, err := buildMuxes(cfg, handler, multiRegistrar{mgmtHandler, invitationHandler}, logger, uiAssets)
 	if err != nil {
 		return fmt.Errorf("failed to build routes: %w", err)
 	}

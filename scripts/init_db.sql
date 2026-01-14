@@ -14,6 +14,7 @@
 \echo 'Applying LLMux migrations...'
 \i /workspace/internal/auth/migrations/002_full_schema.sql
 \i /workspace/internal/auth/migrations/003_enterprise_features.sql
+\i /workspace/internal/auth/migrations/004_invitation_links.sql
 
 \echo 'Seeding test API key...'
 -- "llmux_test_key_12345" sha256 (hex):

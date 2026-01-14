@@ -35,6 +35,11 @@ func NewInvitationHandler(service *auth.InvitationService, store auth.Invitation
 	}
 }
 
+// RegisterRoutes implements the cmd/server management route registrar interface.
+func (h *InvitationHandler) RegisterRoutes(mux *http.ServeMux) {
+	h.RegisterInvitationRoutes(mux)
+}
+
 // RegisterInvitationRoutes registers invitation routes on the given mux.
 func (h *InvitationHandler) RegisterInvitationRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("POST /invitation/new", h.CreateInvitation)

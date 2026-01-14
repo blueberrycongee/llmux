@@ -23,6 +23,7 @@ Apply the baseline schema (use these in order and keep it consistent across envi
 ```
 psql "$DATABASE_URL" -f internal/auth/migrations/002_full_schema.sql
 psql "$DATABASE_URL" -f internal/auth/migrations/003_enterprise_features.sql
+psql "$DATABASE_URL" -f internal/auth/migrations/004_invitation_links.sql
 ```
 
 Note: `internal/auth/migrations/001_init.sql` is a legacy minimal schema and is not compatible with the current Postgres-backed auth store.

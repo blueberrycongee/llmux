@@ -28,6 +28,17 @@ type managementRegistrar interface {
 	RegisterRoutes(*http.ServeMux)
 }
 
+type multiRegistrar []managementRegistrar
+
+func (m multiRegistrar) RegisterRoutes(mux *http.ServeMux) {
+	for _, registrar := range m {
+		if registrar == nil {
+			continue
+		}
+		registrar.RegisterRoutes(mux)
+	}
+}
+
 type muxes struct {
 	Data  *http.ServeMux
 	Admin *http.ServeMux
