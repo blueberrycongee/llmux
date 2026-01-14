@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -36,8 +38,13 @@ func (p *Provider) BuildEmbeddingRequest(ctx context.Context, req *types.Embeddi
 		endpoint = "/embeddings"
 	}
 
-	url := strings.TrimSuffix(p.baseURL, "/") + endpoint
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	base, err := url.Parse(strings.TrimSuffix(p.baseURL, "/"))
+	if err != nil {
+		return nil, fmt.Errorf("parse base url: %w", err)
+	}
+	base.Path = path.Join(strings.TrimSuffix(base.Path, "/"), strings.TrimPrefix(endpoint, "/"))
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

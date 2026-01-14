@@ -119,11 +119,12 @@ func TestClientHandler_ObservabilityRequestID(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)
@@ -170,11 +171,12 @@ func TestClientHandler_ObservabilityCallbackFailureDoesNotBlock(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)

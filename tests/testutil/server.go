@@ -170,13 +170,14 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	if len(options.providers) > 0 {
 		for _, p := range options.providers {
 			pCfg := provider.ProviderConfig{
-				Name:          p.Name,
-				Type:          "openai",
-				APIKey:        options.mockAPIKey,
-				BaseURL:       p.URL,
-				Models:        p.Models,
-				MaxConcurrent: 100,
-				TimeoutSec:    int(options.timeout.Seconds()),
+				Name:                p.Name,
+				Type:                "openai",
+				APIKey:              options.mockAPIKey,
+				BaseURL:             p.URL,
+				AllowPrivateBaseURL: true,
+				Models:              p.Models,
+				MaxConcurrent:       100,
+				TimeoutSec:          int(options.timeout.Seconds()),
 			}
 
 			if _, err := registry.CreateProvider(pCfg); err != nil {
@@ -200,13 +201,14 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	} else if options.mockProviderURL != "" {
 		// Single mock provider (original behavior)
 		pCfg := provider.ProviderConfig{
-			Name:          "mock-openai",
-			Type:          "openai",
-			APIKey:        options.mockAPIKey,
-			BaseURL:       options.mockProviderURL,
-			Models:        options.models,
-			MaxConcurrent: 100,
-			TimeoutSec:    int(options.timeout.Seconds()),
+			Name:                "mock-openai",
+			Type:                "openai",
+			APIKey:              options.mockAPIKey,
+			BaseURL:             options.mockProviderURL,
+			AllowPrivateBaseURL: true,
+			Models:              options.models,
+			MaxConcurrent:       100,
+			TimeoutSec:          int(options.timeout.Seconds()),
 		}
 
 		if _, err := registry.CreateProvider(pCfg); err != nil {

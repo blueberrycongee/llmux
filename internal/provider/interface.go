@@ -78,13 +78,14 @@ type ProviderFactory func(cfg ProviderConfig) (Provider, error)
 
 // ProviderConfig contains provider-specific configuration.
 type ProviderConfig struct {
-	Name          string
-	Type          string
-	APIKey        string
-	TokenSource   TokenSource
-	BaseURL       string
-	Models        []string
-	MaxConcurrent int
-	TimeoutSec    int
-	Headers       map[string]string
+	Name                string
+	Type                string
+	APIKey              string
+	TokenSource         TokenSource
+	BaseURL             string
+	AllowPrivateBaseURL bool
+	Models              []string
+	MaxConcurrent       int
+	TimeoutSec          int
+	Headers             map[string]string
 }

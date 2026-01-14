@@ -24,11 +24,12 @@ func TestResponsesHandler_NonStreaming(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)
@@ -66,11 +67,12 @@ func TestResponsesHandler_Streaming(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)
@@ -125,11 +127,12 @@ func TestResponsesHandler_Streaming_DoesNotForceIncludeUsage(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)
@@ -159,11 +162,12 @@ func TestAudioAndBatchEndpoints_NotSupported(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)

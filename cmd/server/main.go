@@ -427,12 +427,13 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	// Add providers from config
 	for _, provCfg := range cfg.Providers {
 		pCfg := llmux.ProviderConfig{
-			Name:    provCfg.Name,
-			Type:    provCfg.Type,
-			APIKey:  provCfg.APIKey,
-			BaseURL: provCfg.BaseURL,
-			Models:  provCfg.Models,
-			Timeout: provCfg.Timeout,
+			Name:                provCfg.Name,
+			Type:                provCfg.Type,
+			APIKey:              provCfg.APIKey,
+			BaseURL:             provCfg.BaseURL,
+			AllowPrivateBaseURL: provCfg.AllowPrivateBaseURL,
+			Models:              provCfg.Models,
+			Timeout:             provCfg.Timeout,
 			// MaxConcurrent is enforced by the client semaphore per deployment.
 			MaxConcurrent: provCfg.MaxConcurrent,
 			Headers:       provCfg.Headers,

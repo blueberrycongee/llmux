@@ -229,14 +229,15 @@ type StreamConfig struct {
 
 // ProviderConfig defines a single LLM provider configuration.
 type ProviderConfig struct {
-	Name          string            `yaml:"name"`
-	Type          string            `yaml:"type"`
-	APIKey        string            `yaml:"api_key"`
-	BaseURL       string            `yaml:"base_url"`
-	Models        []string          `yaml:"models"`
-	MaxConcurrent int               `yaml:"max_concurrent"`
-	Timeout       time.Duration     `yaml:"timeout"`
-	Headers       map[string]string `yaml:"headers"`
+	Name                string            `yaml:"name"`
+	Type                string            `yaml:"type"`
+	APIKey              string            `yaml:"api_key"`
+	BaseURL             string            `yaml:"base_url"`
+	AllowPrivateBaseURL bool              `yaml:"allow_private_base_url"`
+	Models              []string          `yaml:"models"`
+	MaxConcurrent       int               `yaml:"max_concurrent"`
+	Timeout             time.Duration     `yaml:"timeout"`
+	Headers             map[string]string `yaml:"headers"`
 }
 
 // RoutingConfig contains routing and load balancing settings.

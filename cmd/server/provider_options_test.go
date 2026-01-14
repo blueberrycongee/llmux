@@ -13,13 +13,14 @@ func TestBuildClientOptions_WiresProviderConfigFields(t *testing.T) {
 	cfg := &config.Config{
 		Providers: []config.ProviderConfig{
 			{
-				Name:          "p1",
-				Type:          "openai",
-				APIKey:        "k",
-				BaseURL:       "https://example.com/v1",
-				Models:        []string{"gpt-4o"},
-				MaxConcurrent: 7,
-				Timeout:       3 * time.Second,
+				Name:                "p1",
+				Type:                "openai",
+				APIKey:              "k",
+				BaseURL:             "https://example.com/v1",
+				AllowPrivateBaseURL: true,
+				Models:              []string{"gpt-4o"},
+				MaxConcurrent:       7,
+				Timeout:             3 * time.Second,
 				Headers: map[string]string{
 					"X-Test": "1",
 				},
@@ -40,6 +41,9 @@ func TestBuildClientOptions_WiresProviderConfigFields(t *testing.T) {
 	}
 	if got.Timeout != cfg.Providers[0].Timeout {
 		t.Fatalf("expected timeout %s, got %s", cfg.Providers[0].Timeout, got.Timeout)
+	}
+	if got.AllowPrivateBaseURL != cfg.Providers[0].AllowPrivateBaseURL {
+		t.Fatalf("expected allow_private_base_url %v, got %v", cfg.Providers[0].AllowPrivateBaseURL, got.AllowPrivateBaseURL)
 	}
 	if got.Headers["X-Test"] != "1" {
 		t.Fatalf("expected header to be wired")
