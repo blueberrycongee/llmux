@@ -55,17 +55,18 @@ type StreamReader struct {
 	mu sync.Mutex
 
 	// Resilience fields
-	ctx             context.Context
-	client          *Client
-	originalReq     *types.ChatRequest
-	accumulated     strings.Builder
-	retryCount      int
-	maxRetries      int
-	fallbackEnabled bool
-	recoveryMode    StreamRecoveryMode
-	skipRemaining   int
-	seenDone        bool
-	requestEnded    bool // tracks whether ReportRequestEnd has been called for current deployment
+	ctx              context.Context
+	client           *Client
+	originalReq      *types.ChatRequest
+	accumulated      strings.Builder
+	accumulatedRunes int
+	retryCount       int
+	maxRetries       int
+	fallbackEnabled  bool
+	recoveryMode     StreamRecoveryMode
+	skipRemaining    int
+	seenDone         bool
+	requestEnded     bool // tracks whether ReportRequestEnd has been called for current deployment
 
 	pluginStream  <-chan *types.StreamChunk
 	pipeline      *plugin.Pipeline
@@ -74,6 +75,35 @@ type StreamReader struct {
 	postHooksRun  bool
 
 	release func()
+}
+
+func (s *StreamReader) appendAccumulatedLocked(content string) {
+	if content == "" {
+		return
+	}
+
+	s.accumulatedRunes += utf8.RuneCountInString(content)
+
+	maxBytes := 0
+	if s.client != nil {
+		maxBytes = s.client.config.StreamRecoveryMaxAccumulatedBytes
+	}
+
+	s.accumulated.WriteString(content)
+	if maxBytes <= 0 || s.accumulated.Len() <= maxBytes {
+		return
+	}
+
+	value := s.accumulated.String()
+	if len(value) > maxBytes {
+		value = value[len(value)-maxBytes:]
+		for value != "" && !utf8.ValidString(value) {
+			value = value[1:]
+		}
+	}
+
+	s.accumulated.Reset()
+	s.accumulated.WriteString(value)
 }
 
 // newStreamReader creates a new StreamReader.
@@ -210,7 +240,7 @@ func (s *StreamReader) Recv() (*types.StreamChunk, error) {
 
 		// Accumulate content for recovery
 		if len(chunk.Choices) > 0 {
-			s.accumulated.WriteString(chunk.Choices[0].Delta.Content)
+			s.appendAccumulatedLocked(chunk.Choices[0].Delta.Content)
 		}
 
 		return chunk, nil
@@ -284,7 +314,7 @@ func (s *StreamReader) recvFromPluginStreamLocked() (*types.StreamChunk, error) 
 		}
 
 		if len(chunk.Choices) > 0 {
-			s.accumulated.WriteString(chunk.Choices[0].Delta.Content)
+			s.appendAccumulatedLocked(chunk.Choices[0].Delta.Content)
 		}
 
 		return chunk, nil
@@ -349,9 +379,19 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	s.retryCount++
 	currentAccumulated := s.accumulated.String()
 	if s.recoveryMode == StreamRecoveryRetry {
-		s.skipRemaining = utf8.RuneCountInString(currentAccumulated)
+		s.skipRemaining = s.accumulatedRunes
 	}
 	s.mu.Unlock()
+
+	if backoff := s.client.retryBackoff(s.retryCount); backoff > 0 {
+		timer := time.NewTimer(backoff)
+		select {
+		case <-timer.C:
+		case <-s.ctx.Done():
+			timer.Stop()
+			return nil, s.ctx.Err()
+		}
+	}
 
 	// Construct new request
 	newReq := *s.originalReq
@@ -440,9 +480,6 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 
 	// Update StreamReader state
 	s.mu.Lock()
-	if s.recoveryMode == StreamRecoveryRetry {
-		s.accumulated.Reset()
-	}
 	s.body = resp.Body
 	s.scanner = bufio.NewScanner(resp.Body)
 	s.scanner.Buffer(make([]byte, 4096), 256*1024)

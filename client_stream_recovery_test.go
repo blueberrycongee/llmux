@@ -169,6 +169,118 @@ func TestStreamRecovery_MidStreamFailure(t *testing.T) {
 	}
 }
 
+func TestStreamRecovery_AccumulatedCap_TruncatesRecoveryContext(t *testing.T) {
+	// Server A: fails mid-stream after emitting content that would exceed the cap.
+	serverA := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		if strings.Contains(string(body), "this is ") {
+			http.Error(w, "Service Unavailable", http.StatusServiceUnavailable)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "data: %s\n\n", `{"choices":[{"delta":{"content":"Hello, "}}]}`)
+		w.(http.Flusher).Flush()
+		time.Sleep(10 * time.Millisecond)
+
+		fmt.Fprintf(w, "data: %s\n\n", `{"choices":[{"delta":{"content":"this is "}}]}`)
+		w.(http.Flusher).Flush()
+		time.Sleep(10 * time.Millisecond)
+	}))
+	defer serverA.Close()
+
+	// Server B: expects only the capped suffix to be appended as recovery context.
+	serverB := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, _ := io.ReadAll(r.Body)
+		bodyStr := string(body)
+
+		if !strings.Contains(bodyStr, `"content":"this is "`) {
+			t.Errorf("expected capped recovery context to include suffix %q, body=%s", "this is ", bodyStr)
+			http.Error(w, "missing context suffix", http.StatusBadRequest)
+			return
+		}
+		if strings.Contains(bodyStr, `"content":"Hello, "`) {
+			t.Errorf("expected capped recovery context to omit prefix %q, body=%s", "Hello, ", bodyStr)
+			http.Error(w, "unexpected context prefix", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		fmt.Fprintf(w, "data: %s\n\n", `{"choices":[{"delta":{"content":"a resilient "}}]}`)
+		w.(http.Flusher).Flush()
+		time.Sleep(10 * time.Millisecond)
+
+		fmt.Fprintf(w, "data: %s\n\n", `{"choices":[{"delta":{"content":"system."}}]}`)
+		w.(http.Flusher).Flush()
+		time.Sleep(10 * time.Millisecond)
+
+		fmt.Fprintf(w, "data: [DONE]\n\n")
+	}))
+	defer serverB.Close()
+
+	client, err := New(
+		WithProvider(ProviderConfig{
+			Name:                "providerA",
+			Type:                "openai",
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverA.URL,
+			AllowPrivateBaseURL: true,
+		}),
+		WithProvider(ProviderConfig{
+			Name:                "providerB",
+			Type:                "openai",
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverB.URL,
+			AllowPrivateBaseURL: true,
+		}),
+		withTestPricing(t, "gpt-test"),
+		WithFallback(true),
+		WithRetry(3, 10*time.Millisecond),
+		WithRetryJitter(0),
+		WithStreamRecoveryMode(StreamRecoveryAppend),
+		WithStreamRecoveryMaxAccumulatedBytes(8),
+	)
+	if err != nil {
+		t.Fatalf("failed to create client: %v", err)
+	}
+
+	trackingR := newTrackingRouter(client.router)
+	client.router = trackingR
+
+	req := &types.ChatRequest{
+		Model: "gpt-test",
+		Messages: []types.ChatMessage{
+			{Role: "user", Content: []byte(`"hello"`)}},
+		Stream: true,
+	}
+
+	stream, err := client.ChatCompletionStream(context.Background(), req)
+	if err != nil {
+		t.Fatalf("ChatCompletionStream returned error: %v", err)
+	}
+	defer stream.Close()
+
+	var out strings.Builder
+	for {
+		chunk, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			t.Fatalf("stream.Recv returned error: %v", err)
+		}
+		if len(chunk.Choices) > 0 {
+			out.WriteString(chunk.Choices[0].Delta.Content)
+		}
+	}
+
+	if got, want := out.String(), "Hello, this is a resilient system."; got != want {
+		t.Fatalf("stream output = %q, want %q", got, want)
+	}
+}
+
 // trackingRouter wraps a router.Router to track ReportRequestStart and ReportRequestEnd calls
 // for verifying proper lifecycle management during recovery.
 type trackingRouter struct {

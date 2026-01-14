@@ -224,7 +224,8 @@ type ServerConfig struct {
 
 // StreamConfig contains stream-specific behavior.
 type StreamConfig struct {
-	RecoveryMode string `yaml:"recovery_mode"` // off, append, retry
+	RecoveryMode        string `yaml:"recovery_mode"`         // off, append, retry
+	MaxAccumulatedBytes int    `yaml:"max_accumulated_bytes"` // 0 = unlimited (not recommended)
 }
 
 // ProviderConfig defines a single LLM provider configuration.
@@ -340,7 +341,8 @@ func DefaultConfig() *Config {
 			CooldownPeriod:  60 * time.Second,
 		},
 		Stream: StreamConfig{
-			RecoveryMode: "retry",
+			RecoveryMode:        "retry",
+			MaxAccumulatedBytes: 1 << 20, // 1MiB
 		},
 		RateLimit: RateLimitConfig{
 			Enabled:           false,
@@ -561,6 +563,9 @@ func (c *Config) Validate() error {
 	case "", "off", "append", "retry":
 	default:
 		return fmt.Errorf("stream.recovery_mode must be one of: off, append, retry")
+	}
+	if c.Stream.MaxAccumulatedBytes < 0 {
+		return fmt.Errorf("stream.max_accumulated_bytes cannot be negative")
 	}
 
 	if c.CORS.MaxAge < 0 {

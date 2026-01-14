@@ -474,6 +474,7 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	if cfg.Stream.RecoveryMode != "" {
 		opts = append(opts, llmux.WithStreamRecoveryMode(mapStreamRecoveryMode(cfg.Stream.RecoveryMode)))
 	}
+	opts = append(opts, llmux.WithStreamRecoveryMaxAccumulatedBytes(cfg.Stream.MaxAccumulatedBytes))
 
 	// Initialize cache
 	cacheOpts, cacheErr := buildCacheOptions(&cfg.Cache, logger)

@@ -91,6 +91,9 @@ type ClientConfig struct {
 
 	// Stream recovery
 	StreamRecoveryMode StreamRecoveryMode
+	// StreamRecoveryMaxAccumulatedBytes caps the in-memory accumulated stream content used for recovery.
+	// Set to 0 to disable the cap (not recommended).
+	StreamRecoveryMaxAccumulatedBytes int
 
 	// Observability
 	OTelMetricsConfig observability.OTelMetricsConfig
@@ -113,19 +116,20 @@ type Option func(*ClientConfig)
 // defaultConfig returns sensible defaults.
 func defaultConfig() *ClientConfig {
 	return &ClientConfig{
-		RouterStrategy:     StrategySimpleShuffle,
-		FallbackEnabled:    true,
-		RetryCount:         3,
-		RetryBackoff:       time.Second,
-		RetryMaxBackoff:    5 * time.Second,
-		RetryJitter:        0.2,
-		CooldownPeriod:     60 * time.Second,
-		CacheEnabled:       false,
-		CacheTTL:           time.Hour,
-		CacheTypeLabel:     "unknown",
-		Timeout:            30 * time.Second,
-		Logger:             slog.Default(),
-		StreamRecoveryMode: StreamRecoveryRetry,
+		RouterStrategy:                    StrategySimpleShuffle,
+		FallbackEnabled:                   true,
+		RetryCount:                        3,
+		RetryBackoff:                      time.Second,
+		RetryMaxBackoff:                   5 * time.Second,
+		RetryJitter:                       0.2,
+		CooldownPeriod:                    60 * time.Second,
+		CacheEnabled:                      false,
+		CacheTTL:                          time.Hour,
+		CacheTypeLabel:                    "unknown",
+		Timeout:                           30 * time.Second,
+		Logger:                            slog.Default(),
+		StreamRecoveryMode:                StreamRecoveryRetry,
+		StreamRecoveryMaxAccumulatedBytes: 1 << 20, // 1MiB
 	}
 }
 
@@ -389,5 +393,13 @@ func WithRoundRobinStore(store router.RoundRobinStore) Option {
 func WithStreamRecoveryMode(mode StreamRecoveryMode) Option {
 	return func(c *ClientConfig) {
 		c.StreamRecoveryMode = mode
+	}
+}
+
+// WithStreamRecoveryMaxAccumulatedBytes caps the accumulated stream content retained in-memory for recovery.
+// A value of 0 disables the cap.
+func WithStreamRecoveryMaxAccumulatedBytes(maxBytes int) Option {
+	return func(c *ClientConfig) {
+		c.StreamRecoveryMaxAccumulatedBytes = maxBytes
 	}
 }

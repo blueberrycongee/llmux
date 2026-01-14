@@ -80,6 +80,7 @@ healthcheck:
 
 stream:
   recovery_mode: retry  # off, append, retry
+  max_accumulated_bytes: 1048576  # 0=unlimited (not recommended); caps stream recovery context
 
 rate_limit:
   enabled: false
