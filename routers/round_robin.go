@@ -7,6 +7,7 @@ import (
 
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 // RoundRobinRouter implements strict round-robin selection.
@@ -83,8 +84,13 @@ func (r *RoundRobinRouter) PickWithContext(ctx context.Context, reqCtx *router.R
 		}
 	}
 
-	index := r.nextIndex(reqCtx.Model, len(healthy))
+	index := r.nextIndex(canonicalModelKey(reqCtx.Model), len(healthy))
 	return healthy[index].Deployment, nil
+}
+
+func canonicalModelKey(model string) string {
+	_, canonical := types.SplitProviderModel(model)
+	return canonical
 }
 
 func (r *RoundRobinRouter) nextIndex(model string, count int) int {

@@ -387,6 +387,49 @@ providers:
 		}
 	})
 
+	t.Run("environment variable expansion with default", func(t *testing.T) {
+		content := `
+server:
+  port: 8080
+providers:
+  - name: openai
+    type: openai
+    api_key: test-key
+    models:
+      - gpt-4
+database:
+  enabled: true
+  host: ${TEST_DB_HOST:localhost}
+  port: 5432
+  user: llmux
+  database: llmux
+  ssl_mode: disable
+`
+		path := createTempFile(t, content)
+		defer os.Remove(path)
+
+		// Unset -> default value
+		os.Unsetenv("TEST_DB_HOST")
+		cfg, err := LoadFromFile(path)
+		if err != nil {
+			t.Fatalf("LoadFromFile() error = %v", err)
+		}
+		if cfg.Database.Host != "localhost" {
+			t.Errorf("database.host = %q, want localhost", cfg.Database.Host)
+		}
+
+		// Set -> use env var
+		os.Setenv("TEST_DB_HOST", "db.example.internal")
+		defer os.Unsetenv("TEST_DB_HOST")
+		cfg, err = LoadFromFile(path)
+		if err != nil {
+			t.Fatalf("LoadFromFile() error = %v", err)
+		}
+		if cfg.Database.Host != "db.example.internal" {
+			t.Errorf("database.host = %q, want db.example.internal", cfg.Database.Host)
+		}
+	})
+
 	t.Run("file not found", func(t *testing.T) {
 		_, err := LoadFromFile("/nonexistent/path/config.yaml")
 		if err == nil {

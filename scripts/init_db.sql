@@ -12,12 +12,13 @@
 \set ON_ERROR_STOP on
 
 \echo 'Applying LLMux migrations...'
-\i /workspace/internal/auth/migrations/001_init.sql
+\i /workspace/internal/auth/migrations/002_full_schema.sql
+\i /workspace/internal/auth/migrations/003_enterprise_features.sql
 
 \echo 'Seeding test API key...'
 -- "llmux_test_key_12345" sha256 (hex):
 --   f0a5be3c98fccb0f2721fb33c0b8b357e93111c4399c42f591763865ae34f511
-INSERT INTO api_keys (key_hash, key_prefix, name, is_active)
+INSERT INTO api_keys (key_hash, key_prefix, key_name, is_active)
 VALUES (
   'f0a5be3c98fccb0f2721fb33c0b8b357e93111c4399c42f591763865ae34f511',
   'llmux_te',

@@ -46,7 +46,6 @@ auth:
   skip_paths:
     - /health/ready
     - /health/live
-    - /metrics
 
 database:
   enabled: false

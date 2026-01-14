@@ -129,7 +129,8 @@ type AuthConfig struct {
 	Enabled                bool          `yaml:"enabled"`
 	SkipPaths              []string      `yaml:"skip_paths"` // Paths to skip authentication
 	LastUsedUpdateInterval time.Duration `yaml:"last_used_update_interval"`
-	OIDC                   OIDCConfig    `yaml:"oidc"` // OIDC configuration
+	BootstrapToken         string        `yaml:"bootstrap_token"` // Optional bootstrap token for management endpoints
+	OIDC                   OIDCConfig    `yaml:"oidc"`            // OIDC configuration
 }
 
 // OIDCConfig contains OIDC provider settings.
@@ -228,14 +229,15 @@ type StreamConfig struct {
 
 // ProviderConfig defines a single LLM provider configuration.
 type ProviderConfig struct {
-	Name          string            `yaml:"name"`
-	Type          string            `yaml:"type"`
-	APIKey        string            `yaml:"api_key"`
-	BaseURL       string            `yaml:"base_url"`
-	Models        []string          `yaml:"models"`
-	MaxConcurrent int               `yaml:"max_concurrent"`
-	Timeout       time.Duration     `yaml:"timeout"`
-	Headers       map[string]string `yaml:"headers"`
+	Name                string            `yaml:"name"`
+	Type                string            `yaml:"type"`
+	APIKey              string            `yaml:"api_key"`
+	BaseURL             string            `yaml:"base_url"`
+	AllowPrivateBaseURL bool              `yaml:"allow_private_base_url"`
+	Models              []string          `yaml:"models"`
+	MaxConcurrent       int               `yaml:"max_concurrent"`
+	Timeout             time.Duration     `yaml:"timeout"`
+	Headers             map[string]string `yaml:"headers"`
 }
 
 // RoutingConfig contains routing and load balancing settings.
@@ -398,7 +400,7 @@ func DefaultConfig() *Config {
 		},
 		Auth: AuthConfig{
 			Enabled:                false,
-			SkipPaths:              []string{"/health/live", "/health/ready", "/metrics"},
+			SkipPaths:              []string{"/health/live", "/health/ready"},
 			LastUsedUpdateInterval: time.Minute,
 		},
 		Database: DatabaseConfig{
@@ -448,15 +450,34 @@ func DefaultConfig() *Config {
 }
 
 // LoadFromFile reads and parses a YAML configuration file.
-// Environment variables in the format ${VAR_NAME} are expanded.
+// Environment variables in the format ${VAR_NAME} and ${VAR_NAME:default} are expanded.
 func LoadFromFile(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read config file: %w", err)
 	}
 
-	// Expand environment variables
-	expanded := os.ExpandEnv(string(data))
+	// Expand environment variables.
+	//
+	// Supports:
+	// - ${VAR_NAME}
+	// - ${VAR_NAME:default} (use default when VAR_NAME is unset or empty)
+	expanded := os.Expand(string(data), func(key string) string {
+		name := key
+		def := ""
+		if idx := strings.IndexByte(key, ':'); idx >= 0 {
+			name = key[:idx]
+			def = key[idx+1:]
+		}
+
+		if val, ok := os.LookupEnv(name); ok && val != "" {
+			return val
+		}
+		if def != "" || strings.Contains(key, ":") {
+			return def
+		}
+		return ""
+	})
 
 	cfg := DefaultConfig()
 	if err := yaml.Unmarshal([]byte(expanded), cfg); err != nil {

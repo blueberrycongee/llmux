@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
+	"path"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -92,6 +94,9 @@ func NewFromConfig(info Info, cfg provider.Config) (provider.Provider, error) {
 	if strings.TrimSpace(p.baseURL) == "" {
 		return nil, fmt.Errorf("base_url is required for provider %q", info.Name)
 	}
+	if err := provider.ValidateBaseURL(p.baseURL, cfg.AllowPrivateBaseURL); err != nil {
+		return nil, fmt.Errorf("invalid base_url for provider %q: %w", info.Name, err)
+	}
 	for k, v := range cfg.Headers {
 		p.headers[k] = v
 	}
@@ -137,8 +142,13 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 		endpoint = "/chat/completions"
 	}
 
-	url := strings.TrimSuffix(p.baseURL, "/") + endpoint
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	base, err := url.Parse(strings.TrimSuffix(p.baseURL, "/"))
+	if err != nil {
+		return nil, fmt.Errorf("parse base url: %w", err)
+	}
+	base.Path = path.Join(strings.TrimSuffix(base.Path, "/"), strings.TrimPrefix(endpoint, "/"))
+
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

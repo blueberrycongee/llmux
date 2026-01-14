@@ -16,15 +16,16 @@ func ToPkgConfig(cfg ProviderConfig) pkgprovider.Config {
 		ts = &tokenSourceAdapter{cfg.TokenSource}
 	}
 	return pkgprovider.Config{
-		Name:          cfg.Name,
-		Type:          cfg.Type,
-		APIKey:        cfg.APIKey,
-		TokenSource:   ts,
-		BaseURL:       cfg.BaseURL,
-		Models:        cfg.Models,
-		MaxConcurrent: cfg.MaxConcurrent,
-		Timeout:       time.Duration(cfg.TimeoutSec) * time.Second,
-		Headers:       cfg.Headers,
+		Name:                cfg.Name,
+		Type:                cfg.Type,
+		APIKey:              cfg.APIKey,
+		TokenSource:         ts,
+		BaseURL:             cfg.BaseURL,
+		AllowPrivateBaseURL: cfg.AllowPrivateBaseURL,
+		Models:              cfg.Models,
+		MaxConcurrent:       cfg.MaxConcurrent,
+		Timeout:             time.Duration(cfg.TimeoutSec) * time.Second,
+		Headers:             cfg.Headers,
 	}
 }
 

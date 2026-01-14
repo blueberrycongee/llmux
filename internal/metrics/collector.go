@@ -78,25 +78,20 @@ func (c *Collector) RecordRequest(m *RequestMetrics) {
 
 	// Total requests
 	ProxyTotalRequests.WithLabelValues(
-		labels.EndUser, labels.User, labels.HashedAPIKey, labels.APIKeyAlias,
-		labels.Team, labels.TeamAlias, labels.RequestedModel, labels.Model,
-		labels.ModelGroup, labels.APIProvider, statusCode,
+		labels.Model, labels.ModelGroup, labels.APIProvider, statusCode,
 	).Inc()
 
 	// Failed requests
 	if !m.Success {
 		ProxyFailedRequests.WithLabelValues(
-			labels.EndUser, labels.User, labels.HashedAPIKey, labels.APIKeyAlias,
-			labels.Team, labels.TeamAlias, labels.RequestedModel, labels.Model,
-			labels.ModelGroup, labels.APIProvider, labels.ExceptionStatus, labels.ExceptionClass,
+			labels.Model, labels.ModelGroup, labels.APIProvider, labels.ExceptionStatus, labels.ExceptionClass,
 		).Inc()
 	}
 
 	// Total latency
 	totalLatency := m.EndTime.Sub(m.StartTime).Seconds()
 	RequestTotalLatency.WithLabelValues(
-		labels.EndUser, labels.User, labels.HashedAPIKey, labels.APIKeyAlias,
-		labels.Team, labels.TeamAlias, labels.Model, labels.ModelGroup, labels.APIProvider,
+		labels.Model, labels.ModelGroup, labels.APIProvider,
 	).Observe(totalLatency)
 
 	// LLM API latency
@@ -127,10 +122,7 @@ func (c *Collector) RecordRequest(m *RequestMetrics) {
 	}
 
 	// Token metrics
-	tokenLabels := []string{
-		labels.EndUser, labels.User, labels.HashedAPIKey, labels.APIKeyAlias,
-		labels.Team, labels.TeamAlias, labels.Model, labels.ModelGroup, labels.APIProvider,
-	}
+	tokenLabels := []string{labels.Model, labels.ModelGroup, labels.APIProvider}
 
 	if m.TotalTokens > 0 {
 		TotalTokens.WithLabelValues(tokenLabels...).Add(float64(m.TotalTokens))
@@ -207,17 +199,6 @@ func (c *Collector) UpdateBudgetMetrics(budgetType string, labels []string, rema
 			TeamMaxBudget.WithLabelValues(labels[0], labels[1]).Set(maxBudget)
 			TeamBudgetRemainingHours.WithLabelValues(labels[0], labels[1]).Set(remainingHours)
 		}
-	case "api_key":
-		if len(labels) >= 2 {
-			APIKeyRemainingBudget.WithLabelValues(labels[0], labels[1]).Set(remaining)
-			APIKeyMaxBudget.WithLabelValues(labels[0], labels[1]).Set(maxBudget)
-			APIKeyBudgetRemainingHours.WithLabelValues(labels[0], labels[1]).Set(remainingHours)
-		}
-	case "user":
-		if len(labels) >= 2 {
-			UserRemainingBudget.WithLabelValues(labels[0], labels[1]).Set(remaining)
-			UserMaxBudget.WithLabelValues(labels[0], labels[1]).Set(maxBudget)
-		}
 	case "org":
 		if len(labels) >= 2 {
 			OrgRemainingBudget.WithLabelValues(labels[0], labels[1]).Set(remaining)
@@ -242,10 +223,5 @@ func (c *Collector) UpdateRateLimitMetrics(model, provider, apiBase string, rema
 
 // UpdateAPIKeyRateLimits updates API key rate limit metrics.
 func (c *Collector) UpdateAPIKeyRateLimits(hashedKey, alias, model string, remainingRequests, remainingTokens int64) {
-	if remainingRequests >= 0 {
-		APIKeyRemainingRequestsForModel.WithLabelValues(hashedKey, alias, model).Set(float64(remainingRequests))
-	}
-	if remainingTokens >= 0 {
-		APIKeyRemainingTokensForModel.WithLabelValues(hashedKey, alias, model).Set(float64(remainingTokens))
-	}
+	// Intentionally no-op: per-API-key Prometheus series are high-cardinality and not safe by default.
 }

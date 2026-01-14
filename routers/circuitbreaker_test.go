@@ -1,6 +1,7 @@
 package routers_test
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -31,7 +32,7 @@ func TestBaseRouter_CooldownOn429(t *testing.T) {
 
 	// Report 429 error
 	err := llmerrors.NewRateLimitError("openai", "gpt-4", "rate limited")
-	r.ReportFailure(deployment, err)
+	r.ReportFailure(context.Background(), deployment, err)
 
 	// Should be in cooldown
 	assert.True(t, r.IsCircuitOpen(deployment), "Circuit should be open after 429 error")
@@ -52,7 +53,7 @@ func TestBaseRouter_CooldownOn429_Disabled(t *testing.T) {
 
 	// Report 429 error
 	err := llmerrors.NewRateLimitError("openai", "gpt-4", "rate limited")
-	r.ReportFailure(deployment, err)
+	r.ReportFailure(context.Background(), deployment, err)
 
 	// Should NOT be in cooldown (not enough requests for rate-based cooldown)
 	assert.False(t, r.IsCircuitOpen(deployment), "Circuit should not be open when ImmediateCooldownOn429 is disabled")
@@ -71,7 +72,7 @@ func TestBaseRouter_CooldownOn401(t *testing.T) {
 
 	// Report 401 error
 	err := llmerrors.NewAuthenticationError("openai", "gpt-4", "unauthorized")
-	r.ReportFailure(deployment, err)
+	r.ReportFailure(context.Background(), deployment, err)
 
 	// Should be in cooldown
 	assert.True(t, r.IsCircuitOpen(deployment), "Circuit should be open after 401 error")
@@ -90,7 +91,7 @@ func TestBaseRouter_CooldownOn404(t *testing.T) {
 
 	// Report 404 error
 	err := llmerrors.NewNotFoundError("openai", "gpt-4", "not found")
-	r.ReportFailure(deployment, err)
+	r.ReportFailure(context.Background(), deployment, err)
 
 	// Should be in cooldown
 	assert.True(t, r.IsCircuitOpen(deployment), "Circuit should be open after 404 error")
@@ -110,10 +111,10 @@ func TestBaseRouter_FailureRateThreshold(t *testing.T) {
 	r.AddDeployment(secondary)
 
 	// Report 1 success and 4 failures (5 total, 80% failure rate)
-	r.ReportSuccess(deployment, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
+	r.ReportSuccess(context.Background(), deployment, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
 	for i := 0; i < 4; i++ {
 		err := llmerrors.NewInternalError("openai", "gpt-4", "server error")
-		r.ReportFailure(deployment, err)
+		r.ReportFailure(context.Background(), deployment, err)
 	}
 
 	// Should be in cooldown (failure rate 80% > 50%)
@@ -136,7 +137,7 @@ func TestBaseRouter_FailureRateMinRequests(t *testing.T) {
 	// Report 5 failures (100% failure rate, but only 5 requests)
 	for i := 0; i < 5; i++ {
 		err := llmerrors.NewInternalError("openai", "gpt-4", "server error")
-		r.ReportFailure(deployment, err)
+		r.ReportFailure(context.Background(), deployment, err)
 	}
 
 	// Should NOT be in cooldown (not enough requests)
@@ -156,11 +157,11 @@ func TestBaseRouter_FailureRateBelowThreshold(t *testing.T) {
 
 	// Report 3 successes and 2 failures (5 total, 40% failure rate)
 	for i := 0; i < 3; i++ {
-		r.ReportSuccess(deployment, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
+		r.ReportSuccess(context.Background(), deployment, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
 	}
 	for i := 0; i < 2; i++ {
 		err := llmerrors.NewInternalError("openai", "gpt-4", "server error")
-		r.ReportFailure(deployment, err)
+		r.ReportFailure(context.Background(), deployment, err)
 	}
 
 	// Should NOT be in cooldown (failure rate 40% < 50%)
@@ -180,7 +181,7 @@ func TestBaseRouter_CooldownRecovery(t *testing.T) {
 
 	// Trigger cooldown
 	err := llmerrors.NewRateLimitError("openai", "gpt-4", "rate limited")
-	r.ReportFailure(deployment, err)
+	r.ReportFailure(context.Background(), deployment, err)
 
 	// Should be in cooldown
 	require.True(t, r.IsCircuitOpen(deployment), "Circuit should be open immediately after error")

@@ -91,8 +91,9 @@ func newStreamReader(
 	release func(),
 ) *StreamReader {
 	scanner := bufio.NewScanner(body)
-	// Increase buffer size for large chunks
-	scanner.Buffer(make([]byte, 4096), 4096*4)
+	// Allow larger SSE lines (bufio.Scanner defaults to 64K, and old code used 16KB).
+	// Keep a small initial buffer to reduce allocations.
+	scanner.Buffer(make([]byte, 4096), 256*1024)
 
 	return &StreamReader{
 		body:            body,
@@ -318,7 +319,7 @@ func (s *StreamReader) reportFailure(err error) {
 	if s.router == nil || s.deployment == nil {
 		return
 	}
-	s.router.ReportFailure(s.deployment, err)
+	s.router.ReportFailure(s.ctx, s.deployment, err)
 }
 
 //nolint:unparam // err parameter kept for future error classification
@@ -400,19 +401,19 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	}
 
 	if s.router != nil && deployment != nil {
-		s.router.ReportRequestStart(deployment)
+		s.router.ReportRequestStart(s.ctx, deployment)
 	}
 	s.mu.Lock()
 	s.requestEnded = false // New request started
 	s.release = release
 	s.mu.Unlock()
 
-	resp, err := s.client.httpClient.Do(httpReq)
+	resp, err := s.client.streamHTTPClient.Do(httpReq)
 	if err != nil {
 		release()
 		if s.router != nil && deployment != nil {
-			s.router.ReportFailure(deployment, err)
-			s.router.ReportRequestEnd(deployment)
+			s.router.ReportFailure(s.ctx, deployment, err)
+			s.router.ReportRequestEnd(s.ctx, deployment)
 		}
 		s.mu.Lock()
 		s.requestEnded = true
@@ -427,8 +428,8 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 		llmErr := prov.MapError(resp.StatusCode, body)
 		release()
 		if s.router != nil && deployment != nil {
-			s.router.ReportFailure(deployment, llmErr)
-			s.router.ReportRequestEnd(deployment)
+			s.router.ReportFailure(s.ctx, deployment, llmErr)
+			s.router.ReportRequestEnd(s.ctx, deployment)
 		}
 		s.mu.Lock()
 		s.requestEnded = true
@@ -444,7 +445,7 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	}
 	s.body = resp.Body
 	s.scanner = bufio.NewScanner(resp.Body)
-	s.scanner.Buffer(make([]byte, 4096), 4096*4)
+	s.scanner.Buffer(make([]byte, 4096), 256*1024)
 	s.provider = prov
 	s.deployment = deployment
 	if s.pluginCtx != nil {
@@ -483,7 +484,7 @@ func (s *StreamReader) endRequest() {
 		return
 	}
 	if s.router != nil && s.deployment != nil {
-		s.router.ReportRequestEnd(s.deployment)
+		s.router.ReportRequestEnd(s.ctx, s.deployment)
 	}
 	if s.release != nil {
 		s.release()
@@ -520,7 +521,7 @@ func (s *StreamReader) finish() {
 			latency := time.Since(s.startTime)
 			promptTokens := tokenizer.EstimatePromptTokens(s.originalReq.Model, s.originalReq)
 			completionTokens := tokenizer.EstimateCompletionTokensFromText(s.originalReq.Model, s.accumulated.String())
-			s.router.ReportSuccess(s.deployment, &router.ResponseMetrics{
+			s.router.ReportSuccess(s.ctx, s.deployment, &router.ResponseMetrics{
 				Latency:          latency,
 				TimeToFirstToken: s.ttft,
 				InputTokens:      promptTokens,

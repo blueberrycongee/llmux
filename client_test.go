@@ -373,8 +373,8 @@ func TestSimpleRouter_Cooldown(t *testing.T) {
 	r.AddDeployment(secondary)
 
 	// Report failure to trigger cooldown
-	r.ReportFailure(deployment, NewRateLimitError("test", "test-model", "rate limited"))
-	r.ReportFailure(secondary, NewRateLimitError("test", "test-model", "rate limited"))
+	r.ReportFailure(context.Background(), deployment, NewRateLimitError("test", "test-model", "rate limited"))
+	r.ReportFailure(context.Background(), secondary, NewRateLimitError("test", "test-model", "rate limited"))
 
 	// Should fail during cooldown
 	_, err := r.Pick(context.Background(), "test-model")
@@ -406,13 +406,13 @@ func TestSimpleRouter_Stats(t *testing.T) {
 	r.AddDeployment(deployment)
 
 	// Report some metrics
-	r.ReportRequestStart(deployment)
-	r.ReportSuccess(deployment, &ResponseMetrics{
+	r.ReportRequestStart(context.Background(), deployment)
+	r.ReportSuccess(context.Background(), deployment, &ResponseMetrics{
 		Latency:      100 * time.Millisecond,
 		InputTokens:  10,
 		OutputTokens: 20,
 	})
-	r.ReportRequestEnd(deployment)
+	r.ReportRequestEnd(context.Background(), deployment)
 
 	stats := r.GetStats("test-1")
 	if stats == nil {

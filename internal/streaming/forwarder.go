@@ -21,6 +21,11 @@ const (
 	// DefaultBufferSize is the default size for SSE buffers.
 	DefaultBufferSize = 4096
 
+	// MaxSSELineSize is the maximum size of a single SSE line.
+	// Keep this reasonably bounded to avoid unbounded memory growth while still
+	// supporting larger provider chunks.
+	MaxSSELineSize = 256 * 1024
+
 	// SSEDataPrefix is the prefix for SSE data lines.
 	SSEDataPrefix = "data: "
 
@@ -109,7 +114,7 @@ func (f *Forwarder) Forward() error {
 	scanner := bufio.NewScanner(f.upstream)
 	buf := getBuffer()
 	defer putBuffer(buf)
-	scanner.Buffer(*buf, DefaultBufferSize*4)
+	scanner.Buffer(*buf, MaxSSELineSize)
 
 	for scanner.Scan() {
 		// Check for client disconnect

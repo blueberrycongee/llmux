@@ -24,11 +24,12 @@ func TestResponsesHandler_NonStreaming(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)
@@ -66,11 +67,12 @@ func TestResponsesHandler_Streaming(t *testing.T) {
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)
@@ -97,17 +99,75 @@ func TestResponsesHandler_Streaming(t *testing.T) {
 	require.Contains(t, body, "[DONE]")
 }
 
+func TestResponsesHandler_Streaming_DoesNotForceIncludeUsage(t *testing.T) {
+	mock := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/chat/completions" {
+			http.NotFound(w, r)
+			return
+		}
+		body, _ := io.ReadAll(r.Body)
+		_ = r.Body.Close()
+		if bytes.Contains(body, []byte(`"include_usage":true`)) {
+			http.Error(w, "include_usage was forced", http.StatusBadRequest)
+			return
+		}
+
+		w.Header().Set("Content-Type", "text/event-stream")
+		flusher, ok := w.(http.Flusher)
+		if !ok {
+			http.Error(w, "streaming not supported", http.StatusInternalServerError)
+			return
+		}
+		fmt.Fprintf(w, "data: {}\n\n")
+		flusher.Flush()
+		fmt.Fprintf(w, "data: [DONE]\n\n")
+		flusher.Flush()
+	}))
+	defer mock.Close()
+
+	client, err := llmux.New(
+		llmux.WithProvider(llmux.ProviderConfig{
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
+		}),
+	)
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = client.Close() })
+
+	logger := slog.New(slog.NewTextHandler(io.Discard, &slog.HandlerOptions{}))
+	handler := NewClientHandler(client, logger, nil)
+
+	reqBody, err := json.Marshal(map[string]any{
+		"model":          "gpt-4o",
+		"input":          "hello",
+		"stream":         true,
+		"stream_options": map[string]any{"include_usage": false},
+	})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, "/v1/responses", bytes.NewReader(reqBody))
+	rec := httptest.NewRecorder()
+
+	handler.Responses(rec, req)
+	require.Equal(t, http.StatusOK, rec.Code)
+}
+
 func TestAudioAndBatchEndpoints_NotSupported(t *testing.T) {
 	mock := newResponsesMockServer()
 	defer mock.Close()
 
 	client, err := llmux.New(
 		llmux.WithProvider(llmux.ProviderConfig{
-			Name:    "openai",
-			Type:    "openai",
-			APIKey:  "test",
-			BaseURL: mock.URL,
-			Models:  []string{"gpt-4o"},
+			Name:                "openai",
+			Type:                "openai",
+			APIKey:              "test",
+			BaseURL:             mock.URL,
+			AllowPrivateBaseURL: true,
+			Models:              []string{"gpt-4o"},
 		}),
 	)
 	require.NoError(t, err)

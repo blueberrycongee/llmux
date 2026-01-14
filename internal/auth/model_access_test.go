@@ -258,8 +258,9 @@ func TestModelAccessMiddleware_UsesTeamRestrictions(t *testing.T) {
 
 	teamID := "team-1"
 	team := &Team{
-		ID:     teamID,
-		Models: []string{"gpt-3.5"},
+		ID:       teamID,
+		Models:   []string{"gpt-3.5"},
+		IsActive: true,
 	}
 	if err := store.CreateTeam(context.Background(), team); err != nil {
 		t.Fatalf("CreateTeam: %v", err)

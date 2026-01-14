@@ -4,11 +4,13 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
 const roundRobinKeyPrefix = "llmux:rr:"
+const roundRobinKeyTTL = 24 * time.Hour
 
 // MemoryRoundRobinStore keeps round-robin counters in memory.
 type MemoryRoundRobinStore struct {
@@ -67,11 +69,14 @@ func (r *RedisRoundRobinStore) NextIndex(ctx context.Context, key string, modulo
 		return 0, fmt.Errorf("redis client is nil")
 	}
 	fullKey := roundRobinKeyPrefix + key
-	value, err := r.client.Incr(ctx, fullKey).Result()
+	pipe := r.client.Pipeline()
+	incr := pipe.Incr(ctx, fullKey)
+	pipe.Expire(ctx, fullKey, roundRobinKeyTTL)
+	_, err := pipe.Exec(ctx)
 	if err != nil {
 		return 0, err
 	}
-	idx := (value - 1) % int64(modulo)
+	idx := (incr.Val() - 1) % int64(modulo)
 	return int(idx), nil
 }
 

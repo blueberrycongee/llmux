@@ -27,7 +27,7 @@ func (fakeManagementHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /key/list", func(http.ResponseWriter, *http.Request) {})
 }
 
-func TestBuildMuxes_AdminPortDisabled_RegistersAllOnDataMux(t *testing.T) {
+func TestBuildMuxes_AdminPortDisabled_RegistersOnlyDataRoutes(t *testing.T) {
 	cfg := &config.Config{
 		Server:  config.ServerConfig{Port: 8080},
 		Metrics: config.MetricsConfig{Enabled: true, Path: "/metrics"},
@@ -70,8 +70,8 @@ func TestBuildMuxes_AdminPortDisabled_RegistersAllOnDataMux(t *testing.T) {
 		t.Fatalf("data mux missing batch route, got pattern %q", got)
 	}
 
-	if got := routePattern(muxes.Data, http.MethodGet, "/key/list"); got != "GET /key/list" {
-		t.Fatalf("data mux missing management route, got pattern %q", got)
+	if got := routePattern(muxes.Data, http.MethodGet, "/key/list"); got != "" {
+		t.Fatalf("data mux should not have management routes, got pattern %q", got)
 	}
 
 	if got := routePattern(muxes.Data, http.MethodGet, "/metrics"); got != "GET /metrics" {

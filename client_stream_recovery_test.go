@@ -85,18 +85,20 @@ func TestStreamRecovery_MidStreamFailure(t *testing.T) {
 	// Setup Client
 	client, err := New(
 		WithProvider(ProviderConfig{
-			Name:    "providerA",
-			Type:    "openai", // Use openai compatible provider
-			Models:  []string{"gpt-test"},
-			APIKey:  "test-key",
-			BaseURL: serverA.URL,
+			Name:                "providerA",
+			Type:                "openai", // Use openai compatible provider
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverA.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		WithProvider(ProviderConfig{
-			Name:    "providerB",
-			Type:    "openai",
-			Models:  []string{"gpt-test"},
-			APIKey:  "test-key",
-			BaseURL: serverB.URL,
+			Name:                "providerB",
+			Type:                "openai",
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverB.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		withTestPricing(t, "gpt-test"),
 		WithFallback(true), // Enable fallback
@@ -208,18 +210,18 @@ func (t *trackingRouter) PickWithContext(ctx context.Context, reqCtx *router.Req
 	return t.Router.PickWithContext(ctx, reqCtx)
 }
 
-func (t *trackingRouter) ReportRequestStart(deployment *provider.Deployment) {
+func (t *trackingRouter) ReportRequestStart(ctx context.Context, deployment *provider.Deployment) {
 	t.mu.Lock()
 	t.startCalls[deployment.ID]++
 	t.mu.Unlock()
-	t.Router.ReportRequestStart(deployment)
+	t.Router.ReportRequestStart(ctx, deployment)
 }
 
-func (t *trackingRouter) ReportRequestEnd(deployment *provider.Deployment) {
+func (t *trackingRouter) ReportRequestEnd(ctx context.Context, deployment *provider.Deployment) {
 	t.mu.Lock()
 	t.endCalls[deployment.ID]++
 	t.mu.Unlock()
-	t.Router.ReportRequestEnd(deployment)
+	t.Router.ReportRequestEnd(ctx, deployment)
 }
 
 func (t *trackingRouter) GetCounts() (startCalls, endCalls map[string]int) {
@@ -284,25 +286,28 @@ func TestStreamReader_RecoveryRequestLifecycle(t *testing.T) {
 	// Create client with 3 providers
 	client, err := New(
 		WithProvider(ProviderConfig{
-			Name:    "provider1",
-			Type:    "openai",
-			Models:  []string{"test-model"},
-			APIKey:  "test-key",
-			BaseURL: server1.URL,
+			Name:                "provider1",
+			Type:                "openai",
+			Models:              []string{"test-model"},
+			APIKey:              "test-key",
+			BaseURL:             server1.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		WithProvider(ProviderConfig{
-			Name:    "provider2",
-			Type:    "openai",
-			Models:  []string{"test-model"},
-			APIKey:  "test-key",
-			BaseURL: server2.URL,
+			Name:                "provider2",
+			Type:                "openai",
+			Models:              []string{"test-model"},
+			APIKey:              "test-key",
+			BaseURL:             server2.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		WithProvider(ProviderConfig{
-			Name:    "provider3",
-			Type:    "openai",
-			Models:  []string{"test-model"},
-			APIKey:  "test-key",
-			BaseURL: server3.URL,
+			Name:                "provider3",
+			Type:                "openai",
+			Models:              []string{"test-model"},
+			APIKey:              "test-key",
+			BaseURL:             server3.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		withTestPricing(t, "test-model"),
 		WithFallback(true),
@@ -428,18 +433,20 @@ func TestStreamRecovery_ModeOffDisablesRetry(t *testing.T) {
 
 	client, err := New(
 		WithProvider(ProviderConfig{
-			Name:    "providerA",
-			Type:    "openai",
-			Models:  []string{"gpt-test"},
-			APIKey:  "test-key",
-			BaseURL: serverA.URL,
+			Name:                "providerA",
+			Type:                "openai",
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverA.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		WithProvider(ProviderConfig{
-			Name:    "providerB",
-			Type:    "openai",
-			Models:  []string{"gpt-test"},
-			APIKey:  "test-key",
-			BaseURL: serverB.URL,
+			Name:                "providerB",
+			Type:                "openai",
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverB.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		withTestPricing(t, "gpt-test"),
 		WithFallback(true),
@@ -528,18 +535,20 @@ func TestStreamRecovery_ModeRetrySkipsPrefix(t *testing.T) {
 
 	client, err := New(
 		WithProvider(ProviderConfig{
-			Name:    "providerA",
-			Type:    "openai",
-			Models:  []string{"gpt-test"},
-			APIKey:  "test-key",
-			BaseURL: serverA.URL,
+			Name:                "providerA",
+			Type:                "openai",
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverA.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		WithProvider(ProviderConfig{
-			Name:    "providerB",
-			Type:    "openai",
-			Models:  []string{"gpt-test"},
-			APIKey:  "test-key",
-			BaseURL: serverB.URL,
+			Name:                "providerB",
+			Type:                "openai",
+			Models:              []string{"gpt-test"},
+			APIKey:              "test-key",
+			BaseURL:             serverB.URL,
+			AllowPrivateBaseURL: true,
 		}),
 		withTestPricing(t, "gpt-test"),
 		WithFallback(true),

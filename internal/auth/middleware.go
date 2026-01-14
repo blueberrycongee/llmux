@@ -67,6 +67,13 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		// If another auth mechanism already authenticated this request (e.g. OIDC),
+		// do not force API key authentication.
+		if GetAuthContext(r.Context()) != nil {
+			next.ServeHTTP(w, r)
+			return
+		}
+
 		// Extract API key from Authorization header
 		authHeader := r.Header.Get("Authorization")
 		apiKey, err := ParseAuthHeader(authHeader)
@@ -100,12 +107,39 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			return
 		}
 
+		if key.Blocked {
+			m.writeUnauthorized(w, "api key is blocked")
+			return
+		}
+
 		// Load team if associated
 		var team *Team
 		if key.TeamID != nil {
 			team, err = m.store.GetTeam(r.Context(), *key.TeamID)
 			if err != nil {
 				m.logger.Error("failed to lookup team", "error", err, "team_id", *key.TeamID)
+				m.writeError(w, http.StatusInternalServerError, "internal error")
+				return
+			}
+			if team == nil {
+				m.writeUnauthorized(w, "invalid team")
+				return
+			}
+			if team.IsBlocked() {
+				m.writeUnauthorized(w, "team is blocked")
+				return
+			}
+		}
+
+		// Enforce key type restrictions.
+		if key.KeyType == KeyTypeReadOnly {
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				m.writePermissionDenied(w, "read-only key")
+				return
+			}
+			if r.URL.Path != "/v1/models" {
+				m.writePermissionDenied(w, "read-only key")
+				return
 			}
 		}
 

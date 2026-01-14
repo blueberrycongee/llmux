@@ -170,13 +170,14 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	if len(options.providers) > 0 {
 		for _, p := range options.providers {
 			pCfg := provider.ProviderConfig{
-				Name:          p.Name,
-				Type:          "openai",
-				APIKey:        options.mockAPIKey,
-				BaseURL:       p.URL,
-				Models:        p.Models,
-				MaxConcurrent: 100,
-				TimeoutSec:    int(options.timeout.Seconds()),
+				Name:                p.Name,
+				Type:                "openai",
+				APIKey:              options.mockAPIKey,
+				BaseURL:             p.URL,
+				AllowPrivateBaseURL: true,
+				Models:              p.Models,
+				MaxConcurrent:       100,
+				TimeoutSec:          int(options.timeout.Seconds()),
 			}
 
 			if _, err := registry.CreateProvider(pCfg); err != nil {
@@ -200,13 +201,14 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	} else if options.mockProviderURL != "" {
 		// Single mock provider (original behavior)
 		pCfg := provider.ProviderConfig{
-			Name:          "mock-openai",
-			Type:          "openai",
-			APIKey:        options.mockAPIKey,
-			BaseURL:       options.mockProviderURL,
-			Models:        options.models,
-			MaxConcurrent: 100,
-			TimeoutSec:    int(options.timeout.Seconds()),
+			Name:                "mock-openai",
+			Type:                "openai",
+			APIKey:              options.mockAPIKey,
+			BaseURL:             options.mockProviderURL,
+			AllowPrivateBaseURL: true,
+			Models:              options.models,
+			MaxConcurrent:       100,
+			TimeoutSec:          int(options.timeout.Seconds()),
 		}
 
 		if _, err := registry.CreateProvider(pCfg); err != nil {
@@ -259,7 +261,18 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 
 	// Apply middleware
 	var httpHandler http.Handler = mux
-	httpHandler = metrics.Middleware(httpHandler)
+
+	var authMiddleware *auth.Middleware
+	if options.authEnabled {
+		authMiddleware = auth.NewMiddleware(&auth.MiddlewareConfig{
+			Store:                  store,
+			Logger:                 logger,
+			SkipPaths:              cfg.Auth.SkipPaths,
+			Enabled:                true,
+			LastUsedUpdateInterval: cfg.Auth.LastUsedUpdateInterval,
+		})
+		httpHandler = authMiddleware.Authenticate(httpHandler)
+	}
 
 	// Apply OIDC authentication middleware if configured
 	if options.oidcConfig != nil && options.oidcConfig.IssuerURL != "" {
@@ -280,6 +293,8 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		}
 		httpHandler = oidcMiddleware(httpHandler)
 	}
+
+	httpHandler = metrics.Middleware(httpHandler)
 
 	// Create listener
 	addr := fmt.Sprintf("127.0.0.1:%d", options.port)

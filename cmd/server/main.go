@@ -268,19 +268,27 @@ func run() error {
 		mcpHandler := mcp.NewHTTPHandler(mcpManager)
 		if muxes.Admin != nil {
 			mcpHandler.RegisterRoutes(muxes.Admin)
+			logger.Info("MCP management endpoints registered",
+				"endpoints", []string{"/mcp/clients", "/mcp/clients/{id}", "/mcp/tools"},
+				"admin_port", cfg.Server.AdminPort,
+			)
 		} else {
-			mcpHandler.RegisterRoutes(muxes.Data)
+			logger.Warn("MCP management endpoints disabled (set server.admin_port to enable)",
+				"endpoints", []string{"/mcp/clients", "/mcp/clients/{id}", "/mcp/tools"},
+			)
 		}
-		logger.Info("MCP management endpoints registered",
-			"endpoints", []string{"/mcp/clients", "/mcp/clients/{id}", "/mcp/tools"},
-			"admin_port", cfg.Server.AdminPort,
-		)
 	}
 
-	logger.Info("management endpoints registered",
-		"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
-		"admin_port", cfg.Server.AdminPort,
-	)
+	if muxes.Admin != nil {
+		logger.Info("management endpoints registered",
+			"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
+			"admin_port", cfg.Server.AdminPort,
+		)
+	} else {
+		logger.Warn("management endpoints disabled (set server.admin_port to enable)",
+			"endpoints", []string{"/key/*", "/team/*", "/user/*", "/organization/*", "/spend/*", "/audit/*"},
+		)
+	}
 
 	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer)
 	if err != nil {
@@ -419,11 +427,16 @@ func buildClientOptions(cfg *config.Config, logger *slog.Logger, secretManager *
 	// Add providers from config
 	for _, provCfg := range cfg.Providers {
 		pCfg := llmux.ProviderConfig{
-			Name:    provCfg.Name,
-			Type:    provCfg.Type,
-			APIKey:  provCfg.APIKey,
-			BaseURL: provCfg.BaseURL,
-			Models:  provCfg.Models,
+			Name:                provCfg.Name,
+			Type:                provCfg.Type,
+			APIKey:              provCfg.APIKey,
+			BaseURL:             provCfg.BaseURL,
+			AllowPrivateBaseURL: provCfg.AllowPrivateBaseURL,
+			Models:              provCfg.Models,
+			Timeout:             provCfg.Timeout,
+			// MaxConcurrent is enforced by the client semaphore per deployment.
+			MaxConcurrent: provCfg.MaxConcurrent,
+			Headers:       provCfg.Headers,
 		}
 
 		// Check if APIKey is a secret URI (contains "://")

@@ -38,7 +38,7 @@ func TestBaseRouter_WithStatsStore_DelegatesReportRequestStart(t *testing.T) {
 
 	deployment := &provider.Deployment{ID: "test-deployment-1", ModelName: "gpt-4"}
 	r.AddDeployment(deployment)
-	r.ReportRequestStart(deployment)
+	r.ReportRequestStart(context.Background(), deployment)
 
 	// Assert: StatsStore.IncrementActiveRequests was called
 	assert.Equal(t, 1, mockStore.incrementCalls, "IncrementActiveRequests should be called once")
@@ -57,7 +57,7 @@ func TestBaseRouter_WithStatsStore_DelegatesReportRequestEnd(t *testing.T) {
 	r.AddDeployment(deployment)
 
 	// Act
-	r.ReportRequestEnd(deployment)
+	r.ReportRequestEnd(context.Background(), deployment)
 
 	// Assert
 	assert.Equal(t, 1, mockStore.decrementCalls, "DecrementActiveRequests should be called once")
@@ -82,7 +82,7 @@ func TestBaseRouter_WithStatsStore_DelegatesReportSuccess(t *testing.T) {
 	}
 
 	// Act
-	r.ReportSuccess(deployment, metrics)
+	r.ReportSuccess(context.Background(), deployment, metrics)
 
 	// Assert
 	assert.Equal(t, 1, mockStore.successCalls, "RecordSuccess should be called once")
@@ -106,7 +106,7 @@ func TestBaseRouter_WithStatsStore_DelegatesReportFailure(t *testing.T) {
 	testErr := assert.AnError
 
 	// Act
-	r.ReportFailure(deployment, testErr)
+	r.ReportFailure(context.Background(), deployment, testErr)
 
 	// Assert
 	assert.Equal(t, 1, mockStore.failureCalls, "RecordFailure should be called once")
@@ -125,12 +125,12 @@ func TestBaseRouter_WithoutStatsStore_UsesLocalStats(t *testing.T) {
 	r.AddDeployment(deployment)
 
 	// Act: Record some activity
-	r.ReportRequestStart(deployment)
-	r.ReportSuccess(deployment, &router.ResponseMetrics{
+	r.ReportRequestStart(context.Background(), deployment)
+	r.ReportSuccess(context.Background(), deployment, &router.ResponseMetrics{
 		Latency:     100 * time.Millisecond,
 		TotalTokens: 50,
 	})
-	r.ReportRequestEnd(deployment)
+	r.ReportRequestEnd(context.Background(), deployment)
 
 	// Assert: Local stats should reflect the activity
 	stats := r.GetStats("local-deployment")
@@ -153,19 +153,19 @@ func TestBaseRouter_WithStatsStore_FailSafe(t *testing.T) {
 
 	// Act & Assert: None of these should panic or return error
 	assert.NotPanics(t, func() {
-		r.ReportRequestStart(deployment)
+		r.ReportRequestStart(context.Background(), deployment)
 	}, "ReportRequestStart should not panic on store error")
 
 	assert.NotPanics(t, func() {
-		r.ReportRequestEnd(deployment)
+		r.ReportRequestEnd(context.Background(), deployment)
 	}, "ReportRequestEnd should not panic on store error")
 
 	assert.NotPanics(t, func() {
-		r.ReportSuccess(deployment, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
+		r.ReportSuccess(context.Background(), deployment, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
 	}, "ReportSuccess should not panic on store error")
 
 	assert.NotPanics(t, func() {
-		r.ReportFailure(deployment, assert.AnError)
+		r.ReportFailure(context.Background(), deployment, assert.AnError)
 	}, "ReportFailure should not panic on store error")
 }
 

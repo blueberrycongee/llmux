@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/rand"
-	"strings"
 	"sync"
 	"time"
 
@@ -12,6 +11,7 @@ import (
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/router"
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 // ErrNoAvailableDeployment is returned when no healthy deployment is available.
@@ -168,8 +168,8 @@ func (r *BaseRouter) GetDeployments(model string) []*provider.Deployment {
 	defer r.mu.RUnlock()
 
 	deps := r.deployments[model]
-	if len(deps) == 0 && strings.Contains(model, "/") {
-		if stripped := model[strings.LastIndex(model, "/")+1:]; stripped != "" {
+	if len(deps) == 0 {
+		if _, stripped := types.SplitProviderModel(model); stripped != "" && stripped != model {
 			deps = r.deployments[stripped]
 		}
 	}
@@ -183,8 +183,8 @@ func (r *BaseRouter) GetDeployments(model string) []*provider.Deployment {
 func (r *BaseRouter) snapshotDeployments(model string) []*ExtendedDeployment {
 	r.mu.RLock()
 	deps := r.deployments[model]
-	if len(deps) == 0 && strings.Contains(model, "/") {
-		if stripped := model[strings.LastIndex(model, "/")+1:]; stripped != "" {
+	if len(deps) == 0 {
+		if _, stripped := types.SplitProviderModel(model); stripped != "" && stripped != model {
 			deps = r.deployments[stripped]
 		}
 	}
@@ -276,7 +276,8 @@ func (r *BaseRouter) statsSnapshot(ctx context.Context, deployments []*ExtendedD
 
 	r.mu.RLock()
 	for _, d := range deployments {
-		if stats := r.stats[d.ID]; stats != nil {
+		statsID := r.localStatsKey(ctx, d.ID)
+		if stats := r.stats[statsID]; stats != nil {
 			statsByID[d.ID] = r.statsEntrySnapshot(stats)
 		}
 	}
@@ -331,14 +332,14 @@ func (r *BaseRouter) SetCooldown(deploymentID string, until time.Time) error {
 }
 
 // ReportRequestStart increments the active request count.
-func (r *BaseRouter) ReportRequestStart(deployment *provider.Deployment) {
+func (r *BaseRouter) ReportRequestStart(ctx context.Context, deployment *provider.Deployment) {
 	if deployment != nil {
 		deploymentMetrics.RecordActiveRequest(deployment.ID, deployment.ModelName, deployment.ProviderName, 1)
 	}
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
-		_ = r.statsStore.IncrementActiveRequests(context.Background(), deployment.ID)
+		_ = r.statsStore.IncrementActiveRequests(ctx, deployment.ID)
 		return
 	}
 
@@ -346,19 +347,19 @@ func (r *BaseRouter) ReportRequestStart(deployment *provider.Deployment) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	stats := r.getOrCreateStats(deployment.ID)
+	stats := r.getOrCreateStats(r.localStatsKey(ctx, deployment.ID))
 	stats.ActiveRequests++
 }
 
 // ReportRequestEnd decrements the active request count.
-func (r *BaseRouter) ReportRequestEnd(deployment *provider.Deployment) {
+func (r *BaseRouter) ReportRequestEnd(ctx context.Context, deployment *provider.Deployment) {
 	if deployment != nil {
 		deploymentMetrics.RecordActiveRequest(deployment.ID, deployment.ModelName, deployment.ProviderName, -1)
 	}
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
-		_ = r.statsStore.DecrementActiveRequests(context.Background(), deployment.ID)
+		_ = r.statsStore.DecrementActiveRequests(ctx, deployment.ID)
 		return
 	}
 
@@ -366,18 +367,18 @@ func (r *BaseRouter) ReportRequestEnd(deployment *provider.Deployment) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	stats := r.getOrCreateStats(deployment.ID)
+	stats := r.getOrCreateStats(r.localStatsKey(ctx, deployment.ID))
 	if stats.ActiveRequests > 0 {
 		stats.ActiveRequests--
 	}
 }
 
 // ReportSuccess records a successful request with metrics.
-func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *router.ResponseMetrics) {
+func (r *BaseRouter) ReportSuccess(ctx context.Context, deployment *provider.Deployment, metrics *router.ResponseMetrics) {
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
-		_ = r.statsStore.RecordSuccess(context.Background(), deployment.ID, metrics)
+		_ = r.statsStore.RecordSuccess(ctx, deployment.ID, metrics)
 		return
 	}
 
@@ -385,7 +386,7 @@ func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *rou
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	stats := r.getOrCreateStats(deployment.ID)
+	stats := r.getOrCreateStats(r.localStatsKey(ctx, deployment.ID))
 	stats.TotalRequests++
 	stats.SuccessCount++
 	now := time.Now()
@@ -414,11 +415,10 @@ func (r *BaseRouter) ReportSuccess(deployment *provider.Deployment, metrics *rou
 //   - Immediate cooldown on 429 (Rate Limit) if ImmediateCooldownOn429 is true
 //   - Immediate cooldown on non-retryable errors (401, 404)
 //   - Failure rate based cooldown when rate exceeds FailureThresholdPercent
-func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
+func (r *BaseRouter) ReportFailure(ctx context.Context, deployment *provider.Deployment, err error) {
 	// Distributed mode: delegate to StatsStore
 	if r.statsStore != nil {
 		// Fail-safe: ignore errors
-		ctx := context.Background()
 		beforeCooldown, _ := r.statsStore.GetCooldownUntil(ctx, deployment.ID)
 		isSingleDeployment := r.isSingleDeployment(deployment)
 		if recorder, ok := r.statsStore.(failureRecordWithOptions); ok {
@@ -441,7 +441,7 @@ func (r *BaseRouter) ReportFailure(deployment *provider.Deployment, err error) {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
-	stats := r.getOrCreateStats(deployment.ID)
+	stats := r.getOrCreateStats(r.localStatsKey(ctx, deployment.ID))
 	beforeCooldown := stats.CooldownUntil
 	stats.TotalRequests++
 	stats.FailureCount++
@@ -594,6 +594,14 @@ func (r *BaseRouter) filterByTPMRPM(deployments []*ExtendedDeployment, statsByID
 	}
 
 	return filtered
+}
+
+func (r *BaseRouter) localStatsKey(ctx context.Context, deploymentID string) string {
+	scope := router.TenantScopeFromContext(ctx)
+	if scope == "" {
+		return deploymentID
+	}
+	return scope + ":" + deploymentID
 }
 
 func (r *BaseRouter) getOrCreateStats(deploymentID string) *statsEntry {

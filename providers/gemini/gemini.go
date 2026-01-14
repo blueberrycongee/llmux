@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -126,10 +127,16 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 		return nil, fmt.Errorf("get token: %w", err)
 	}
 
-	url := fmt.Sprintf("%s/%s/models/%s:%s?key=%s",
-		strings.TrimSuffix(p.baseURL, "/"), p.apiVersion, req.Model, action, token)
+	base, err := url.Parse(strings.TrimSuffix(p.baseURL, "/"))
+	if err != nil {
+		return nil, fmt.Errorf("parse base_url: %w", err)
+	}
+	base.Path = base.Path + "/" + p.apiVersion + "/models/" + url.PathEscape(req.Model) + ":" + action
+	q := base.Query()
+	q.Set("key", token)
+	base.RawQuery = q.Encode()
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}

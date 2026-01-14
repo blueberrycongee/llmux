@@ -33,7 +33,7 @@ func TestLeastBusyRouter_DefaultProviderPreferred(t *testing.T) {
 	r.AddDeployment(secondary)
 
 	// Make the primary deployment appear busier to prove preference wins.
-	r.ReportRequestStart(primary)
+	r.ReportRequestStart(context.Background(), primary)
 
 	picked, err := r.Pick(context.Background(), "gpt-4")
 	require.NoError(t, err)
@@ -60,7 +60,7 @@ func TestShuffleRouter_DefaultProviderFallsBackWhenThrottled(t *testing.T) {
 	r.AddDeploymentWithConfig(primary, router.DeploymentConfig{TPMLimit: 1})
 	r.AddDeployment(secondary)
 
-	r.ReportSuccess(primary, &router.ResponseMetrics{
+	r.ReportSuccess(context.Background(), primary, &router.ResponseMetrics{
 		Latency:     time.Millisecond,
 		TotalTokens: 1,
 	})

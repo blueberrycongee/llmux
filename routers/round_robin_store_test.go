@@ -3,6 +3,7 @@ package routers
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/alicebob/miniredis/v2"
 	"github.com/redis/go-redis/v9"
@@ -56,6 +57,24 @@ func TestRedisRoundRobinStore_NextIndexCycles(t *testing.T) {
 	idx, err = store.NextIndex(ctx, "model-b", 2)
 	require.NoError(t, err)
 	require.Equal(t, 0, idx)
+}
+
+func TestRedisRoundRobinStore_NextIndexSetsTTL(t *testing.T) {
+	s := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	store := NewRedisRoundRobinStore(client)
+	ctx := context.Background()
+
+	_, err := store.NextIndex(ctx, "model-ttl", 2)
+	require.NoError(t, err)
+
+	ttl := s.TTL(roundRobinKeyPrefix + "model-ttl")
+	if ttl <= 0 {
+		t.Fatalf("expected TTL to be set, got %v", ttl)
+	}
+	if ttl > 48*time.Hour {
+		t.Fatalf("expected TTL to be bounded, got %v", ttl)
+	}
 }
 
 func TestRoundRobinRouter_WithDistributedStore_UsesSharedCounter(t *testing.T) {

@@ -108,15 +108,18 @@ func GetToken(ts TokenSource, apiKey string) (string, error) {
 
 // Config contains provider-specific configuration.
 type Config struct {
-	Name          string
-	Type          string
-	APIKey        string
-	TokenSource   TokenSource
-	BaseURL       string
-	Models        []string
-	MaxConcurrent int
-	Timeout       time.Duration
-	Headers       map[string]string
+	Name        string
+	Type        string
+	APIKey      string
+	TokenSource TokenSource
+	BaseURL     string
+	// AllowPrivateBaseURL permits loopback/private/link-local base URLs (e.g. http://127.0.0.1).
+	// Default is false to reduce SSRF risk when base_url can be influenced by an untrusted party.
+	AllowPrivateBaseURL bool
+	Models              []string
+	MaxConcurrent       int
+	Timeout             time.Duration
+	Headers             map[string]string
 }
 
 // Factory creates provider instances from configuration.

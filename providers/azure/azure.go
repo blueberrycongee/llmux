@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strings"
 
 	"github.com/goccy/go-json"
@@ -58,6 +59,12 @@ func NewFromConfig(cfg provider.Config) (provider.Provider, error) {
 	if v, ok := cfg.Headers["api-version"]; ok {
 		p.apiVersion = v
 	}
+	for k, v := range cfg.Headers {
+		if k == "api-version" {
+			continue
+		}
+		p.headers[k] = v
+	}
 	return p, nil
 }
 
@@ -74,15 +81,21 @@ func (p *Provider) SupportsModel(model string) bool {
 
 func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*http.Request, error) {
 	deploymentName := req.Model
-	url := fmt.Sprintf("%s/openai/deployments/%s/chat/completions?api-version=%s",
-		strings.TrimSuffix(p.baseURL, "/"), deploymentName, p.apiVersion)
+	base, err := url.Parse(strings.TrimSuffix(p.baseURL, "/"))
+	if err != nil {
+		return nil, fmt.Errorf("parse base_url: %w", err)
+	}
+	base.Path = base.Path + "/openai/deployments/" + url.PathEscape(deploymentName) + "/chat/completions"
+	q := base.Query()
+	q.Set("api-version", p.apiVersion)
+	base.RawQuery = q.Encode()
 
 	body, err := json.Marshal(req)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(body))
+	httpReq, err := http.NewRequestWithContext(ctx, http.MethodPost, base.String(), bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
