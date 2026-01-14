@@ -56,12 +56,6 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if chatReq.Stream {
-		if chatReq.StreamOptions == nil {
-			chatReq.StreamOptions = &types.StreamOptions{IncludeUsage: true}
-		}
-	}
-
 	promptTokens := tokenizer.EstimatePromptTokens(chatReq.Model, chatReq)
 	routeCtx := buildRouterRequestContext(chatReq, promptTokens, chatReq.Stream)
 	deployment, err := h.llmRouter.PickWithContext(routerCtx, routeCtx)

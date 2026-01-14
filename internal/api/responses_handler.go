@@ -87,10 +87,6 @@ func (h *ClientHandler) Responses(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		if chatReq.StreamOptions == nil {
-			chatReq.StreamOptions = &llmux.StreamOptions{IncludeUsage: true}
-		}
-
 		h.handleResponseStream(ctx, w, r, client, chatReq, start, requestID, payload)
 		return
 	}
