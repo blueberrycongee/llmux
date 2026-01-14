@@ -76,28 +76,49 @@ func TestRedisStatsStore_Immediate429SingleDeploymentSkipsCooldown(t *testing.T)
 	require.True(t, cooldownUntil.IsZero())
 }
 
+func TestRedisStatsStore_TenantScope_IsolatesCooldown(t *testing.T) {
+	s := miniredis.RunT(t)
+	client := redis.NewClient(&redis.Options{Addr: s.Addr()})
+	store := NewRedisStatsStore(client)
+
+	deploymentID := "deployment-scope"
+	ctxA := router.WithTenantScope(context.Background(), "tenant-a")
+	ctxB := router.WithTenantScope(context.Background(), "tenant-b")
+
+	require.NoError(t, store.RecordFailure(ctxA, deploymentID, llmerrors.NewRateLimitError("openai", "gpt-4", "rate limited")))
+
+	cooldownUntilA, err := store.GetCooldownUntil(ctxA, deploymentID)
+	require.NoError(t, err)
+	require.True(t, cooldownUntilA.After(time.Now()))
+
+	cooldownUntilB, err := store.GetCooldownUntil(ctxB, deploymentID)
+	require.NoError(t, err)
+	require.True(t, cooldownUntilB.IsZero())
+}
+
 func TestRedisStatsStore_KeyHashTag(t *testing.T) {
 	s := miniredis.RunT(t)
 	client := redis.NewClient(&redis.Options{Addr: s.Addr()})
 	store := NewRedisStatsStore(client)
 
+	ctx := router.WithTenantScope(context.Background(), "tenant-a")
 	deploymentID := "deployment-1"
 	minute := "12345"
 	keys := []string{
-		store.latencyKey(deploymentID),
-		store.ttftKey(deploymentID),
-		store.countersKey(deploymentID),
-		store.cooldownKey(deploymentID),
-		store.usageKey(deploymentID, minute),
-		store.successKey(deploymentID, minute),
-		store.failureKey(deploymentID, minute),
+		store.latencyKey(ctx, deploymentID),
+		store.ttftKey(ctx, deploymentID),
+		store.countersKey(ctx, deploymentID),
+		store.cooldownKey(ctx, deploymentID),
+		store.usageKey(ctx, deploymentID, minute),
+		store.successKey(ctx, deploymentID, minute),
+		store.failureKey(ctx, deploymentID, minute),
 	}
 
 	for _, key := range keys {
-		require.Contains(t, key, "{"+deploymentID+"}")
+		require.Contains(t, key, "{tenant-a:"+deploymentID+"}")
 	}
 
-	require.Equal(t, deploymentID, store.extractDeploymentID(store.countersKey(deploymentID)))
+	require.Equal(t, deploymentID, store.extractDeploymentID(store.countersKey(ctx, deploymentID)))
 }
 
 type denyTimeHook struct{}
@@ -164,6 +185,6 @@ func TestRedisStatsStore_UsesRedisTimeForBucketKeys(t *testing.T) {
 	}))
 
 	bucket := fixed.Unix() / 10
-	expectedKey := store.successKey(deploymentID, strconv.FormatInt(bucket, 10))
+	expectedKey := store.successKey(ctx, deploymentID, strconv.FormatInt(bucket, 10))
 	require.True(t, s.Exists(expectedKey))
 }

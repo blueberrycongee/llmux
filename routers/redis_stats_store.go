@@ -148,10 +148,10 @@ func NewRedisStatsStore(client redis.UniversalClient, opts ...RedisStatsOption) 
 // GetStats retrieves statistics for a deployment.
 func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*DeploymentStats, error) {
 	keys := []string{
-		r.latencyKey(deploymentID),
-		r.ttftKey(deploymentID),
-		r.countersKey(deploymentID),
-		r.usageKeyPrefix(deploymentID),
+		r.latencyKey(ctx, deploymentID),
+		r.ttftKey(ctx, deploymentID),
+		r.countersKey(ctx, deploymentID),
+		r.usageKeyPrefix(ctx, deploymentID),
 	}
 
 	result, err := r.getStatsScript.Run(ctx, r.client, keys).Result()
@@ -273,14 +273,14 @@ func (r *RedisStatsStore) GetStats(ctx context.Context, deploymentID string) (*D
 
 // IncrementActiveRequests atomically increments the active request count.
 func (r *RedisStatsStore) IncrementActiveRequests(ctx context.Context, deploymentID string) error {
-	keys := []string{r.countersKey(deploymentID)}
+	keys := []string{r.countersKey(ctx, deploymentID)}
 	_, err := r.incrementActiveReqScript.Run(ctx, r.client, keys).Result()
 	return err
 }
 
 // DecrementActiveRequests atomically decrements the active request count.
 func (r *RedisStatsStore) DecrementActiveRequests(ctx context.Context, deploymentID string) error {
-	keys := []string{r.countersKey(deploymentID)}
+	keys := []string{r.countersKey(ctx, deploymentID)}
 	_, err := r.decrementActiveReqScript.Run(ctx, r.client, keys).Result()
 	return err
 }
@@ -288,11 +288,11 @@ func (r *RedisStatsStore) DecrementActiveRequests(ctx context.Context, deploymen
 // RecordSuccess records a successful request with its metrics.
 func (r *RedisStatsStore) RecordSuccess(ctx context.Context, deploymentID string, metrics *ResponseMetrics) error {
 	keys := []string{
-		r.latencyKey(deploymentID),
-		r.ttftKey(deploymentID),
-		r.countersKey(deploymentID),
-		r.usageKeyPrefix(deploymentID),
-		r.successKeyPrefix(deploymentID),
+		r.latencyKey(ctx, deploymentID),
+		r.ttftKey(ctx, deploymentID),
+		r.countersKey(ctx, deploymentID),
+		r.usageKeyPrefix(ctx, deploymentID),
+		r.successKeyPrefix(ctx, deploymentID),
 	}
 
 	latencyMs := float64(metrics.Latency.Milliseconds())
@@ -324,11 +324,11 @@ func (r *RedisStatsStore) RecordFailure(ctx context.Context, deploymentID string
 func (r *RedisStatsStore) RecordFailureWithOptions(ctx context.Context, deploymentID string, err error, opts failureRecordOptions) error {
 	windowSize := r.failureWindowSize()
 	keys := []string{
-		r.countersKey(deploymentID),
-		r.latencyKey(deploymentID),
-		r.cooldownKey(deploymentID),
-		r.successKeyPrefix(deploymentID),
-		r.failureKeyPrefix(deploymentID),
+		r.countersKey(ctx, deploymentID),
+		r.latencyKey(ctx, deploymentID),
+		r.cooldownKey(ctx, deploymentID),
+		r.successKeyPrefix(ctx, deploymentID),
+		r.failureKeyPrefix(ctx, deploymentID),
 	}
 
 	isTimeout := 0
@@ -363,7 +363,7 @@ func (r *RedisStatsStore) RecordFailureWithOptions(ctx context.Context, deployme
 
 // SetCooldown manually sets a cooldown period for a deployment.
 func (r *RedisStatsStore) SetCooldown(ctx context.Context, deploymentID string, until time.Time) error {
-	keys := []string{r.cooldownKey(deploymentID)}
+	keys := []string{r.cooldownKey(ctx, deploymentID)}
 
 	ttl := time.Until(until)
 	if ttl <= 0 {
@@ -382,7 +382,7 @@ func (r *RedisStatsStore) SetCooldown(ctx context.Context, deploymentID string, 
 
 // GetCooldownUntil returns the cooldown expiration time for a deployment.
 func (r *RedisStatsStore) GetCooldownUntil(ctx context.Context, deploymentID string) (time.Time, error) {
-	key := r.cooldownKey(deploymentID)
+	key := r.cooldownKey(ctx, deploymentID)
 	val, err := r.client.Get(ctx, key).Result()
 	if err == redis.Nil {
 		return time.Time{}, nil
@@ -425,13 +425,13 @@ func (r *RedisStatsStore) ListDeployments(ctx context.Context) ([]string, error)
 // DeleteStats removes all stats for a deployment.
 func (r *RedisStatsStore) DeleteStats(ctx context.Context, deploymentID string) error {
 	keys := []string{
-		r.latencyKey(deploymentID),
-		r.ttftKey(deploymentID),
-		r.countersKey(deploymentID),
-		r.cooldownKey(deploymentID),
-		r.usageKeyPrefix(deploymentID) + "*", // Pattern for SCAN
-		r.successKeyPrefix(deploymentID) + "*",
-		r.failureKeyPrefix(deploymentID) + "*",
+		r.latencyKey(ctx, deploymentID),
+		r.ttftKey(ctx, deploymentID),
+		r.countersKey(ctx, deploymentID),
+		r.cooldownKey(ctx, deploymentID),
+		r.usageKeyPrefix(ctx, deploymentID) + "*", // Pattern for SCAN
+		r.successKeyPrefix(ctx, deploymentID) + "*",
+		r.failureKeyPrefix(ctx, deploymentID) + "*",
 	}
 
 	_, err := r.deleteStatsScript.Run(ctx, r.client, keys).Result()
@@ -446,44 +446,44 @@ func (r *RedisStatsStore) Close() error {
 
 // Key generation helpers
 
-func (r *RedisStatsStore) latencyKey(deploymentID string) string {
-	return fmt.Sprintf("%s:latency", r.deploymentKeyPrefix(deploymentID))
+func (r *RedisStatsStore) latencyKey(ctx context.Context, deploymentID string) string {
+	return fmt.Sprintf("%s:latency", r.deploymentKeyPrefix(ctx, deploymentID))
 }
 
-func (r *RedisStatsStore) ttftKey(deploymentID string) string {
-	return fmt.Sprintf("%s:ttft", r.deploymentKeyPrefix(deploymentID))
+func (r *RedisStatsStore) ttftKey(ctx context.Context, deploymentID string) string {
+	return fmt.Sprintf("%s:ttft", r.deploymentKeyPrefix(ctx, deploymentID))
 }
 
-func (r *RedisStatsStore) countersKey(deploymentID string) string {
-	return fmt.Sprintf("%s:counters", r.deploymentKeyPrefix(deploymentID))
+func (r *RedisStatsStore) countersKey(ctx context.Context, deploymentID string) string {
+	return fmt.Sprintf("%s:counters", r.deploymentKeyPrefix(ctx, deploymentID))
 }
 
-func (r *RedisStatsStore) cooldownKey(deploymentID string) string {
-	return fmt.Sprintf("%s:cooldown", r.deploymentKeyPrefix(deploymentID))
+func (r *RedisStatsStore) cooldownKey(ctx context.Context, deploymentID string) string {
+	return fmt.Sprintf("%s:cooldown", r.deploymentKeyPrefix(ctx, deploymentID))
 }
 
-func (r *RedisStatsStore) successKeyPrefix(deploymentID string) string {
-	return fmt.Sprintf("%s:successes:", r.deploymentKeyPrefix(deploymentID))
+func (r *RedisStatsStore) successKeyPrefix(ctx context.Context, deploymentID string) string {
+	return fmt.Sprintf("%s:successes:", r.deploymentKeyPrefix(ctx, deploymentID))
 }
 
-func (r *RedisStatsStore) failureKeyPrefix(deploymentID string) string {
-	return fmt.Sprintf("%s:failures:", r.deploymentKeyPrefix(deploymentID))
+func (r *RedisStatsStore) failureKeyPrefix(ctx context.Context, deploymentID string) string {
+	return fmt.Sprintf("%s:failures:", r.deploymentKeyPrefix(ctx, deploymentID))
 }
 
-func (r *RedisStatsStore) successKey(deploymentID, minute string) string {
-	return fmt.Sprintf("%s:successes:%s", r.deploymentKeyPrefix(deploymentID), minute)
+func (r *RedisStatsStore) successKey(ctx context.Context, deploymentID, minute string) string {
+	return fmt.Sprintf("%s:successes:%s", r.deploymentKeyPrefix(ctx, deploymentID), minute)
 }
 
-func (r *RedisStatsStore) failureKey(deploymentID, minute string) string {
-	return fmt.Sprintf("%s:failures:%s", r.deploymentKeyPrefix(deploymentID), minute)
+func (r *RedisStatsStore) failureKey(ctx context.Context, deploymentID, minute string) string {
+	return fmt.Sprintf("%s:failures:%s", r.deploymentKeyPrefix(ctx, deploymentID), minute)
 }
 
-func (r *RedisStatsStore) usageKeyPrefix(deploymentID string) string {
-	return fmt.Sprintf("%s:usage:", r.deploymentKeyPrefix(deploymentID))
+func (r *RedisStatsStore) usageKeyPrefix(ctx context.Context, deploymentID string) string {
+	return fmt.Sprintf("%s:usage:", r.deploymentKeyPrefix(ctx, deploymentID))
 }
 
-func (r *RedisStatsStore) usageKey(deploymentID, minute string) string {
-	return fmt.Sprintf("%s:usage:%s", r.deploymentKeyPrefix(deploymentID), minute)
+func (r *RedisStatsStore) usageKey(ctx context.Context, deploymentID, minute string) string {
+	return fmt.Sprintf("%s:usage:%s", r.deploymentKeyPrefix(ctx, deploymentID), minute)
 }
 
 func (r *RedisStatsStore) extractDeploymentID(key string) string {
@@ -506,11 +506,19 @@ func (r *RedisStatsStore) extractDeploymentID(key string) string {
 	if strings.HasPrefix(deploymentID, "{") && strings.HasSuffix(deploymentID, "}") {
 		deploymentID = deploymentID[1 : len(deploymentID)-1]
 	}
+	if idx := strings.LastIndex(deploymentID, ":"); idx >= 0 {
+		deploymentID = deploymentID[idx+1:]
+	}
 	return deploymentID
 }
 
-func (r *RedisStatsStore) deploymentKeyPrefix(deploymentID string) string {
-	return fmt.Sprintf("%s:{%s}", r.keyPrefix, deploymentID)
+func (r *RedisStatsStore) deploymentKeyPrefix(ctx context.Context, deploymentID string) string {
+	scope := router.TenantScopeFromContext(ctx)
+	hashTag := deploymentID
+	if scope != "" {
+		hashTag = scope + ":" + deploymentID
+	}
+	return fmt.Sprintf("%s:{%s}", r.keyPrefix, hashTag)
 }
 
 func (r *RedisStatsStore) failureWindowSize() int {

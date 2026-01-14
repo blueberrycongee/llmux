@@ -38,13 +38,14 @@ func (r *recordingRouter) PickWithContext(ctx context.Context, reqCtx *router.Re
 	return r.deployment, nil
 }
 
-func (r *recordingRouter) ReportSuccess(_ *provider.Deployment, _ *router.ResponseMetrics) {}
-func (r *recordingRouter) ReportFailure(_ *provider.Deployment, _ error)                   {}
-func (r *recordingRouter) ReportRequestStart(_ *provider.Deployment)                       {}
-func (r *recordingRouter) ReportRequestEnd(_ *provider.Deployment)                         {}
-func (r *recordingRouter) IsCircuitOpen(_ *provider.Deployment) bool                       { return false }
-func (r *recordingRouter) SetCooldown(_ string, _ time.Time) error                         { return nil }
-func (r *recordingRouter) AddDeployment(_ *provider.Deployment)                            {}
+func (r *recordingRouter) ReportSuccess(_ context.Context, _ *provider.Deployment, _ *router.ResponseMetrics) {
+}
+func (r *recordingRouter) ReportFailure(_ context.Context, _ *provider.Deployment, _ error) {}
+func (r *recordingRouter) ReportRequestStart(_ context.Context, _ *provider.Deployment)     {}
+func (r *recordingRouter) ReportRequestEnd(_ context.Context, _ *provider.Deployment)       {}
+func (r *recordingRouter) IsCircuitOpen(_ *provider.Deployment) bool                        { return false }
+func (r *recordingRouter) SetCooldown(_ string, _ time.Time) error                          { return nil }
+func (r *recordingRouter) AddDeployment(_ *provider.Deployment)                             {}
 func (r *recordingRouter) AddDeploymentWithConfig(_ *provider.Deployment, _ router.DeploymentConfig) {
 }
 func (r *recordingRouter) RemoveDeployment(_ string)                      {}

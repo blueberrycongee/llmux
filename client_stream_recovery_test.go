@@ -210,18 +210,18 @@ func (t *trackingRouter) PickWithContext(ctx context.Context, reqCtx *router.Req
 	return t.Router.PickWithContext(ctx, reqCtx)
 }
 
-func (t *trackingRouter) ReportRequestStart(deployment *provider.Deployment) {
+func (t *trackingRouter) ReportRequestStart(ctx context.Context, deployment *provider.Deployment) {
 	t.mu.Lock()
 	t.startCalls[deployment.ID]++
 	t.mu.Unlock()
-	t.Router.ReportRequestStart(deployment)
+	t.Router.ReportRequestStart(ctx, deployment)
 }
 
-func (t *trackingRouter) ReportRequestEnd(deployment *provider.Deployment) {
+func (t *trackingRouter) ReportRequestEnd(ctx context.Context, deployment *provider.Deployment) {
 	t.mu.Lock()
 	t.endCalls[deployment.ID]++
 	t.mu.Unlock()
-	t.Router.ReportRequestEnd(deployment)
+	t.Router.ReportRequestEnd(ctx, deployment)
 }
 
 func (t *trackingRouter) GetCounts() (startCalls, endCalls map[string]int) {

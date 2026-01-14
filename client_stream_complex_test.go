@@ -40,10 +40,11 @@ func (r *sequenceRouter) Pick(ctx context.Context, model string) (*provider.Depl
 func (r *sequenceRouter) PickWithContext(ctx context.Context, reqCtx *router.RequestContext) (*provider.Deployment, error) {
 	return r.Pick(ctx, reqCtx.Model)
 }
-func (r *sequenceRouter) ReportSuccess(d *provider.Deployment, m *router.ResponseMetrics)           {}
-func (r *sequenceRouter) ReportFailure(d *provider.Deployment, err error)                           {}
-func (r *sequenceRouter) ReportRequestStart(d *provider.Deployment)                                 {}
-func (r *sequenceRouter) ReportRequestEnd(d *provider.Deployment)                                   {}
+func (r *sequenceRouter) ReportSuccess(_ context.Context, _ *provider.Deployment, _ *router.ResponseMetrics) {
+}
+func (r *sequenceRouter) ReportFailure(_ context.Context, _ *provider.Deployment, _ error)          {}
+func (r *sequenceRouter) ReportRequestStart(_ context.Context, _ *provider.Deployment)              {}
+func (r *sequenceRouter) ReportRequestEnd(_ context.Context, _ *provider.Deployment)                {}
 func (r *sequenceRouter) IsCircuitOpen(d *provider.Deployment) bool                                 { return false }
 func (r *sequenceRouter) SetCooldown(id string, until time.Time) error                              { return nil }
 func (r *sequenceRouter) AddDeployment(d *provider.Deployment)                                      {}

@@ -24,6 +24,7 @@ import (
 // Completions handles POST /v1/completions requests.
 func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 	start := time.Now()
+	routerCtx := withRouterTenantScope(r.Context())
 
 	limitedReader := io.LimitReader(r.Body, h.maxBodySize+1)
 	body, err := io.ReadAll(limitedReader)
@@ -63,7 +64,7 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 
 	promptTokens := tokenizer.EstimatePromptTokens(chatReq.Model, chatReq)
 	routeCtx := buildRouterRequestContext(chatReq, promptTokens, chatReq.Stream)
-	deployment, err := h.llmRouter.PickWithContext(r.Context(), routeCtx)
+	deployment, err := h.llmRouter.PickWithContext(routerCtx, routeCtx)
 	if err != nil {
 		h.logger.Error("no deployment available", "model", chatReq.Model, "error", err)
 		h.writeError(w, llmerrors.NewServiceUnavailableError("", chatReq.Model, "no available deployment"))
@@ -80,7 +81,7 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 	if timeout == 0 {
 		timeout = 30 * time.Second
 	}
-	upstreamCtx, reqCancel := context.WithTimeout(r.Context(), timeout)
+	upstreamCtx, reqCancel := context.WithTimeout(routerCtx, timeout)
 	defer reqCancel()
 
 	upstreamReq, err := prov.BuildRequest(upstreamCtx, sanitizeChatRequestForProvider(chatReq))
@@ -91,7 +92,7 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 
 	resp, err := h.httpClient.Do(upstreamReq)
 	if err != nil {
-		h.llmRouter.ReportFailure(deployment, err)
+		h.llmRouter.ReportFailure(routerCtx, deployment, err)
 		metrics.RecordError(prov.Name(), "connection_error")
 		h.writeError(w, llmerrors.NewServiceUnavailableError(prov.Name(), chatReq.Model, "upstream request failed"))
 		return
@@ -107,7 +108,7 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 	if resp.StatusCode >= 400 {
 		respBody, _ := io.ReadAll(resp.Body)
 		llmErr := prov.MapError(resp.StatusCode, respBody)
-		h.llmRouter.ReportFailure(deployment, llmErr)
+		h.llmRouter.ReportFailure(routerCtx, deployment, llmErr)
 		metrics.RecordRequest(prov.Name(), chatReq.Model, resp.StatusCode, latency)
 		h.writeError(w, llmErr)
 		return
@@ -120,7 +121,7 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 
 	chatResp, err := prov.ParseResponse(resp)
 	if err != nil {
-		h.llmRouter.ReportFailure(deployment, err)
+		h.llmRouter.ReportFailure(routerCtx, deployment, err)
 		h.writeError(w, llmerrors.NewInternalError(prov.Name(), chatReq.Model, "failed to parse response"))
 		return
 	}
@@ -128,7 +129,7 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 
 	completionResp := types.CompletionResponseFromChat(chatResp)
 
-	h.llmRouter.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
+	h.llmRouter.ReportSuccess(routerCtx, deployment, &router.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), chatReq.Model, http.StatusOK, latency)
 	if chatResp.Usage != nil {
 		metrics.RecordTokens(prov.Name(), chatReq.Model, chatResp.Usage.PromptTokens, chatResp.Usage.CompletionTokens)
@@ -140,6 +141,7 @@ func (h *Handler) Completions(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) handleCompletionStreamResponse(w http.ResponseWriter, r *http.Request, resp *http.Response, prov provider.Provider, deployment *pkgprovider.Deployment, model string, start time.Time) {
 	parser := streaming.GetParser(prov.Name())
+	routerCtx := withRouterTenantScope(r.Context())
 
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -202,6 +204,6 @@ func (h *Handler) handleCompletionStreamResponse(w http.ResponseWriter, r *http.
 	}
 
 	latency := time.Since(start)
-	h.llmRouter.ReportSuccess(deployment, &router.ResponseMetrics{Latency: latency})
+	h.llmRouter.ReportSuccess(routerCtx, deployment, &router.ResponseMetrics{Latency: latency})
 	metrics.RecordRequest(prov.Name(), model, http.StatusOK, latency)
 }

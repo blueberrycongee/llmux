@@ -25,8 +25,8 @@ func TestLatencyRouter_Pick_WeightedBufferPrefersWeight(t *testing.T) {
 	r.AddDeploymentWithConfig(depA, router.DeploymentConfig{Weight: 1})
 	r.AddDeploymentWithConfig(depB, router.DeploymentConfig{Weight: 0})
 
-	r.ReportSuccess(depA, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
-	r.ReportSuccess(depB, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
+	r.ReportSuccess(context.Background(), depA, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
+	r.ReportSuccess(context.Background(), depB, &router.ResponseMetrics{Latency: 100 * time.Millisecond})
 
 	for i := 0; i < 10; i++ {
 		dep, err := r.Pick(context.Background(), "gpt-4")

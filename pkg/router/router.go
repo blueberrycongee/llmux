@@ -53,16 +53,16 @@ type Router interface {
 	PickWithContext(ctx context.Context, reqCtx *RequestContext) (*provider.Deployment, error)
 
 	// ReportSuccess records a successful request to update routing metrics.
-	ReportSuccess(deployment *provider.Deployment, metrics *ResponseMetrics)
+	ReportSuccess(ctx context.Context, deployment *provider.Deployment, metrics *ResponseMetrics)
 
 	// ReportFailure records a failed request and potentially triggers cooldown.
-	ReportFailure(deployment *provider.Deployment, err error)
+	ReportFailure(ctx context.Context, deployment *provider.Deployment, err error)
 
 	// ReportRequestStart records when a request starts (for least-busy tracking).
-	ReportRequestStart(deployment *provider.Deployment)
+	ReportRequestStart(ctx context.Context, deployment *provider.Deployment)
 
 	// ReportRequestEnd records when a request ends (for least-busy tracking).
-	ReportRequestEnd(deployment *provider.Deployment)
+	ReportRequestEnd(ctx context.Context, deployment *provider.Deployment)
 
 	// IsCircuitOpen checks if the circuit breaker is open for a deployment.
 	IsCircuitOpen(deployment *provider.Deployment) bool

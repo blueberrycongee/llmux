@@ -357,6 +357,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	}
 
 	req.Stream = true
+	ctx = c.withTenantScope(ctx)
 
 	// Get plugin context
 	pCtx := c.pipeline.GetContext(ctx, generateRequestID())
@@ -490,13 +491,13 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 			return nil, fmt.Errorf("build request: %w", err)
 		}
 
-		c.router.ReportRequestStart(deployment)
+		c.router.ReportRequestStart(ctx, deployment)
 
 		resp, err := c.streamHTTPClient.Do(httpReq)
 		if err != nil {
 			release()
-			c.router.ReportFailure(deployment, err)
-			c.router.ReportRequestEnd(deployment)
+			c.router.ReportFailure(ctx, deployment, err)
+			c.router.ReportRequestEnd(ctx, deployment)
 			lastErr = fmt.Errorf("execute request: %w", err)
 			if pendingFallback != nil {
 				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, err, false)
@@ -511,8 +512,8 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 			_ = resp.Body.Close()
 			llmErr := prov.MapError(resp.StatusCode, body)
 			release()
-			c.router.ReportFailure(deployment, llmErr)
-			c.router.ReportRequestEnd(deployment)
+			c.router.ReportFailure(ctx, deployment, llmErr)
+			c.router.ReportRequestEnd(ctx, deployment)
 			lastErr = llmErr
 			if pendingFallback != nil {
 				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, llmErr, false)
@@ -530,8 +531,8 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 			// Check if it's a retryable client error (e.g. 429 Rate Limit)
 			if llmErr, ok := llmErr.(*LLMError); ok && llmErr.Retryable {
 				release()
-				c.router.ReportFailure(deployment, llmErr)
-				c.router.ReportRequestEnd(deployment)
+				c.router.ReportFailure(ctx, deployment, llmErr)
+				c.router.ReportRequestEnd(ctx, deployment)
 				lastErr = llmErr
 				if pendingFallback != nil {
 					c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, llmErr, false)
@@ -542,8 +543,8 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 			// Non-retryable error
 			release()
-			c.router.ReportFailure(deployment, llmErr)
-			c.router.ReportRequestEnd(deployment)
+			c.router.ReportFailure(ctx, deployment, llmErr)
+			c.router.ReportRequestEnd(ctx, deployment)
 			if pendingFallback != nil {
 				c.reportFallback(ctx, pendingFallback.originalModel, pendingFallback.fallbackModel, llmErr, false)
 				pendingFallback = nil
@@ -697,6 +698,7 @@ func (c *Client) executeEmbeddingOnce(
 	req *types.EmbeddingRequest,
 	promptEstimate int,
 ) (*types.EmbeddingResponse, error) {
+	ctx = c.withTenantScope(ctx)
 	start := time.Now()
 
 	if err := c.validatePricing(req.Model, deployment.ProviderName); err != nil {
@@ -714,12 +716,12 @@ func (c *Client) executeEmbeddingOnce(
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 
-	c.router.ReportRequestStart(deployment)
-	defer c.router.ReportRequestEnd(deployment)
+	c.router.ReportRequestStart(ctx, deployment)
+	defer c.router.ReportRequestEnd(ctx, deployment)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		c.router.ReportFailure(deployment, err)
+		c.router.ReportFailure(ctx, deployment, err)
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -729,13 +731,13 @@ func (c *Client) executeEmbeddingOnce(
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
 		llmErr := prov.MapError(resp.StatusCode, body)
-		c.router.ReportFailure(deployment, llmErr)
+		c.router.ReportFailure(ctx, deployment, llmErr)
 		return nil, llmErr
 	}
 
 	embResp, err := prov.ParseEmbeddingResponse(resp)
 	if err != nil {
-		c.router.ReportFailure(deployment, err)
+		c.router.ReportFailure(ctx, deployment, err)
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
 
@@ -759,7 +761,7 @@ func (c *Client) executeEmbeddingOnce(
 		metrics.TotalTokens = embResp.Usage.TotalTokens
 		metrics.InputTokens = embResp.Usage.PromptTokens
 	}
-	c.router.ReportSuccess(deployment, metrics)
+	c.router.ReportSuccess(ctx, deployment, metrics)
 
 	return embResp, nil
 }
@@ -976,6 +978,16 @@ func (c *Client) rateLimitAPIKey(ctx context.Context) string {
 		return authCtx.APIKey.ID
 	}
 	return ""
+}
+
+func (c *Client) withTenantScope(ctx context.Context) context.Context {
+	if router.TenantScopeFromContext(ctx) != "" {
+		return ctx
+	}
+	if authCtx := auth.GetAuthContext(ctx); authCtx != nil && authCtx.APIKey != nil {
+		return router.WithTenantScope(ctx, authCtx.APIKey.ID)
+	}
+	return ctx
 }
 
 func (c *Client) checkRateLimit(ctx context.Context, key, model string, estimatedTokens int) error {
@@ -1230,6 +1242,7 @@ func (c *Client) executeOnce(
 	deployment *provider.Deployment,
 	req *ChatRequest,
 ) (*ChatResponse, error) {
+	ctx = c.withTenantScope(ctx)
 	start := time.Now()
 
 	originalModel := req.Model
@@ -1253,12 +1266,12 @@ func (c *Client) executeOnce(
 		return nil, fmt.Errorf("build request: %w", err)
 	}
 
-	c.router.ReportRequestStart(deployment)
-	defer c.router.ReportRequestEnd(deployment)
+	c.router.ReportRequestStart(ctx, deployment)
+	defer c.router.ReportRequestEnd(ctx, deployment)
 
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
-		c.router.ReportFailure(deployment, err)
+		c.router.ReportFailure(ctx, deployment, err)
 		return nil, fmt.Errorf("execute request: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
@@ -1268,13 +1281,13 @@ func (c *Client) executeOnce(
 	if resp.StatusCode >= 400 {
 		body, _ := io.ReadAll(resp.Body)
 		llmErr := prov.MapError(resp.StatusCode, body)
-		c.router.ReportFailure(deployment, llmErr)
+		c.router.ReportFailure(ctx, deployment, llmErr)
 		return nil, llmErr
 	}
 
 	chatResp, err := prov.ParseResponse(resp)
 	if err != nil {
-		c.router.ReportFailure(deployment, err)
+		c.router.ReportFailure(ctx, deployment, err)
 		return nil, fmt.Errorf("parse response: %w", err)
 	}
 	chatResp.Model = originalModel
@@ -1301,7 +1314,7 @@ func (c *Client) executeOnce(
 		metrics.OutputTokens = chatResp.Usage.CompletionTokens
 		metrics.TotalTokens = chatResp.Usage.TotalTokens
 	}
-	c.router.ReportSuccess(deployment, metrics)
+	c.router.ReportSuccess(ctx, deployment, metrics)
 
 	return chatResp, nil
 }
