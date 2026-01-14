@@ -5,10 +5,13 @@ package metrics
 import (
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
+
+	"github.com/blueberrycongee/llmux/pkg/types"
 )
 
 var (
@@ -70,12 +73,14 @@ var (
 // RecordRequest records metrics for a completed request.
 func RecordRequest(provider, model string, statusCode int, latency time.Duration) {
 	status := strconv.Itoa(statusCode)
+	model = sanitizeModelLabel(model)
 	RequestsTotal.WithLabelValues(provider, model, status).Inc()
 	RequestLatency.WithLabelValues(provider, model).Observe(latency.Seconds())
 }
 
 // RecordTokens records token usage metrics.
 func RecordTokens(provider, model string, inputTokens, outputTokens int) {
+	model = sanitizeModelLabel(model)
 	if inputTokens > 0 {
 		TokenUsage.WithLabelValues(provider, model, "input").Add(float64(inputTokens))
 	}
@@ -124,4 +129,43 @@ func Middleware(next http.Handler) http.Handler {
 		latency := time.Since(start)
 		RequestLatency.WithLabelValues("gateway", "all").Observe(latency.Seconds())
 	})
+}
+
+const maxModelLabelLen = 64
+
+func sanitizeModelLabel(model string) string {
+	_, modelName := types.SplitProviderModel(model)
+	modelName = strings.TrimSpace(modelName)
+	if modelName == "" {
+		return "unknown"
+	}
+
+	var b strings.Builder
+	b.Grow(minInt(len(modelName), maxModelLabelLen))
+	for _, r := range modelName {
+		if (r >= 'a' && r <= 'z') ||
+			(r >= 'A' && r <= 'Z') ||
+			(r >= '0' && r <= '9') ||
+			r == '-' || r == '_' || r == '.' || r == ':' {
+			b.WriteRune(r)
+		} else {
+			b.WriteByte('_')
+		}
+		if b.Len() >= maxModelLabelLen {
+			break
+		}
+	}
+
+	out := strings.Trim(b.String(), "_")
+	if out == "" {
+		return "unknown"
+	}
+	return out
+}
+
+func minInt(a, b int) int {
+	if a < b {
+		return a
+	}
+	return b
 }
