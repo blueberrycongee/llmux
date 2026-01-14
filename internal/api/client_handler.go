@@ -652,6 +652,25 @@ func (h *ClientHandler) writeError(w http.ResponseWriter, err error) {
 }
 
 func (h *ClientHandler) evaluateGovernance(ctx context.Context, r *http.Request, model, endUser string, tags []string, callType string) error {
+	authCtx := auth.GetAuthContext(ctx)
+	if authCtx != nil && h.store != nil && model != "" {
+		access, err := auth.NewModelAccess(ctx, h.store, authCtx)
+		if err != nil {
+			h.logger.Error("failed to evaluate model access", "error", err)
+			return llmerrors.NewInternalError("gateway", model, "failed to evaluate model access")
+		}
+		if access != nil {
+			_, canonicalModel := types.SplitProviderModel(model)
+			allows := access.Allows(model)
+			if canonicalModel != "" && canonicalModel != model {
+				allows = allows || access.Allows(canonicalModel)
+			}
+			if !allows {
+				return llmerrors.NewPermissionError("gateway", model, "model access denied")
+			}
+		}
+	}
+
 	if h.governance == nil {
 		return nil
 	}
