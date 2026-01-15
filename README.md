@@ -130,6 +130,9 @@ metrics:
   path: /metrics
 ```
 
+Note: `auth.enabled` defaults to `true` for non-development modes. For unauthenticated local testing, set
+`deployment.mode=development` and `auth.enabled=false`.
+
 ### Deployment Modes
 
 - `standalone`: in-memory state, intended for single-instance runs.

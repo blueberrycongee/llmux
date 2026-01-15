@@ -189,6 +189,12 @@ type EmbeddingRequest struct {
 
 // Validate checks if the embedding request is valid.
 func (r *EmbeddingRequest) Validate() error {
+	if r.Model == "" {
+		return fmt.Errorf("model is required")
+	}
+	if err := ValidateModelName(r.Model); err != nil {
+		return err
+	}
 	if r.Input == nil {
 		return fmt.Errorf("input cannot be nil")
 	}

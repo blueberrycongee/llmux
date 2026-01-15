@@ -6,7 +6,7 @@ server:
   write_timeout: 120s
 
 deployment:
-  mode: standalone
+  mode: development
 
 providers:
   - name: openai

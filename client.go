@@ -220,6 +220,9 @@ func (c *Client) ChatCompletion(ctx context.Context, req *ChatRequest) (*ChatRes
 	if req.Model == "" {
 		return nil, fmt.Errorf("model is required")
 	}
+	if err := types.ValidateModelName(req.Model); err != nil {
+		return nil, err
+	}
 	if len(req.Messages) == 0 {
 		return nil, fmt.Errorf("messages is required")
 	}
@@ -351,6 +354,9 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 	}
 	if req.Model == "" {
 		return nil, fmt.Errorf("model is required")
+	}
+	if err := types.ValidateModelName(req.Model); err != nil {
+		return nil, err
 	}
 	if len(req.Messages) == 0 {
 		return nil, fmt.Errorf("messages is required")

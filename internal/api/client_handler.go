@@ -129,6 +129,10 @@ func (h *ClientHandler) ChatCompletions(w http.ResponseWriter, r *http.Request) 
 		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "model is required"))
 		return
 	}
+	if err := types.ValidateModelName(req.Model); err != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", err.Error()))
+		return
+	}
 	if len(req.Messages) == 0 {
 		h.writeError(w, llmerrors.NewInvalidRequestError("", req.Model, "messages is required"))
 		return
@@ -848,6 +852,10 @@ func (h *ClientHandler) Embeddings(w http.ResponseWriter, r *http.Request) {
 	// Validate request
 	if req.Model == "" {
 		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "model is required"))
+		return
+	}
+	if err := types.ValidateModelName(req.Model); err != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", err.Error()))
 		return
 	}
 	if req.Input == nil || req.Input.IsEmpty() {

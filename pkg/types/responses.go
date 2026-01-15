@@ -113,6 +113,9 @@ func (r *ResponseRequest) ToChatRequest() (*ChatRequest, error) {
 	if r.Model == "" {
 		return nil, fmt.Errorf("model is required")
 	}
+	if err := ValidateModelName(r.Model); err != nil {
+		return nil, err
+	}
 
 	messages, err := responseInputToMessages(r.Input)
 	if err != nil {

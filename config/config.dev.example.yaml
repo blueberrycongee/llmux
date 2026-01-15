@@ -7,6 +7,9 @@ server:
   write_timeout: 120s
   idle_timeout: 60s
 
+deployment:
+  mode: development
+
 # Empty providers list - dashboard will work without LLM providers
 providers:
   - name: demo-openai

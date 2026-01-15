@@ -46,6 +46,10 @@ func (h *ClientHandler) Responses(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, llmerrors.NewInvalidRequestError("", "", "model is required"))
 		return
 	}
+	if err := types.ValidateModelName(req.Model); err != nil {
+		h.writeError(w, llmerrors.NewInvalidRequestError("", "", err.Error()))
+		return
+	}
 
 	chatReq, err := req.ToChatRequest()
 	if err != nil {

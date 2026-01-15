@@ -35,6 +35,7 @@ func TestFallback_SingleProviderFailure(t *testing.T) {
 			{Name: "primary", URL: mockPrimary.URL(), Models: []string{"gpt-4o-mock"}},
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
+		testutil.WithRetry(1, 0),
 	)
 	if err != nil {
 		t.Skipf("Multi-provider setup not supported: %v", err)
@@ -85,6 +86,7 @@ func TestFallback_AllProvidersFail(t *testing.T) {
 			{Name: "primary", URL: mockPrimary.URL(), Models: []string{"gpt-4o-mock"}},
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
+		testutil.WithRetry(1, 0),
 	)
 	if err != nil {
 		t.Skipf("Multi-provider setup not supported: %v", err)
@@ -166,6 +168,7 @@ func TestFallback_RateLimitTriggersFailover(t *testing.T) {
 			{Name: "primary", URL: mockPrimary.URL(), Models: []string{"gpt-4o-mock"}},
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
+		testutil.WithRetry(1, 0),
 	)
 	if err != nil {
 		t.Skipf("Multi-provider setup not supported: %v", err)
@@ -217,6 +220,7 @@ func TestFallback_TimeoutTriggersFailover(t *testing.T) {
 			{Name: "primary", URL: mockPrimary.URL(), Models: []string{"gpt-4o-mock"}},
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
+		testutil.WithRetry(1, 0),
 		testutil.WithTimeout(1*time.Second), // Short timeout
 	)
 	if err != nil {

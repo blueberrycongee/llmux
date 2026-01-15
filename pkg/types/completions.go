@@ -145,6 +145,9 @@ func (r *CompletionRequest) Validate() error {
 	if r.Model == "" {
 		return fmt.Errorf("model is required")
 	}
+	if err := ValidateModelName(r.Model); err != nil {
+		return err
+	}
 	return r.Prompt.Validate()
 }
 

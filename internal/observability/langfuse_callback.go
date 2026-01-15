@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 	"sync"
 	"time"
 
@@ -40,9 +41,23 @@ func DefaultLangfuseConfig() LangfuseConfig {
 		FlushInterval: time.Second,
 		BatchSize:     100,
 		Debug:         os.Getenv("LANGFUSE_DEBUG") == "true",
-		MaskInput:     false,
-		MaskOutput:    false,
+		MaskInput:     envBool("LANGFUSE_MASK_INPUT", true),
+		MaskOutput:    envBool("LANGFUSE_MASK_OUTPUT", true),
 	}
+}
+
+func envBool(key string, defaultValue bool) bool {
+	value := strings.TrimSpace(os.Getenv(key))
+	if value == "" {
+		return defaultValue
+	}
+	if strings.EqualFold(value, "true") || value == "1" {
+		return true
+	}
+	if strings.EqualFold(value, "false") || value == "0" {
+		return false
+	}
+	return defaultValue
 }
 
 // LangfuseCallback implements Callback for Langfuse tracing.

@@ -314,6 +314,9 @@ func TestConfigValidation(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			if !tt.cfg.Auth.Enabled {
+				tt.cfg.Auth.Enabled = true
+			}
 			err := tt.cfg.Validate()
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Validate() error = %v, wantErr %v", err, tt.wantErr)
@@ -459,6 +462,7 @@ func TestConfigValidation_DistributedMode(t *testing.T) {
 			Providers: []ProviderConfig{
 				{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 			},
+			Auth: AuthConfig{Enabled: true},
 			Deployment: DeploymentConfig{Mode: "distributed"},
 			Database: DatabaseConfig{
 				Enabled:  true,

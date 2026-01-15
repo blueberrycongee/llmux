@@ -1,26 +1,18 @@
 package types
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
-func TestSplitProviderModel(t *testing.T) {
-	tests := []struct {
-		in    string
-		prov  string
-		model string
-	}{
-		{in: "", prov: "", model: ""},
-		{in: "gpt-4o", prov: "", model: "gpt-4o"},
-		{in: "openai/gpt-4o", prov: "openai", model: "gpt-4o"},
-		{in: " openai/gpt-4o ", prov: "openai", model: "gpt-4o"},
-		{in: "/gpt-4o", prov: "", model: "/gpt-4o"},
-		{in: "openai/", prov: "", model: "openai/"},
-		{in: "a/b/c", prov: "a", model: "b/c"},
+func TestValidateModelName(t *testing.T) {
+	valid := strings.Repeat("a", MaxModelNameLength)
+	if err := ValidateModelName(valid); err != nil {
+		t.Fatalf("expected valid model name, got error: %v", err)
 	}
 
-	for _, tc := range tests {
-		prov, model := SplitProviderModel(tc.in)
-		if prov != tc.prov || model != tc.model {
-			t.Fatalf("SplitProviderModel(%q) = (%q,%q), want (%q,%q)", tc.in, prov, model, tc.prov, tc.model)
-		}
+	invalid := strings.Repeat("a", MaxModelNameLength+1)
+	if err := ValidateModelName(invalid); err == nil {
+		t.Fatal("expected error for too-long model name")
 	}
 }

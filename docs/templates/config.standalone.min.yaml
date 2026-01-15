@@ -26,4 +26,4 @@ rate_limit:
   enabled: false
 
 auth:
-  enabled: false
+  enabled: true

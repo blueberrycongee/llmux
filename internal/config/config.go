@@ -426,7 +426,7 @@ func DefaultConfig() *Config {
 			},
 		},
 		Auth: AuthConfig{
-			Enabled:                false,
+			Enabled:                true,
 			SkipPaths:              []string{"/health/live", "/health/ready"},
 			LastUsedUpdateInterval: time.Minute,
 		},
@@ -523,6 +523,10 @@ func (c *Config) Validate() error {
 	mode, err := normalizeDeploymentMode(c.Deployment.Mode)
 	if err != nil {
 		return err
+	}
+
+	if mode != "development" && !c.Auth.Enabled {
+		return fmt.Errorf("auth.enabled must be true when deployment.mode is %s (set deployment.mode=development to run unauthenticated)", mode)
 	}
 
 	if c.Server.Port <= 0 || c.Server.Port > 65535 {

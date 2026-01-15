@@ -30,7 +30,7 @@ rate_limit:
   fail_open: true
 
 auth:
-  enabled: false
+  enabled: true
 
 database:
   enabled: true

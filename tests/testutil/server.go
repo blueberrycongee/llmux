@@ -2,6 +2,7 @@ package testutil
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
 	"net"
@@ -11,15 +12,11 @@ import (
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
+	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/internal/api"
 	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/config"
 	"github.com/blueberrycongee/llmux/internal/metrics"
-	"github.com/blueberrycongee/llmux/internal/provider"
-	pkgprovider "github.com/blueberrycongee/llmux/pkg/provider"
-	"github.com/blueberrycongee/llmux/pkg/router"
-	"github.com/blueberrycongee/llmux/providers/openai"
-	"github.com/blueberrycongee/llmux/routers"
 )
 
 // TestServer manages a LLMux server instance for testing.
@@ -29,9 +26,9 @@ type TestServer struct {
 	config   *config.Config
 	baseURL  string
 	logger   *slog.Logger
-	registry *provider.Registry
-	router   router.Router
+	client   *llmux.Client
 	store    auth.Store
+	pricingFile string
 }
 
 // ServerOption configures the test server.
@@ -47,6 +44,8 @@ type serverOptions struct {
 	redisURL        string
 	authEnabled     bool
 	timeout         time.Duration
+	retryCount      int
+	retryBackoff    time.Duration
 	providers       []ProviderConfig // Multiple providers for fallback testing
 	oidcConfig      *config.OIDCConfig
 }
@@ -116,6 +115,14 @@ func WithTimeout(timeout time.Duration) ServerOption {
 	}
 }
 
+// WithRetry sets retry behavior for the test server's client.
+func WithRetry(count int, backoff time.Duration) ServerOption {
+	return func(o *serverOptions) {
+		o.retryCount = count
+		o.retryBackoff = backoff
+	}
+}
+
 // WithOIDC configures OIDC authentication.
 func WithOIDC(oidcConfig *config.OIDCConfig) ServerOption {
 	return func(o *serverOptions) {
@@ -131,6 +138,8 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		models:     []string{"gpt-4o-mock", "gpt-3.5-turbo-mock"},
 		port:       0, // Random port
 		timeout:    30 * time.Second,
+		retryCount: 0,
+		retryBackoff: 0,
 	}
 
 	for _, opt := range opts {
@@ -157,19 +166,25 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		cfg.Auth.OIDC = *options.oidcConfig
 	}
 
-	// Initialize provider registry
-	registry := provider.NewRegistry()
-	registry.RegisterFactory("openai", provider.AdaptFactory(openai.NewFromConfig))
+	// Build llmux.Client options (aligns test server with production handler)
+	clientOpts := []llmux.Option{
+		llmux.WithLogger(logger),
+		llmux.WithCooldown(0),
+		llmux.WithRetry(options.retryCount, options.retryBackoff),
+	}
+	if options.timeout > 0 {
+		clientOpts = append(clientOpts, llmux.WithTimeout(options.timeout))
+	}
 
-	// Initialize router with no cooldown for testing
-	simpleRouter := routers.NewShuffleRouterWithConfig(router.Config{
-		CooldownPeriod: 0,
-	}) // No cooldown in tests
+	pricingFile, err := writePricingFileFromOptions(options)
+	if err != nil {
+		return nil, err
+	}
+	clientOpts = append(clientOpts, llmux.WithPricingFile(pricingFile))
 
-	// Handle multiple providers for fallback testing
 	if len(options.providers) > 0 {
 		for _, p := range options.providers {
-			pCfg := provider.ProviderConfig{
+			clientOpts = append(clientOpts, llmux.WithProvider(llmux.ProviderConfig{
 				Name:                p.Name,
 				Type:                "openai",
 				APIKey:              options.mockAPIKey,
@@ -177,30 +192,11 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 				AllowPrivateBaseURL: true,
 				Models:              p.Models,
 				MaxConcurrent:       100,
-				TimeoutSec:          int(options.timeout.Seconds()),
-			}
-
-			if _, err := registry.CreateProvider(pCfg); err != nil {
-				return nil, fmt.Errorf("create provider %s: %w", p.Name, err)
-			}
-
-			// Register deployments for each model
-			for _, model := range p.Models {
-				deployment := &pkgprovider.Deployment{
-					ID:            fmt.Sprintf("%s-%s", p.Name, model),
-					ProviderName:  p.Name,
-					ModelName:     model,
-					BaseURL:       p.URL,
-					APIKey:        options.mockAPIKey,
-					MaxConcurrent: 100,
-					Timeout:       int(options.timeout.Seconds()),
-				}
-				simpleRouter.AddDeployment(deployment)
-			}
+				Timeout:             options.timeout,
+			}))
 		}
 	} else if options.mockProviderURL != "" {
-		// Single mock provider (original behavior)
-		pCfg := provider.ProviderConfig{
+		clientOpts = append(clientOpts, llmux.WithProvider(llmux.ProviderConfig{
 			Name:                "mock-openai",
 			Type:                "openai",
 			APIKey:              options.mockAPIKey,
@@ -208,26 +204,10 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 			AllowPrivateBaseURL: true,
 			Models:              options.models,
 			MaxConcurrent:       100,
-			TimeoutSec:          int(options.timeout.Seconds()),
-		}
-
-		if _, err := registry.CreateProvider(pCfg); err != nil {
-			return nil, fmt.Errorf("create mock provider: %w", err)
-		}
-
-		// Register deployments
-		for _, model := range options.models {
-			deployment := &pkgprovider.Deployment{
-				ID:            fmt.Sprintf("mock-openai-%s", model),
-				ProviderName:  "mock-openai",
-				ModelName:     model,
-				BaseURL:       options.mockProviderURL,
-				APIKey:        options.mockAPIKey,
-				MaxConcurrent: 100,
-				Timeout:       int(options.timeout.Seconds()),
-			}
-			simpleRouter.AddDeployment(deployment)
-		}
+			Timeout:             options.timeout,
+		}))
+	} else {
+		return nil, fmt.Errorf("no mock provider configured")
 	}
 
 	// Initialize store
@@ -235,11 +215,18 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	auditStore := auth.NewMemoryAuditLogStore()
 	invitationStore := auth.NewMemoryInvitationLinkStore()
 
+	client, err := llmux.New(clientOpts...)
+	if err != nil {
+		return nil, fmt.Errorf("create client: %w", err)
+	}
+
 	// Initialize services
 	invitationService := auth.NewInvitationService(invitationStore, store, logger)
 
 	// Create handler
-	handler := api.NewHandler(registry, simpleRouter, logger, nil)
+	handler := api.NewClientHandler(client, logger, &api.ClientHandlerConfig{
+		Store: store,
+	})
 	auditLogger := auth.NewAuditLogger(auditStore, true)
 	mgmtHandler := api.NewManagementHandler(store, auditStore, logger, nil, nil, auditLogger)
 	invitationHandler := api.NewInvitationHandler(invitationService, invitationStore, logger)
@@ -252,6 +239,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	mux.HandleFunc("POST /v1/completions", handler.Completions)
 	mux.HandleFunc("POST /v1/embeddings", handler.Embeddings)
 	mux.HandleFunc("POST /embeddings", handler.Embeddings)
+	mux.HandleFunc("POST /v1/responses", handler.Responses)
 	mux.HandleFunc("GET /v1/models", handler.ListModels)
 	mux.Handle("GET /metrics", promhttp.Handler())
 
@@ -271,6 +259,7 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 			Enabled:                true,
 			LastUsedUpdateInterval: cfg.Auth.LastUsedUpdateInterval,
 		})
+		httpHandler = authMiddleware.ModelAccessMiddleware(httpHandler)
 		httpHandler = authMiddleware.Authenticate(httpHandler)
 	}
 
@@ -317,9 +306,9 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		config:   cfg,
 		baseURL:  fmt.Sprintf("http://%s", listener.Addr().String()),
 		logger:   logger,
-		registry: registry,
-		router:   simpleRouter,
+		client:   client,
 		store:    store,
+		pricingFile: pricingFile,
 	}, nil
 }
 
@@ -339,7 +328,14 @@ func (s *TestServer) Start() error {
 func (s *TestServer) Stop() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	return s.server.Shutdown(ctx)
+	err := s.server.Shutdown(ctx)
+	if s.client != nil {
+		_ = s.client.Close()
+	}
+	if s.pricingFile != "" {
+		_ = os.Remove(s.pricingFile)
+	}
+	return err
 }
 
 // URL returns the server's base URL.
@@ -357,16 +353,6 @@ func (s *TestServer) Client() *http.Client {
 // Config returns the server's configuration.
 func (s *TestServer) Config() *config.Config {
 	return s.config
-}
-
-// Registry returns the provider registry.
-func (s *TestServer) Registry() *provider.Registry {
-	return s.registry
-}
-
-// Router returns the router.
-func (s *TestServer) Router() router.Router {
-	return s.router
 }
 
 // Store returns the auth store.
@@ -396,4 +382,46 @@ func (s *TestServer) waitForReady(timeout time.Duration) error {
 	}
 
 	return fmt.Errorf("server not ready after %v", timeout)
+}
+
+func writePricingFileFromOptions(options *serverOptions) (string, error) {
+	models := map[string]struct{}{}
+	for _, model := range options.models {
+		if model == "" {
+			continue
+		}
+		models[model] = struct{}{}
+	}
+	for _, provider := range options.providers {
+		for _, model := range provider.Models {
+			if model == "" {
+				continue
+			}
+			models[model] = struct{}{}
+		}
+	}
+	if len(models) == 0 {
+		return "", fmt.Errorf("no models configured for pricing")
+	}
+
+	prices := make(map[string]map[string]any, len(models))
+	for model := range models {
+		prices[model] = map[string]any{
+			"input_cost_per_token":  0.00001,
+			"output_cost_per_token": 0.00002,
+		}
+	}
+
+	file, err := os.CreateTemp("", "llmux_pricing_*.json")
+	if err != nil {
+		return "", fmt.Errorf("create pricing file: %w", err)
+	}
+	defer func() { _ = file.Close() }()
+
+	if err := json.NewEncoder(file).Encode(prices); err != nil {
+		_ = os.Remove(file.Name())
+		return "", fmt.Errorf("write pricing file: %w", err)
+	}
+
+	return file.Name(), nil
 }

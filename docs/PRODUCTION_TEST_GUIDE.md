@@ -45,7 +45,7 @@ curl -sf http://localhost:8080/v1/chat/completions \
 ```
 
 Notes:
-- `config/config.test.yaml` keeps `auth/database/governance` disabled to avoid extra moving parts.
+- `config/config.test.yaml` runs in `deployment.mode=development` and keeps `auth/database/governance` disabled to avoid extra moving parts.
 
 ## Stage 2: docker compose (Postgres + Redis)
 

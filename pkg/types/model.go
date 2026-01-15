@@ -1,6 +1,19 @@
 package types
 
-import "strings"
+import (
+	"fmt"
+	"strings"
+)
+
+const MaxModelNameLength = 256
+
+// ValidateModelName checks that a model name is within acceptable bounds.
+func ValidateModelName(model string) error {
+	if len(model) > MaxModelNameLength {
+		return fmt.Errorf("model is too long (max %d characters)", MaxModelNameLength)
+	}
+	return nil
+}
 
 // SplitProviderModel splits LiteLLM-style "provider/model" strings.
 // Returns ("", model) when no provider prefix is present.
