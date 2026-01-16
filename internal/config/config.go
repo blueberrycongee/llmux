@@ -149,13 +149,20 @@ type RedisCacheConfig struct {
 }
 
 // AuthConfig contains authentication settings.
-// AuthConfig contains authentication settings.
 type AuthConfig struct {
 	Enabled                bool          `yaml:"enabled"`
 	SkipPaths              []string      `yaml:"skip_paths"` // Paths to skip authentication
 	LastUsedUpdateInterval time.Duration `yaml:"last_used_update_interval"`
 	BootstrapToken         string        `yaml:"bootstrap_token"` // Optional bootstrap token for management endpoints
 	OIDC                   OIDCConfig    `yaml:"oidc"`            // OIDC configuration
+	Casbin                 CasbinConfig  `yaml:"casbin"`          // Casbin configuration
+}
+
+// CasbinConfig contains Casbin RBAC settings.
+type CasbinConfig struct {
+	Enabled    bool   `yaml:"enabled"`
+	ModelPath  string `yaml:"model_path"`
+	PolicyPath string `yaml:"policy_path"`
 }
 
 // OIDCConfig contains OIDC provider settings.
@@ -277,6 +284,7 @@ type RoutingConfig struct {
 	RetryJitter     float64       `yaml:"retry_jitter"`
 	CooldownPeriod  time.Duration `yaml:"cooldown_period"`
 	Distributed     bool          `yaml:"distributed"` // Enable Redis-backed distributed routing stats
+	EWMAAlpha       float64       `yaml:"ewma_alpha"`
 }
 
 // RateLimitConfig defines rate limiting parameters.
@@ -364,6 +372,7 @@ func DefaultConfig() *Config {
 			RetryMaxBackoff: 5 * time.Second,
 			RetryJitter:     0.2,
 			CooldownPeriod:  60 * time.Second,
+			EWMAAlpha:       0.1,
 		},
 		Stream: StreamConfig{
 			RecoveryMode:        "retry",

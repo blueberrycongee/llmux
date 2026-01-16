@@ -90,6 +90,10 @@ func (r *LatencyRouter) PickWithContext(ctx context.Context, reqCtx *router.Requ
 		switch {
 		case stats == nil:
 			latency = 0
+		case reqCtx.IsStreaming && stats.EWMAAvgTTFTMs > 0:
+			latency = stats.EWMAAvgTTFTMs
+		case !reqCtx.IsStreaming && stats.EWMALatencyMs > 0:
+			latency = stats.EWMALatencyMs
 		case reqCtx.IsStreaming && len(stats.TTFTHistory) > 0:
 			latency = calculateAverageLatency(stats.TTFTHistory)
 		case len(stats.LatencyHistory) > 0:
@@ -134,21 +138,45 @@ func (r *LatencyRouter) PickWithContext(ctx context.Context, reqCtx *router.Requ
 		}
 	}
 
-	totalWeight := 0.0
+	hasCustomWeights := false
 	for _, c := range validCandidates {
 		if c.deployment.Config.Weight > 0 {
-			totalWeight += c.deployment.Config.Weight
+			hasCustomWeights = true
+			break
 		}
 	}
+
+	totalWeight := 0.0
+	weights := make([]float64, len(validCandidates))
+	for i, c := range validCandidates {
+		stats := statsByID[c.deployment.ID]
+		successRate := 1.0
+		latency := c.latency
+		if stats != nil {
+			successRate = stats.EWMASuccessRate
+		}
+		if latency <= 0 {
+			latency = 1.0 // Avoid division by zero, use 1ms as floor
+		}
+
+		baseWeight := c.deployment.Config.Weight
+		if !hasCustomWeights {
+			baseWeight = 1.0
+		}
+
+		// Dynamic weight calculation: Weight * (SuccessRate^2) / Latency
+		// We use SuccessRate^2 to penalize failures more heavily.
+		// Latency is in the denominator so lower latency increases weight.
+		w := baseWeight * (successRate * successRate) / latency
+		weights[i] = w
+		totalWeight += w
+	}
+
 	if totalWeight > 0 {
 		target := r.randFloat64() * totalWeight
 		running := 0.0
-		for _, c := range validCandidates {
-			weight := c.deployment.Config.Weight
-			if weight <= 0 {
-				continue
-			}
-			running += weight
+		for i, c := range validCandidates {
+			running += weights[i]
 			if target < running {
 				return c.deployment.Deployment, nil
 			}

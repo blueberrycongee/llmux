@@ -61,6 +61,7 @@ type ClientConfig struct {
 	RetryMaxBackoff  time.Duration
 	RetryJitter      float64
 	CooldownPeriod   time.Duration
+	EWMAAlpha        float64
 	DefaultProvider  string
 	FallbackReporter FallbackReporter
 
@@ -123,6 +124,7 @@ func defaultConfig() *ClientConfig {
 		RetryMaxBackoff:                   5 * time.Second,
 		RetryJitter:                       0.2,
 		CooldownPeriod:                    60 * time.Second,
+		EWMAAlpha:                         0.1,
 		CacheEnabled:                      false,
 		CacheTTL:                          time.Hour,
 		CacheTypeLabel:                    "unknown",
@@ -258,6 +260,14 @@ func WithFallbackReporter(reporter FallbackReporter) Option {
 func WithCooldown(d time.Duration) Option {
 	return func(c *ClientConfig) {
 		c.CooldownPeriod = d
+	}
+}
+
+// WithEWMAAlpha sets the smoothing factor for EWMA calculations.
+// alpha should be between 0 and 1. A higher alpha discounts older observations faster.
+func WithEWMAAlpha(alpha float64) Option {
+	return func(c *ClientConfig) {
+		c.EWMAAlpha = alpha
 	}
 }
 

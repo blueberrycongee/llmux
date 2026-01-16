@@ -142,6 +142,9 @@ type DeploymentStats struct {
 	TTFTHistory        []float64 // Time To First Token for streaming
 	AvgLatencyMs       float64
 	AvgTTFTMs          float64
+	EWMALatencyMs      float64
+	EWMAAvgTTFTMs      float64
+	EWMASuccessRate    float64
 	MaxLatencyListSize int
 
 	// Usage tracking (per minute)
@@ -220,6 +223,10 @@ type Config struct {
 	// needs time to recover from rate limiting.
 	// Default: true.
 	ImmediateCooldownOn429 bool
+
+	// EWMAAlpha is the smoothing factor for EWMA calculations.
+	// Default: 0.1.
+	EWMAAlpha float64
 }
 
 // DefaultConfig returns sensible default router configuration.
@@ -234,5 +241,6 @@ func DefaultConfig() Config {
 		FailureThresholdPercent: 0.5,  // 50% failure rate
 		MinRequestsForThreshold: 5,    // Minimum 5 requests before checking rate
 		ImmediateCooldownOn429:  true, // Immediate cooldown on rate limit
+		EWMAAlpha:               0.1,  // Default EWMA alpha
 	}
 }
