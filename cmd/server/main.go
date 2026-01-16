@@ -202,6 +202,12 @@ func run() error {
 	// Create AuditLogger
 	auditLogger := auth.NewAuditLogger(auditStore, true)
 
+	// Initialize Casbin RBAC
+	enforcer, err := initCasbin(cfg, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize casbin: %w", err)
+	}
+
 	if provider, ok := authStore.(dbStatsProvider); ok {
 		stopMetrics := startDBPoolMetrics(ctx, provider, logger, 30*time.Second)
 		if stopMetrics != nil {
@@ -214,7 +220,7 @@ func run() error {
 		defer runner.Stop()
 	}
 
-	governanceEngine := buildGovernanceEngine(cfg, authStore, auditLogger, logger)
+	governanceEngine := buildGovernanceEngine(cfg, authStore, auditLogger, logger, enforcer)
 	if governanceEngine != nil {
 		cfgManager.OnChange(func(nextCfg *config.Config) {
 			governanceEngine.UpdateConfig(mapGovernanceConfig(nextCfg.Governance))
@@ -308,7 +314,7 @@ func run() error {
 		)
 	}
 
-	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer)
+	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer, enforcer)
 	if err != nil {
 		return fmt.Errorf("failed to initialize middleware stack: %w", err)
 	}
@@ -418,6 +424,10 @@ func buildRoutingOptions(cfg *config.Config) []llmux.Option {
 
 	if cfg.Routing.CooldownPeriod > 0 {
 		opts = append(opts, llmux.WithCooldown(cfg.Routing.CooldownPeriod))
+	}
+
+	if cfg.Routing.EWMAAlpha > 0 {
+		opts = append(opts, llmux.WithEWMAAlpha(cfg.Routing.EWMAAlpha))
 	}
 
 	if cfg.Server.WriteTimeout > 0 {

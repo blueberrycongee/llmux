@@ -103,6 +103,7 @@ func NewForwarder(cfg ForwarderConfig) (*Forwarder, error) {
 // Forward streams data from upstream to downstream with transformation.
 // It returns when the stream completes, an error occurs, or the client disconnects.
 func (f *Forwarder) Forward() error {
+	defer f.cancel()
 	defer func() { _ = f.upstream.Close() }()
 
 	// Set SSE headers

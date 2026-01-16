@@ -33,6 +33,9 @@ type statsEntry struct {
 	FailureBuckets     []failureBucket
 	AvgLatencyMs       float64
 	AvgTTFTMs          float64
+	EWMALatencyMs      float64
+	EWMAAvgTTFTMs      float64
+	EWMASuccessRate    float64
 	MaxLatencyListSize int
 	CurrentMinuteTPM   int64
 	CurrentMinuteRPM   int64
@@ -240,6 +243,9 @@ func (r *BaseRouter) statsEntrySnapshot(stats *statsEntry) *router.DeploymentSta
 		TTFTHistory:        ttftHistory,
 		AvgLatencyMs:       stats.AvgLatencyMs,
 		AvgTTFTMs:          stats.AvgTTFTMs,
+		EWMALatencyMs:      stats.EWMALatencyMs,
+		EWMAAvgTTFTMs:      stats.EWMAAvgTTFTMs,
+		EWMASuccessRate:    stats.EWMASuccessRate,
 		MaxLatencyListSize: stats.MaxLatencyListSize,
 		CurrentMinuteTPM:   stats.CurrentMinuteTPM,
 		CurrentMinuteRPM:   stats.CurrentMinuteRPM,
@@ -408,6 +414,29 @@ func (r *BaseRouter) ReportSuccess(ctx context.Context, deployment *provider.Dep
 		stats.AvgLatencyMs = stats.AvgLatencyMs*0.9 + latencyMs*0.1
 	}
 
+	// Update EWMA values
+	alpha := r.config.EWMAAlpha
+	if alpha <= 0 {
+		alpha = 0.1
+	}
+	if stats.EWMALatencyMs == 0 {
+		stats.EWMALatencyMs = latencyMs
+	} else {
+		stats.EWMALatencyMs = alpha*latencyMs + (1.0-alpha)*stats.EWMALatencyMs
+	}
+
+	if metrics.TimeToFirstToken > 0 {
+		ttftMs := float64(metrics.TimeToFirstToken.Milliseconds())
+		if stats.EWMAAvgTTFTMs == 0 {
+			stats.EWMAAvgTTFTMs = ttftMs
+		} else {
+			stats.EWMAAvgTTFTMs = alpha*ttftMs + (1.0-alpha)*stats.EWMAAvgTTFTMs
+		}
+	}
+
+	// Success rate update (success = 1.0)
+	stats.EWMASuccessRate = alpha*1.0 + (1.0-alpha)*stats.EWMASuccessRate
+
 	r.updateUsageStats(stats, metrics.TotalTokens)
 }
 
@@ -478,6 +507,13 @@ func (r *BaseRouter) ReportFailure(ctx context.Context, deployment *provider.Dep
 		stats.CooldownUntil = time.Now().Add(r.config.CooldownPeriod)
 		r.recordCooldownMetric(deployment, beforeCooldown, stats.CooldownUntil)
 	}
+
+	// Update EWMA success rate (failure = 0.0)
+	alpha := r.config.EWMAAlpha
+	if alpha <= 0 {
+		alpha = 0.1
+	}
+	stats.EWMASuccessRate = alpha*0.0 + (1.0-alpha)*stats.EWMASuccessRate
 }
 
 // shouldCooldownByFailureRate checks if deployment should enter cooldown based on failure rate.
@@ -625,6 +661,7 @@ func (r *BaseRouter) newStatsEntry() *statsEntry {
 		LatencyHistory:     make([]float64, 0, r.config.MaxLatencyListSize),
 		TTFTHistory:        make([]float64, 0, r.config.MaxLatencyListSize),
 		FailureBuckets:     buckets,
+		EWMASuccessRate:    1.0, // Start with optimistic success rate
 	}
 }
 

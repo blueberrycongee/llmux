@@ -4,13 +4,38 @@ High-availability patterns for the LLM gateway.
 
 ## Components
 
-| Component        | Status               | Description                         |
-| ---------------- | -------------------- | ----------------------------------- |
-| `RateLimiter`    | ✅ **ACTIVE**         | Token bucket rate limiting          |
-| `RedisLimiter`   | ✅ **ACTIVE**         | Distributed rate limiting via Redis |
-| `Semaphore`      | ✅ **ACTIVE**         | Concurrency control                 |
-| `CircuitBreaker` | ⚠️ **NOT INTEGRATED** | Traditional circuit breaker pattern |
-| `Manager`        | ⚠️ **PARTIAL**        | Only RateLimiter/Semaphore used     |
+| Component         | Status               | Description                               |
+| ----------------- | -------------------- | ----------------------------------------- |
+| `RateLimiter`     | ✅ **ACTIVE**         | Token bucket rate limiting                |
+| `RedisLimiter`    | ✅ **ACTIVE**         | Distributed rate limiting via Redis       |
+| `Semaphore`       | ✅ **ACTIVE**         | Concurrency control                       |
+| `AdaptiveLimiter` | ✅ **ACTIVE**         | Netflix-style adaptive concurrency limits |
+| `CircuitBreaker`  | ⚠️ **NOT INTEGRATED** | Traditional circuit breaker pattern       |
+| `Manager`         | ⚠️ **PARTIAL**        | Only RateLimiter/Semaphore used           |
+
+## Adaptive Concurrency Limiter
+
+Inspired by [Netflix Concurrency Limits](https://github.com/Netflix/concurrency-limits), the `AdaptiveLimiter` automatically adjusts the maximum concurrency based on latency (RTT) jitter.
+
+### Key Features
+- **Gradient Algorithm**: Dynamically adjusts the limit using the ratio of `minRTT` to `avgRTT`.
+- **Automatic Protection**: When the backend slows down (e.g., due to queuing or load), the limiter automatically reduces the concurrency limit to prevent cascading failures.
+- **Self-Healing**: As latency improves, it gradually increases the limit to maximize throughput.
+- **minRTT Aging**: Periodically resets the baseline minimum RTT to adapt to changing network conditions or backend performance characteristics.
+
+### Usage
+```go
+limiter := resilience.NewAdaptiveLimiter(minLimit, maxLimit)
+
+if limiter.TryAcquire() {
+    start := time.Now()
+    // Perform request
+    err := doRequest()
+    limiter.Release(time.Since(start))
+} else {
+    // Return 429 Too Many Requests
+}
+```
 
 ## Circuit Breaker Status
 

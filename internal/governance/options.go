@@ -43,3 +43,10 @@ func WithIdempotencyStore(store IdempotencyStore) Option {
 		e.idempotency = store
 	}
 }
+
+// WithCasbinEnforcer sets the Casbin enforcer for governance checks.
+func WithCasbinEnforcer(enforcer *auth.CasbinEnforcer) Option {
+	return func(e *Engine) {
+		e.enforcer = enforcer
+	}
+}

@@ -1406,6 +1406,7 @@ func (c *Client) createRouter(strategy Strategy) router.Router {
 	config := router.DefaultConfig()
 	config.Strategy = strategy
 	config.CooldownPeriod = c.config.CooldownPeriod
+	config.EWMAAlpha = c.config.EWMAAlpha
 	config.LatencyBuffer = 0.1
 	config.MaxLatencyListSize = 10
 	config.PricingFile = c.config.PricingFile

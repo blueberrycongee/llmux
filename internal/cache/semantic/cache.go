@@ -21,6 +21,10 @@ type Cache struct {
 	similarityThreshold float64
 	defaultTTL          time.Duration
 
+	// Re-ranking settings
+	enableReranking    bool
+	rerankingThreshold float64
+
 	// Statistics
 	hits       atomic.Int64
 	misses     atomic.Int64
@@ -44,12 +48,17 @@ func New(embedder embedding.Embedder, store vector.Store, cfg Config) (*Cache, e
 	if cfg.DefaultTTL <= 0 {
 		cfg.DefaultTTL = time.Hour
 	}
+	if cfg.RerankingThreshold <= 0 || cfg.RerankingThreshold > 1 {
+		cfg.RerankingThreshold = 0.8
+	}
 
 	return &Cache{
 		embedder:            embedder,
 		vectorStore:         store,
 		similarityThreshold: cfg.SimilarityThreshold,
 		defaultTTL:          cfg.DefaultTTL,
+		enableReranking:     cfg.EnableReranking,
+		rerankingThreshold:  cfg.RerankingThreshold,
 	}, nil
 }
 
@@ -70,8 +79,13 @@ func (c *Cache) Get(ctx context.Context, prompt string) (*CacheResult, error) {
 	c.embedCalls.Add(1)
 
 	// Search for similar vectors
+	topK := 1
+	if c.enableReranking {
+		topK = 5
+	}
+
 	results, err := c.vectorStore.Search(ctx, emb, vector.SearchOptions{
-		TopK:              1,
+		TopK:              topK,
 		DistanceThreshold: 1 - c.similarityThreshold, // Convert similarity to distance
 	})
 	if err != nil {
@@ -84,7 +98,33 @@ func (c *Cache) Get(ctx context.Context, prompt string) (*CacheResult, error) {
 		return nil, nil
 	}
 
-	// Check similarity threshold
+	if c.enableReranking {
+		candidates := make([]RerankCandidate, len(results))
+		for i, res := range results {
+			candidates[i] = RerankCandidate{
+				Prompt:      res.Payload.Prompt,
+				Response:    res.Payload.Response,
+				Model:       res.Payload.Model,
+				VectorScore: res.Score,
+			}
+		}
+
+		best := Rerank(prompt, candidates)
+		if best == nil || best.SecondaryScore < c.rerankingThreshold {
+			c.misses.Add(1)
+			return nil, nil
+		}
+
+		c.hits.Add(1)
+		return &CacheResult{
+			Response:     best.Response,
+			Similarity:   best.VectorScore,
+			CachedPrompt: best.Prompt,
+			Model:        best.Model,
+		}, nil
+	}
+
+	// Default logic: check similarity threshold for the top result
 	result := results[0]
 	similarity := result.Score // Qdrant returns cosine similarity directly
 

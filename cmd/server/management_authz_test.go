@@ -13,7 +13,7 @@ import (
 
 func TestManagementAuthzMiddleware_NonManagementPath_AllowsUnauthed(t *testing.T) {
 	cfg := &config.Config{Auth: config.AuthConfig{Enabled: true}}
-	h := managementAuthzMiddleware(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := managementAuthzMiddleware(cfg, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -28,7 +28,7 @@ func TestManagementAuthzMiddleware_NonManagementPath_AllowsUnauthed(t *testing.T
 
 func TestManagementAuthzMiddleware_ManagementPath_UnauthedDenied(t *testing.T) {
 	cfg := &config.Config{Auth: config.AuthConfig{Enabled: true}}
-	h := managementAuthzMiddleware(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := managementAuthzMiddleware(cfg, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -43,7 +43,7 @@ func TestManagementAuthzMiddleware_ManagementPath_UnauthedDenied(t *testing.T) {
 
 func TestManagementAuthzMiddleware_ManagementPath_BootstrapToken_Allows(t *testing.T) {
 	cfg := &config.Config{Auth: config.AuthConfig{Enabled: true, BootstrapToken: "boot"}}
-	h := managementAuthzMiddleware(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := managementAuthzMiddleware(cfg, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -59,7 +59,7 @@ func TestManagementAuthzMiddleware_ManagementPath_BootstrapToken_Allows(t *testi
 
 func TestManagementAuthzMiddleware_ManagementKey_Allows(t *testing.T) {
 	cfg := &config.Config{Auth: config.AuthConfig{Enabled: true}}
-	h := managementAuthzMiddleware(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := managementAuthzMiddleware(cfg, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -76,7 +76,7 @@ func TestManagementAuthzMiddleware_ManagementKey_Allows(t *testing.T) {
 
 func TestManagementAuthzMiddleware_NonManagementKey_Denied(t *testing.T) {
 	cfg := &config.Config{Auth: config.AuthConfig{Enabled: true}}
-	h := managementAuthzMiddleware(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := managementAuthzMiddleware(cfg, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 
@@ -93,7 +93,7 @@ func TestManagementAuthzMiddleware_NonManagementKey_Denied(t *testing.T) {
 
 func TestManagementAuthzMiddleware_AuthDisabled_BootstrapToken_Allows(t *testing.T) {
 	cfg := &config.Config{Auth: config.AuthConfig{Enabled: false, BootstrapToken: "boot"}}
-	h := managementAuthzMiddleware(cfg)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	h := managementAuthzMiddleware(cfg, nil)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	}))
 

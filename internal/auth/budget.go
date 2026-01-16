@@ -115,6 +115,23 @@ func (b *Budget) CalculateNextReset() {
 	b.BudgetResetAt = b.BudgetDuration.NextResetTime()
 }
 
+// Clone returns a deep copy of the Budget.
+func (b *Budget) Clone() *Budget {
+	if b == nil {
+		return nil
+	}
+	clone := *b
+
+	if b.ModelMaxBudget != nil {
+		clone.ModelMaxBudget = make(map[string]float64, len(b.ModelMaxBudget))
+		for k, v := range b.ModelMaxBudget {
+			clone.ModelMaxBudget[k] = v
+		}
+	}
+
+	return &clone
+}
+
 // CheckBudgetStatus evaluates the budget status for a given spent amount.
 func (b *Budget) CheckBudgetStatus(spent float64) BudgetStatus {
 	status := BudgetStatus{

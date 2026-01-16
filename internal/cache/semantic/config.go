@@ -34,6 +34,10 @@ type Config struct {
 
 	// Cache behavior
 	DefaultTTL time.Duration `yaml:"default_ttl"` // Default TTL for cached entries
+
+	// Re-ranking configuration
+	EnableReranking   bool    `yaml:"enable_reranking"`   // Enable secondary re-ranking
+	RerankingThreshold float64 `yaml:"reranking_threshold"` // Threshold for re-ranking (0.0-1.0), default 0.8
 }
 
 // DefaultConfig returns sensible defaults for semantic cache.
@@ -46,6 +50,8 @@ func DefaultConfig() Config {
 		SimilarityThreshold: 0.95,
 		DefaultTTL:          time.Hour,
 		QdrantCollection:    "llmux_semantic_cache",
+		EnableReranking:     false,
+		RerankingThreshold:  0.8,
 	}
 }
 
@@ -53,6 +59,10 @@ func DefaultConfig() Config {
 func (c *Config) Validate() error {
 	if c.SimilarityThreshold <= 0 || c.SimilarityThreshold > 1 {
 		return errors.New("similarity_threshold must be between 0 and 1")
+	}
+
+	if c.EnableReranking && (c.RerankingThreshold <= 0 || c.RerankingThreshold > 1) {
+		return errors.New("reranking_threshold must be between 0 and 1 when reranking is enabled")
 	}
 
 	if c.VectorDimension <= 0 {
