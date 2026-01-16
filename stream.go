@@ -12,6 +12,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"github.com/blueberrycongee/llmux/internal/httputil"
 	"github.com/blueberrycongee/llmux/internal/plugin"
 	"github.com/blueberrycongee/llmux/internal/tokenizer"
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -463,7 +464,7 @@ func (s *StreamReader) tryRecover(originalErr error) (*types.StreamChunk, error)
 	}
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		_ = resp.Body.Close()
 		llmErr := prov.MapError(resp.StatusCode, body)
 		release()

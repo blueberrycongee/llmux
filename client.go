@@ -4,7 +4,6 @@ import (
 	"context"
 	"crypto/sha256"
 	"fmt"
-	"io"
 	"log/slog"
 	"math/rand"
 	"net/http"
@@ -15,6 +14,7 @@ import (
 	"github.com/goccy/go-json"
 
 	"github.com/blueberrycongee/llmux/internal/auth"
+	"github.com/blueberrycongee/llmux/internal/httputil"
 	"github.com/blueberrycongee/llmux/internal/metrics"
 	"github.com/blueberrycongee/llmux/internal/observability"
 	"github.com/blueberrycongee/llmux/internal/plugin"
@@ -514,7 +514,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 		if resp.StatusCode >= 500 {
 			// Server error, retryable
-			body, _ := io.ReadAll(resp.Body)
+			body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 			_ = resp.Body.Close()
 			llmErr := prov.MapError(resp.StatusCode, body)
 			release()
@@ -530,7 +530,7 @@ func (c *Client) ChatCompletionStream(ctx context.Context, req *ChatRequest) (*S
 
 		if resp.StatusCode >= 400 {
 			// Client error
-			body, _ := io.ReadAll(resp.Body)
+			body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 			_ = resp.Body.Close()
 			llmErr := prov.MapError(resp.StatusCode, body)
 
@@ -735,7 +735,7 @@ func (c *Client) executeEmbeddingOnce(
 	latency := time.Since(start)
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		llmErr := prov.MapError(resp.StatusCode, body)
 		c.router.ReportFailure(ctx, deployment, llmErr)
 		return nil, llmErr
@@ -1285,7 +1285,7 @@ func (c *Client) executeOnce(
 	latency := time.Since(start)
 
 	if resp.StatusCode >= 400 {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		llmErr := prov.MapError(resp.StatusCode, body)
 		c.router.ReportFailure(ctx, deployment, llmErr)
 		return nil, llmErr

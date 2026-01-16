@@ -18,6 +18,8 @@ import (
 	awsconfig "github.com/aws/aws-sdk-go-v2/config"
 	"github.com/goccy/go-json"
 
+	"github.com/blueberrycongee/llmux/internal/httputil"
+
 	"github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
 	"github.com/blueberrycongee/llmux/pkg/types"
@@ -213,7 +215,7 @@ func (p *Provider) constructLlama3Payload(req *types.ChatRequest) *llama3Payload
 }
 
 func (p *Provider) ParseResponse(resp *http.Response) (*types.ChatResponse, error) {
-	body, err := io.ReadAll(resp.Body)
+	body, err := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
 	}

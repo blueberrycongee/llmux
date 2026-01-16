@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/goccy/go-json"
+
+	"github.com/blueberrycongee/llmux/internal/httputil"
 )
 
 // AzureEmbedder implements Embedder using Azure OpenAI's embedding API.
@@ -120,7 +121,7 @@ func (e *AzureEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]flo
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		return nil, fmt.Errorf("embedding failed: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
