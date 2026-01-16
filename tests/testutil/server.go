@@ -46,6 +46,7 @@ type serverOptions struct {
 	timeout         time.Duration
 	retryCount      int
 	retryBackoff    time.Duration
+	routerStrategy  llmux.Strategy
 	providers       []ProviderConfig // Multiple providers for fallback testing
 	oidcConfig      *config.OIDCConfig
 }
@@ -123,6 +124,13 @@ func WithRetry(count int, backoff time.Duration) ServerOption {
 	}
 }
 
+// WithRouterStrategy sets the routing strategy for the test server client.
+func WithRouterStrategy(strategy llmux.Strategy) ServerOption {
+	return func(o *serverOptions) {
+		o.routerStrategy = strategy
+	}
+}
+
 // WithOIDC configures OIDC authentication.
 func WithOIDC(oidcConfig *config.OIDCConfig) ServerOption {
 	return func(o *serverOptions) {
@@ -171,6 +179,9 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 		llmux.WithLogger(logger),
 		llmux.WithCooldown(0),
 		llmux.WithRetry(options.retryCount, options.retryBackoff),
+	}
+	if options.routerStrategy != "" {
+		clientOpts = append(clientOpts, llmux.WithRouterStrategy(options.routerStrategy))
 	}
 	if options.timeout > 0 {
 		clientOpts = append(clientOpts, llmux.WithTimeout(options.timeout))

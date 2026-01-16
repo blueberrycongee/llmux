@@ -93,7 +93,7 @@ func DefaultObservabilityConfig() ObservabilityConfig {
 	cfg.DatadogLLMObs = DefaultDDLLMObsConfig()
 
 	// Content filter defaults
-	cfg.ContentFilter.FilterBase64 = os.Getenv("LLMUX_FILTER_BASE64") == "true"
+	cfg.ContentFilter.FilterBase64 = envBool("LLMUX_FILTER_BASE64", false)
 	cfg.ContentFilter.MaxContentLength = 10000
 
 	return cfg

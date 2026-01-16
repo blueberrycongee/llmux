@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	llmux "github.com/blueberrycongee/llmux"
 	"github.com/blueberrycongee/llmux/tests/testutil"
 )
 
@@ -36,6 +37,7 @@ func TestFallback_SingleProviderFailure(t *testing.T) {
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
 		testutil.WithRetry(1, 0),
+		testutil.WithRouterStrategy(llmux.StrategyRoundRobin),
 	)
 	if err != nil {
 		t.Skipf("Multi-provider setup not supported: %v", err)
@@ -87,6 +89,7 @@ func TestFallback_AllProvidersFail(t *testing.T) {
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
 		testutil.WithRetry(1, 0),
+		testutil.WithRouterStrategy(llmux.StrategyRoundRobin),
 	)
 	if err != nil {
 		t.Skipf("Multi-provider setup not supported: %v", err)
@@ -169,6 +172,7 @@ func TestFallback_RateLimitTriggersFailover(t *testing.T) {
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
 		testutil.WithRetry(1, 0),
+		testutil.WithRouterStrategy(llmux.StrategyRoundRobin),
 	)
 	if err != nil {
 		t.Skipf("Multi-provider setup not supported: %v", err)
@@ -221,6 +225,7 @@ func TestFallback_TimeoutTriggersFailover(t *testing.T) {
 			{Name: "fallback", URL: mockFallback.URL(), Models: []string{"gpt-4o-mock"}},
 		}),
 		testutil.WithRetry(1, 0),
+		testutil.WithRouterStrategy(llmux.StrategyRoundRobin),
 		testutil.WithTimeout(1*time.Second), // Short timeout
 	)
 	if err != nil {
