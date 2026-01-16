@@ -14,7 +14,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/observability"
 )
 
-func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog.Logger, syncer *auth.UserTeamSyncer) (func(http.Handler) http.Handler, error) {
+func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog.Logger, syncer *auth.UserTeamSyncer, enforcer *auth.CasbinEnforcer) (func(http.Handler) http.Handler, error) {
 	if cfg == nil {
 		return nil, errNilConfig
 	}
@@ -27,8 +27,9 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 			SkipPaths:              cfg.Auth.SkipPaths,
 			Enabled:                true,
 			LastUsedUpdateInterval: cfg.Auth.LastUsedUpdateInterval,
+			Enforcer:               enforcer,
 		})
-		logger.Info("API key authentication middleware enabled")
+		logger.Info("API key authentication middleware enabled", "casbin_enabled", enforcer != nil)
 	}
 
 	var oidcMiddleware func(http.Handler) http.Handler
@@ -56,7 +57,7 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 		}
 		handler := next
 		handler = managementBodyLimitMiddleware(handler)
-		handler = managementAuthzMiddleware(cfg)(handler)
+		handler = managementAuthzMiddleware(cfg, enforcer)(handler)
 		if authMiddleware != nil {
 			handler = authMiddleware.ModelAccessMiddleware(handler)
 			handler = authMiddleware.Authenticate(handler)
@@ -75,7 +76,7 @@ const maxManagementBodyBytes int64 = 1 << 20
 
 const bootstrapTokenHeader = "X-LLMux-Bootstrap-Token" // #nosec G101 -- header name, not a credential
 
-func managementAuthzMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
+func managementAuthzMiddleware(cfg *config.Config, enforcer *auth.CasbinEnforcer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if cfg == nil || r == nil || !isManagementPath(r.URL.Path) {
@@ -95,6 +96,26 @@ func managementAuthzMiddleware(cfg *config.Config) func(http.Handler) http.Handl
 				return
 			}
 
+			if enforcer != nil {
+				var sub string
+				if authCtx.APIKey != nil {
+					sub = auth.KeySub(authCtx.APIKey.ID)
+					_, _ = enforcer.AddRoleForUser(sub, auth.RoleSub(string(authCtx.APIKey.KeyType)))
+				} else if authCtx.User != nil {
+					sub = auth.UserSub(authCtx.User.ID)
+					_, _ = enforcer.AddRoleForUser(sub, auth.RoleSub(string(authCtx.UserRole)))
+				}
+
+				if sub != "" {
+					allowed, err := enforcer.Enforce(sub, auth.PathObj(r.URL.Path), auth.ActionMethod(r.Method))
+					if err == nil && allowed {
+						next.ServeHTTP(w, r)
+						return
+					}
+				}
+			}
+
+			// Fallback to legacy hardcoded logic
 			if authCtx.User != nil {
 				switch authCtx.UserRole {
 				case auth.UserRoleProxyAdmin, auth.UserRoleProxyAdminViewer:

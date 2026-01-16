@@ -27,6 +27,7 @@ type Middleware struct {
 	skipPaths              map[string]bool
 	enabled                bool
 	lastUsedUpdateInterval time.Duration
+	enforcer               *CasbinEnforcer
 }
 
 // MiddlewareConfig contains configuration for the auth middleware.
@@ -36,6 +37,7 @@ type MiddlewareConfig struct {
 	SkipPaths              []string // Paths to skip authentication (e.g., /health, /metrics)
 	Enabled                bool
 	LastUsedUpdateInterval time.Duration
+	Enforcer               *CasbinEnforcer
 }
 
 // NewMiddleware creates a new authentication middleware.
@@ -51,6 +53,7 @@ func NewMiddleware(cfg *MiddlewareConfig) *Middleware {
 		skipPaths:              skipPaths,
 		enabled:                cfg.Enabled,
 		lastUsedUpdateInterval: cfg.LastUsedUpdateInterval,
+		enforcer:               cfg.Enforcer,
 	}
 }
 
@@ -133,15 +136,36 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 			}
 		}
 
-		// Enforce key type restrictions.
-		if key.KeyType == KeyTypeReadOnly {
-			if r.Method != http.MethodGet && r.Method != http.MethodHead {
-				m.writePermissionDenied(w, "read-only key")
+		// Enforce permissions via Casbin if available.
+		if m.enforcer != nil {
+			sub := KeySub(key.ID)
+			obj := PathObj(r.URL.Path)
+			act := ActionMethod(r.Method)
+
+			// Map key type to role
+			_, _ = m.enforcer.AddRoleForUser(sub, RoleSub(string(key.KeyType)))
+
+			allowed, err := m.enforcer.Enforce(sub, obj, act)
+			if err != nil {
+				m.logger.Error("casbin enforcement failed", "error", err)
+				m.writeError(w, http.StatusInternalServerError, "internal error")
 				return
 			}
-			if r.URL.Path != "/v1/models" {
-				m.writePermissionDenied(w, "read-only key")
+			if !allowed {
+				m.writePermissionDenied(w, "access denied by policy")
 				return
+			}
+		} else {
+			// Legacy hardcoded key type restrictions.
+			if key.KeyType == KeyTypeReadOnly {
+				if r.Method != http.MethodGet && r.Method != http.MethodHead {
+					m.writePermissionDenied(w, "read-only key")
+					return
+				}
+				if r.URL.Path != "/v1/models" {
+					m.writePermissionDenied(w, "read-only key")
+					return
+				}
 			}
 		}
 
@@ -249,16 +273,55 @@ func (m *Middleware) ModelAccessMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		access, err := NewModelAccess(r.Context(), m.store, authCtx)
-		if err != nil {
-			m.logger.Error("failed to evaluate model access", "error", err)
-			m.writeError(w, http.StatusInternalServerError, "internal error")
-			return
-		}
+		if m.enforcer != nil {
+			sub := KeySub(authCtx.APIKey.ID)
+			obj := ModelObj(model)
+			act := ActionUse()
 
-		if !access.Allows(model) {
-			m.writePermissionDenied(w, "model access denied")
-			return
+			// Sync roles for the key
+			_, _ = m.enforcer.AddRoleForUser(sub, RoleSub(string(authCtx.APIKey.KeyType)))
+			if authCtx.Team != nil {
+				_, _ = m.enforcer.AddGroupingPolicy(sub, TeamSub(authCtx.Team.ID))
+			}
+			if authCtx.User != nil {
+				_, _ = m.enforcer.AddGroupingPolicy(sub, UserSub(authCtx.User.ID))
+			}
+
+			// Add temporary policies for legacy allowed_models support
+			// In a real production system, these should be synced to the database
+			// or loaded via a custom adapter.
+			if len(authCtx.APIKey.AllowedModels) > 0 {
+				for _, am := range authCtx.APIKey.AllowedModels {
+					_, _ = m.enforcer.AddPolicy(sub, ModelObj(am), act)
+				}
+			} else {
+				// Empty AllowedModels means all models allowed for this key
+				_, _ = m.enforcer.AddPolicy(sub, ModelObj("*"), act)
+			}
+
+			allowed, err := m.enforcer.Enforce(sub, obj, act)
+			if err != nil {
+				m.logger.Error("failed to evaluate model access via casbin", "error", err)
+				m.writeError(w, http.StatusInternalServerError, "internal error")
+				return
+			}
+
+			if !allowed {
+				m.writePermissionDenied(w, "model access denied")
+				return
+			}
+		} else {
+			access, err := NewModelAccess(r.Context(), m.store, authCtx)
+			if err != nil {
+				m.logger.Error("failed to evaluate model access", "error", err)
+				m.writeError(w, http.StatusInternalServerError, "internal error")
+				return
+			}
+
+			if !access.Allows(model) {
+				m.writePermissionDenied(w, "model access denied")
+				return
+			}
 		}
 
 		next.ServeHTTP(w, r)

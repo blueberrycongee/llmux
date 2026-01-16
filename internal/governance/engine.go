@@ -21,6 +21,7 @@ type Engine struct {
 	idempotency IdempotencyStore
 	logger      *slog.Logger
 	config      atomic.Value
+	enforcer    *auth.CasbinEnforcer
 }
 
 // NewEngine creates a governance engine with the provided config.
@@ -295,6 +296,41 @@ func (e *Engine) checkModelAccess(ctx context.Context, model string, authCtx *au
 	if model == "" || authCtx == nil {
 		return nil
 	}
+
+	if e.enforcer != nil && authCtx.APIKey != nil {
+		sub := auth.KeySub(authCtx.APIKey.ID)
+		obj := auth.ModelObj(model)
+		act := auth.ActionUse()
+
+		// Sync roles for the key
+		_, _ = e.enforcer.AddRoleForUser(sub, auth.RoleSub(string(authCtx.APIKey.KeyType)))
+		if authCtx.Team != nil {
+			_, _ = e.enforcer.AddGroupingPolicy(sub, auth.TeamSub(authCtx.Team.ID))
+		}
+		if authCtx.User != nil {
+			_, _ = e.enforcer.AddGroupingPolicy(sub, auth.UserSub(authCtx.User.ID))
+		}
+
+		// Legacy support for allowed_models
+		if len(authCtx.APIKey.AllowedModels) > 0 {
+			for _, am := range authCtx.APIKey.AllowedModels {
+				_, _ = e.enforcer.AddPolicy(sub, auth.ModelObj(am), act)
+			}
+		} else {
+			_, _ = e.enforcer.AddPolicy(sub, auth.ModelObj("*"), act)
+		}
+
+		allowed, err := e.enforcer.Enforce(sub, obj, act)
+		if err != nil {
+			e.logger.Error("failed to evaluate model access via casbin", "error", err)
+			return llmerrors.NewInternalError("gateway", model, "failed to evaluate model access")
+		}
+		if allowed {
+			return nil
+		}
+		return llmerrors.NewPermissionError("gateway", model, "model access denied")
+	}
+
 	access, err := auth.NewModelAccess(ctx, e.store, authCtx)
 	if err != nil {
 		e.logger.Error("failed to evaluate model access", "error", err)

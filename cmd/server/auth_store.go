@@ -37,6 +37,33 @@ func initAuthStores(cfg *config.Config, logger *slog.Logger) (auth.Store, auth.A
 	return authStore, auditStore, nil
 }
 
+func initCasbin(cfg *config.Config, logger *slog.Logger) (*auth.CasbinEnforcer, error) {
+	if !cfg.Auth.Casbin.Enabled {
+		return nil, nil
+	}
+
+	var enforcer *auth.CasbinEnforcer
+	var err error
+
+	if cfg.Auth.Casbin.PolicyPath != "" {
+		enforcer, err = auth.NewFileCasbinEnforcer(cfg.Auth.Casbin.PolicyPath)
+	} else {
+		// Default to in-memory enforcer with basic policies
+		enforcer, err = auth.NewCasbinEnforcer(nil)
+	}
+
+	if err != nil {
+		return nil, fmt.Errorf("init casbin: %w", err)
+	}
+
+	if err := enforcer.AddDefaultPolicies(); err != nil {
+		logger.Warn("failed to add default casbin policies", "error", err)
+	}
+
+	logger.Info("casbin RBAC enabled", "policy_path", cfg.Auth.Casbin.PolicyPath)
+	return enforcer, nil
+}
+
 func buildPostgresConfig(dbCfg config.DatabaseConfig) *auth.PostgresConfig {
 	cfg := auth.DefaultPostgresConfig()
 

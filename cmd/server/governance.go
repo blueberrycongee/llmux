@@ -11,7 +11,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/resilience"
 )
 
-func buildGovernanceEngine(cfg *config.Config, authStore auth.Store, auditLogger *auth.AuditLogger, logger *slog.Logger) *governance.Engine {
+func buildGovernanceEngine(cfg *config.Config, authStore auth.Store, auditLogger *auth.AuditLogger, logger *slog.Logger, enforcer *auth.CasbinEnforcer) *governance.Engine {
 	if cfg == nil {
 		return nil
 	}
@@ -45,6 +45,7 @@ func buildGovernanceEngine(cfg *config.Config, authStore auth.Store, auditLogger
 		governance.WithAuditLogger(auditLogger),
 		governance.WithIdempotencyStore(idempotency),
 		governance.WithLogger(logger),
+		governance.WithCasbinEnforcer(enforcer),
 	)
 }
 
