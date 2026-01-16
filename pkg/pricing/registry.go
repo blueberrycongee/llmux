@@ -40,6 +40,7 @@ func NewRegistry() *Registry {
 }
 
 func (r *Registry) Load(path string) error {
+	// #nosec G304 -- path is user-configured; reading pricing files is expected.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return err

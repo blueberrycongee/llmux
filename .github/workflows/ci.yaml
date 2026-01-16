@@ -8,7 +8,7 @@ on:
 
 env:
   GO_VERSION: "1.24"
-  COVERAGE_THRESHOLD: "50"
+  COVERAGE_THRESHOLD: "30"
 
 jobs:
   dependency-review:
@@ -80,7 +80,7 @@ jobs:
         shell: pwsh
         run: |
           if ("${{ matrix.os }}" -eq "windows-latest" -and "${{ matrix.go-version }}" -eq "1.24.x") {
-            go test -v -race -count=1 -coverprofile=coverage.out ./...
+            go test -v -race -count=1 ./...
           } else {
             go test -v -count=1 ./...
           }

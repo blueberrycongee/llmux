@@ -95,6 +95,7 @@ func New(opts ...Option) (*Client, error) {
 		pricing:           pricing.NewRegistry(),
 		fallbackReporter:  cfg.FallbackReporter,
 		resilienceManager: resilience.NewManager(resilience.DefaultManagerConfig()),
+		// #nosec G404 -- non-cryptographic randomness for backoff jitter.
 		backoffRand:       rand.New(rand.NewSource(time.Now().UnixNano())),
 		requestPool: sync.Pool{
 			New: func() any { return new(types.ChatRequest) },
@@ -1132,6 +1133,7 @@ func (c *Client) randomFloat64() float64 {
 	c.backoffMu.Lock()
 	defer c.backoffMu.Unlock()
 	if c.backoffRand == nil {
+		// #nosec G404 -- non-cryptographic randomness for backoff jitter.
 		c.backoffRand = rand.New(rand.NewSource(time.Now().UnixNano()))
 	}
 	return c.backoffRand.Float64()

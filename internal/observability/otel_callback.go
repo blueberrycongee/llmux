@@ -16,13 +16,13 @@ const (
 	// Gen AI attributes
 	GenAISystem               = "gen_ai.system"
 	GenAIRequestModel         = "gen_ai.request.model"
-	GenAIRequestMaxTokens     = "gen_ai.request.max_tokens"
+	GenAIRequestMaxTokens     = "gen_ai.request.max_tokens" // #nosec G101 -- attribute key, not a credential.
 	GenAIRequestTemperature   = "gen_ai.request.temperature"
 	GenAIRequestTopP          = "gen_ai.request.top_p"
 	GenAIRequestStream        = "gen_ai.request.stream"
 	GenAIOperationName        = "gen_ai.operation.name"
-	GenAIUsageInputTokens     = "gen_ai.usage.input_tokens"
-	GenAIUsageOutputTokens    = "gen_ai.usage.output_tokens"
+	GenAIUsageInputTokens     = "gen_ai.usage.input_tokens" // #nosec G101 -- attribute key, not a credential.
+	GenAIUsageOutputTokens    = "gen_ai.usage.output_tokens" // #nosec G101 -- attribute key, not a credential.
 	GenAIResponseFinishReason = "gen_ai.response.finish_reason"
 	GenAIResponseID           = "gen_ai.response.id"
 	GenAIFramework            = "gen_ai.framework"
@@ -33,7 +33,7 @@ const (
 	LLMuxTeamAlias    = "llmux.team_alias"
 	LLMuxUser         = "llmux.user"
 	LLMuxEndUser      = "llmux.end_user"
-	LLMuxAPIKeyAlias  = "llmux.api_key_alias"
+	LLMuxAPIKeyAlias  = "llmux.api_key_alias" // #nosec G101 -- attribute key, not a credential.
 	LLMuxModelGroup   = "llmux.model_group"
 	LLMuxDeploymentID = "llmux.deployment_id"
 	LLMuxCacheHit     = "llmux.cache_hit"

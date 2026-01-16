@@ -488,6 +488,7 @@ func DefaultConfig() *Config {
 // LoadFromFile reads and parses a YAML configuration file.
 // Environment variables in the format ${VAR_NAME} and ${VAR_NAME:default} are expanded.
 func LoadFromFile(path string) (*Config, error) {
+	// #nosec G304 -- path is user-configured; loading config from disk is expected.
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("read config file: %w", err)

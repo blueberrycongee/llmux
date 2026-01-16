@@ -305,6 +305,7 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 	}
 
 	// Get basic counts
+	// #nosec G201 -- baseWhere is built from fixed fragments and placeholders.
 	basicQuery := fmt.Sprintf(`
 		SELECT 
 			COUNT(*) as total_events,
@@ -321,6 +322,7 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 	}
 
 	// Get action counts
+	// #nosec G201 -- baseWhere is built from fixed fragments and placeholders.
 	actionQuery := fmt.Sprintf(`
 		SELECT action, COUNT(*) as count
 		FROM audit_logs %s
@@ -342,6 +344,7 @@ func (s *PostgresAuditLogStore) GetAuditLogStats(filter AuditLogFilter) (*AuditL
 	}
 
 	// Get object type counts
+	// #nosec G201 -- baseWhere is built from fixed fragments and placeholders.
 	objectQuery := fmt.Sprintf(`
 		SELECT object_type, COUNT(*) as count
 		FROM audit_logs %s
