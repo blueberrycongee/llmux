@@ -1,0 +1,11 @@
+title = "LLMux gitleaks config"
+
+[allowlist]
+description = "Test and documentation fixtures that look like keys"
+paths = [
+  '''docs/PRODUCTION_TEST_GUIDE\.md''',
+  '''internal/auth/hasher_test\.go''',
+  '''internal/auth/oidc_jwt_test\.go''',
+  '''internal/observability/logger_test\.go''',
+  '''internal/observability/redact_test\.go'''
+]
