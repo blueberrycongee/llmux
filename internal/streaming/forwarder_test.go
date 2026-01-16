@@ -107,6 +107,14 @@ func TestForwarder_Forward(t *testing.T) {
 			if !upstream.closed {
 				t.Error("upstream was not closed")
 			}
+
+			// Check context was canceled
+			select {
+			case <-f.ctx.Done():
+				// Success
+			default:
+				t.Error("forwarder context was not canceled after Forward() returned")
+			}
 		})
 	}
 }

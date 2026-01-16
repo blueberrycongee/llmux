@@ -180,6 +180,28 @@ type UsageLog struct {
 	EndTime        time.Time `json:"endTime"`
 }
 
+// Clone returns a deep copy of the UsageLog.
+func (l *UsageLog) Clone() *UsageLog {
+	if l == nil {
+		return nil
+	}
+	clone := *l
+
+	if l.RequestTags != nil {
+		clone.RequestTags = make([]string, len(l.RequestTags))
+		copy(clone.RequestTags, l.RequestTags)
+	}
+
+	if l.Metadata != nil {
+		clone.Metadata = make(Metadata, len(l.Metadata))
+		for k, v := range l.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+
+	return &clone
+}
+
 // Metadata is a flexible key-value store for custom attributes.
 type Metadata map[string]any
 
@@ -194,6 +216,181 @@ type AuthContext struct {
 	SSOUserID  string   // SSO provider user ID for identity linking
 	JWTTeamIDs []string // Team IDs extracted from JWT claims
 	JWTOrgID   string   // Organization ID extracted from JWT claims
+}
+
+// Clone returns a deep copy of the APIKey.
+func (k *APIKey) Clone() *APIKey {
+	if k == nil {
+		return nil
+	}
+	clone := *k
+
+	if k.AllowedModels != nil {
+		clone.AllowedModels = make([]string, len(k.AllowedModels))
+		copy(clone.AllowedModels, k.AllowedModels)
+	}
+
+	if k.ModelTPMLimit != nil {
+		clone.ModelTPMLimit = make(map[string]int64, len(k.ModelTPMLimit))
+		for k, v := range k.ModelTPMLimit {
+			clone.ModelTPMLimit[k] = v
+		}
+	}
+
+	if k.ModelRPMLimit != nil {
+		clone.ModelRPMLimit = make(map[string]int64, len(k.ModelRPMLimit))
+		for k, v := range k.ModelRPMLimit {
+			clone.ModelRPMLimit[k] = v
+		}
+	}
+
+	if k.ModelMaxBudget != nil {
+		clone.ModelMaxBudget = make(map[string]float64, len(k.ModelMaxBudget))
+		for k, v := range k.ModelMaxBudget {
+			clone.ModelMaxBudget[k] = v
+		}
+	}
+
+	if k.ModelSpend != nil {
+		clone.ModelSpend = make(map[string]float64, len(k.ModelSpend))
+		for k, v := range k.ModelSpend {
+			clone.ModelSpend[k] = v
+		}
+	}
+
+	if k.Metadata != nil {
+		clone.Metadata = make(Metadata, len(k.Metadata))
+		for k, v := range k.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+
+	return &clone
+}
+
+// Clone returns a deep copy of the Team.
+func (t *Team) Clone() *Team {
+	if t == nil {
+		return nil
+	}
+	clone := *t
+
+	if t.Members != nil {
+		clone.Members = make([]string, len(t.Members))
+		copy(clone.Members, t.Members)
+	}
+
+	if t.ModelMaxBudget != nil {
+		clone.ModelMaxBudget = make(map[string]float64, len(t.ModelMaxBudget))
+		for k, v := range t.ModelMaxBudget {
+			clone.ModelMaxBudget[k] = v
+		}
+	}
+
+	if t.ModelSpend != nil {
+		clone.ModelSpend = make(map[string]float64, len(t.ModelSpend))
+		for k, v := range t.ModelSpend {
+			clone.ModelSpend[k] = v
+		}
+	}
+
+	if t.ModelTPMLimit != nil {
+		clone.ModelTPMLimit = make(map[string]int64, len(t.ModelTPMLimit))
+		for k, v := range t.ModelTPMLimit {
+			clone.ModelTPMLimit[k] = v
+		}
+	}
+
+	if t.ModelRPMLimit != nil {
+		clone.ModelRPMLimit = make(map[string]int64, len(t.ModelRPMLimit))
+		for k, v := range t.ModelRPMLimit {
+			clone.ModelRPMLimit[k] = v
+		}
+	}
+
+	if t.Models != nil {
+		clone.Models = make([]string, len(t.Models))
+		copy(clone.Models, t.Models)
+	}
+
+	if t.Metadata != nil {
+		clone.Metadata = make(Metadata, len(t.Metadata))
+		for k, v := range t.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+
+	return &clone
+}
+
+// Clone returns a deep copy of the User.
+func (u *User) Clone() *User {
+	if u == nil {
+		return nil
+	}
+	clone := *u
+
+	if u.Teams != nil {
+		clone.Teams = make([]string, len(u.Teams))
+		copy(clone.Teams, u.Teams)
+	}
+
+	if u.ModelMaxBudget != nil {
+		clone.ModelMaxBudget = make(map[string]float64, len(u.ModelMaxBudget))
+		for k, v := range u.ModelMaxBudget {
+			clone.ModelMaxBudget[k] = v
+		}
+	}
+
+	if u.ModelSpend != nil {
+		clone.ModelSpend = make(map[string]float64, len(u.ModelSpend))
+		for k, v := range u.ModelSpend {
+			clone.ModelSpend[k] = v
+		}
+	}
+
+	if u.Models != nil {
+		clone.Models = make([]string, len(u.Models))
+		copy(clone.Models, u.Models)
+	}
+
+	if u.Metadata != nil {
+		clone.Metadata = make(Metadata, len(u.Metadata))
+		for k, v := range u.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+
+	return &clone
+}
+
+// Clone returns a deep copy of the Organization.
+func (o *Organization) Clone() *Organization {
+	if o == nil {
+		return nil
+	}
+	clone := *o
+
+	if o.Models != nil {
+		clone.Models = make([]string, len(o.Models))
+		copy(clone.Models, o.Models)
+	}
+
+	if o.ModelSpend != nil {
+		clone.ModelSpend = make(map[string]float64, len(o.ModelSpend))
+		for k, v := range o.ModelSpend {
+			clone.ModelSpend[k] = v
+		}
+	}
+
+	if o.Metadata != nil {
+		clone.Metadata = make(Metadata, len(o.Metadata))
+		for k, v := range o.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+
+	return &clone
 }
 
 // CanAccessModel checks if the API key is allowed to use the specified model.
@@ -370,6 +567,36 @@ type TeamMembership struct {
 	BudgetID *string    `json:"budget_id,omitempty"`
 	Budget   *Budget    `json:"budget,omitempty"`
 	JoinedAt *time.Time `json:"joined_at,omitempty"`
+}
+
+// Clone returns a deep copy of the TeamMembership.
+func (tm *TeamMembership) Clone() *TeamMembership {
+	if tm == nil {
+		return nil
+	}
+	clone := *tm
+	clone.Budget = tm.Budget.Clone()
+	return &clone
+}
+
+// Clone returns a deep copy of the OrganizationMembership.
+func (om *OrganizationMembership) Clone() *OrganizationMembership {
+	if om == nil {
+		return nil
+	}
+	clone := *om
+	clone.Budget = om.Budget.Clone()
+	return &clone
+}
+
+// Clone returns a deep copy of the EndUser.
+func (e *EndUser) Clone() *EndUser {
+	if e == nil {
+		return nil
+	}
+	clone := *e
+	clone.Budget = e.Budget.Clone()
+	return &clone
 }
 
 // IsOverBudget checks if the team member has exceeded their budget.

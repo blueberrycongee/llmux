@@ -54,16 +54,14 @@ func (s *MemoryStore) GetAPIKeyByHash(ctx context.Context, hash string) (*APIKey
 		return nil, nil
 	}
 	// Return a copy to prevent mutation
-	keyCopy := *key
-	return &keyCopy, nil
+	return key.Clone(), nil
 }
 
 func (s *MemoryStore) CreateAPIKey(_ context.Context, key *APIKey) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	keyCopy := *key
-	s.apiKeys[key.KeyHash] = &keyCopy
-	s.apiKeysByID[key.ID] = &keyCopy
+	s.apiKeys[key.KeyHash] = key.Clone()
+	s.apiKeysByID[key.ID] = s.apiKeys[key.KeyHash]
 	return nil
 }
 
@@ -74,8 +72,7 @@ func (s *MemoryStore) GetAPIKeyByID(_ context.Context, keyID string) (*APIKey, e
 	if !ok {
 		return nil, nil
 	}
-	keyCopy := *key
-	return &keyCopy, nil
+	return key.Clone(), nil
 }
 
 func (s *MemoryStore) GetAPIKeyByAlias(_ context.Context, alias string) (*APIKey, error) {
@@ -83,8 +80,7 @@ func (s *MemoryStore) GetAPIKeyByAlias(_ context.Context, alias string) (*APIKey
 	defer s.mu.RUnlock()
 	for _, key := range s.apiKeys {
 		if key.KeyAlias != nil && *key.KeyAlias == alias {
-			keyCopy := *key
-			return &keyCopy, nil
+			return key.Clone(), nil
 		}
 	}
 	return nil, nil
@@ -94,9 +90,9 @@ func (s *MemoryStore) UpdateAPIKey(_ context.Context, key *APIKey) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if existing, ok := s.apiKeysByID[key.ID]; ok {
-		keyCopy := *key
-		s.apiKeys[existing.KeyHash] = &keyCopy
-		s.apiKeysByID[key.ID] = &keyCopy
+		keyCopy := key.Clone()
+		s.apiKeys[existing.KeyHash] = keyCopy
+		s.apiKeysByID[key.ID] = keyCopy
 	}
 	return nil
 }
@@ -171,8 +167,7 @@ func (s *MemoryStore) ListAPIKeys(_ context.Context, filter APIKeyFilter) ([]*AP
 		if filter.TeamID != nil && (key.TeamID == nil || *key.TeamID != *filter.TeamID) {
 			continue
 		}
-		keyCopy := *key
-		result = append(result, &keyCopy)
+		result = append(result, key.Clone())
 	}
 
 	total := int64(len(result))
@@ -202,23 +197,20 @@ func (s *MemoryStore) GetTeam(_ context.Context, teamID string) (*Team, error) {
 	if !ok {
 		return nil, nil
 	}
-	teamCopy := *team
-	return &teamCopy, nil
+	return team.Clone(), nil
 }
 
 func (s *MemoryStore) CreateTeam(_ context.Context, team *Team) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	teamCopy := *team
-	s.teams[team.ID] = &teamCopy
+	s.teams[team.ID] = team.Clone()
 	return nil
 }
 
 func (s *MemoryStore) UpdateTeam(_ context.Context, team *Team) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	teamCopy := *team
-	s.teams[team.ID] = &teamCopy
+	s.teams[team.ID] = team.Clone()
 	return nil
 }
 
@@ -280,8 +272,7 @@ func (s *MemoryStore) ListTeams(_ context.Context, filter TeamFilter) ([]*Team, 
 		if filter.Blocked != nil && team.Blocked != *filter.Blocked {
 			continue
 		}
-		teamCopy := *team
-		result = append(result, &teamCopy)
+		result = append(result, team.Clone())
 	}
 
 	total := int64(len(result))
@@ -311,8 +302,7 @@ func (s *MemoryStore) GetUser(_ context.Context, userID string) (*User, error) {
 	if !ok {
 		return nil, nil
 	}
-	userCopy := *user
-	return &userCopy, nil
+	return user.Clone(), nil
 }
 
 func (s *MemoryStore) GetUserByEmail(_ context.Context, email string) (*User, error) {
@@ -320,8 +310,7 @@ func (s *MemoryStore) GetUserByEmail(_ context.Context, email string) (*User, er
 	defer s.mu.RUnlock()
 	for _, user := range s.users {
 		if user.Email != nil && *user.Email == email && user.IsActive {
-			userCopy := *user
-			return &userCopy, nil
+			return user.Clone(), nil
 		}
 	}
 	return nil, nil
@@ -334,16 +323,14 @@ func (s *MemoryStore) GetUserBySSOID(_ context.Context, _ string) (*User, error)
 func (s *MemoryStore) CreateUser(_ context.Context, user *User) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	userCopy := *user
-	s.users[user.ID] = &userCopy
+	s.users[user.ID] = user.Clone()
 	return nil
 }
 
 func (s *MemoryStore) UpdateUser(_ context.Context, user *User) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	userCopy := *user
-	s.users[user.ID] = &userCopy
+	s.users[user.ID] = user.Clone()
 	return nil
 }
 
@@ -404,8 +391,7 @@ func (s *MemoryStore) ListUsers(_ context.Context, filter UserFilter) ([]*User, 
 				continue
 			}
 		}
-		userCopy := *user
-		result = append(result, &userCopy)
+		result = append(result, user.Clone())
 	}
 
 	total := int64(len(result))
@@ -422,9 +408,9 @@ func (s *MemoryStore) ListUsers(_ context.Context, filter UserFilter) ([]*User, 
 func (s *MemoryStore) LogUsage(_ context.Context, log *UsageLog) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	logCopy := *log
+	logCopy := log.Clone()
 	logCopy.ID = int64(len(s.usageLogs) + 1)
-	s.usageLogs = append(s.usageLogs, &logCopy)
+	s.usageLogs = append(s.usageLogs, logCopy)
 	return nil
 }
 
@@ -490,23 +476,20 @@ func (s *MemoryStore) GetBudget(_ context.Context, budgetID string) (*Budget, er
 	if !ok {
 		return nil, nil
 	}
-	bCopy := *b
-	return &bCopy, nil
+	return b.Clone(), nil
 }
 
 func (s *MemoryStore) CreateBudget(_ context.Context, budget *Budget) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	bCopy := *budget
-	s.budgets[budget.ID] = &bCopy
+	s.budgets[budget.ID] = budget.Clone()
 	return nil
 }
 
 func (s *MemoryStore) UpdateBudget(_ context.Context, budget *Budget) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	bCopy := *budget
-	s.budgets[budget.ID] = &bCopy
+	s.budgets[budget.ID] = budget.Clone()
 	return nil
 }
 
@@ -526,23 +509,20 @@ func (s *MemoryStore) GetOrganization(_ context.Context, orgID string) (*Organiz
 	if !ok {
 		return nil, nil
 	}
-	orgCopy := *org
-	return &orgCopy, nil
+	return org.Clone(), nil
 }
 
 func (s *MemoryStore) CreateOrganization(_ context.Context, org *Organization) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	orgCopy := *org
-	s.organizations[org.ID] = &orgCopy
+	s.organizations[org.ID] = org.Clone()
 	return nil
 }
 
 func (s *MemoryStore) UpdateOrganization(_ context.Context, org *Organization) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	orgCopy := *org
-	s.organizations[org.ID] = &orgCopy
+	s.organizations[org.ID] = org.Clone()
 	return nil
 }
 
@@ -568,8 +548,7 @@ func (s *MemoryStore) ListOrganizations(_ context.Context, limit, offset int) ([
 
 	result := make([]*Organization, 0, len(s.organizations))
 	for _, org := range s.organizations {
-		orgCopy := *org
-		result = append(result, &orgCopy)
+		result = append(result, org.Clone())
 	}
 
 	total := int64(len(result))
@@ -596,15 +575,13 @@ func (s *MemoryStore) GetTeamMembership(_ context.Context, userID, teamID string
 	if !ok {
 		return nil, nil
 	}
-	mCopy := *m
-	return &mCopy, nil
+	return m.Clone(), nil
 }
 
 func (s *MemoryStore) CreateTeamMembership(_ context.Context, membership *TeamMembership) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	mCopy := *membership
-	s.teamMemberships[membershipKey(membership.UserID, membership.TeamID)] = &mCopy
+	s.teamMemberships[membershipKey(membership.UserID, membership.TeamID)] = membership.Clone()
 	return nil
 }
 
@@ -631,8 +608,7 @@ func (s *MemoryStore) ListTeamMembers(_ context.Context, teamID string) ([]*Team
 	var result []*TeamMembership
 	for _, m := range s.teamMemberships {
 		if m.TeamID == teamID {
-			mCopy := *m
-			result = append(result, &mCopy)
+			result = append(result, m.Clone())
 		}
 	}
 	return result, nil
@@ -641,8 +617,7 @@ func (s *MemoryStore) ListTeamMembers(_ context.Context, teamID string) ([]*Team
 func (s *MemoryStore) UpdateTeamMembership(_ context.Context, membership *TeamMembership) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	mCopy := *membership
-	s.teamMemberships[membershipKey(membership.UserID, membership.TeamID)] = &mCopy
+	s.teamMemberships[membershipKey(membership.UserID, membership.TeamID)] = membership.Clone()
 	return nil
 }
 
@@ -653,8 +628,7 @@ func (s *MemoryStore) ListUserTeamMemberships(_ context.Context, userID string) 
 	var result []*TeamMembership
 	for _, m := range s.teamMemberships {
 		if m.UserID == userID {
-			mCopy := *m
-			result = append(result, &mCopy)
+			result = append(result, m.Clone())
 		}
 	}
 	return result, nil
@@ -673,23 +647,20 @@ func (s *MemoryStore) GetOrganizationMembership(_ context.Context, userID, orgID
 	if !ok {
 		return nil, nil
 	}
-	mCopy := *m
-	return &mCopy, nil
+	return m.Clone(), nil
 }
 
 func (s *MemoryStore) CreateOrganizationMembership(_ context.Context, membership *OrganizationMembership) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	mCopy := *membership
-	s.orgMemberships[orgMembershipKey(membership.UserID, membership.OrganizationID)] = &mCopy
+	s.orgMemberships[orgMembershipKey(membership.UserID, membership.OrganizationID)] = membership.Clone()
 	return nil
 }
 
 func (s *MemoryStore) UpdateOrganizationMembership(_ context.Context, membership *OrganizationMembership) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	mCopy := *membership
-	s.orgMemberships[orgMembershipKey(membership.UserID, membership.OrganizationID)] = &mCopy
+	s.orgMemberships[orgMembershipKey(membership.UserID, membership.OrganizationID)] = membership.Clone()
 	return nil
 }
 
@@ -716,8 +687,7 @@ func (s *MemoryStore) ListOrganizationMembers(_ context.Context, orgID string) (
 	var result []*OrganizationMembership
 	for _, m := range s.orgMemberships {
 		if m.OrganizationID == orgID {
-			mCopy := *m
-			result = append(result, &mCopy)
+			result = append(result, m.Clone())
 		}
 	}
 	return result, nil
@@ -730,8 +700,7 @@ func (s *MemoryStore) ListUserOrganizationMemberships(_ context.Context, userID 
 	var result []*OrganizationMembership
 	for _, m := range s.orgMemberships {
 		if m.UserID == userID {
-			mCopy := *m
-			result = append(result, &mCopy)
+			result = append(result, m.Clone())
 		}
 	}
 	return result, nil
@@ -746,15 +715,13 @@ func (s *MemoryStore) GetEndUser(_ context.Context, userID string) (*EndUser, er
 	if !ok {
 		return nil, nil
 	}
-	euCopy := *eu
-	return &euCopy, nil
+	return eu.Clone(), nil
 }
 
 func (s *MemoryStore) CreateEndUser(_ context.Context, endUser *EndUser) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	euCopy := *endUser
-	s.endUsers[endUser.UserID] = &euCopy
+	s.endUsers[endUser.UserID] = endUser.Clone()
 	return nil
 }
 
@@ -793,8 +760,7 @@ func (s *MemoryStore) GetKeysNeedingBudgetReset(_ context.Context) ([]*APIKey, e
 	now := time.Now()
 	for _, key := range s.apiKeys {
 		if key.IsActive && key.BudgetResetAt != nil && now.After(*key.BudgetResetAt) {
-			keyCopy := *key
-			result = append(result, &keyCopy)
+			result = append(result, key.Clone())
 		}
 	}
 	return result, nil
@@ -808,8 +774,7 @@ func (s *MemoryStore) GetTeamsNeedingBudgetReset(_ context.Context) ([]*Team, er
 	now := time.Now()
 	for _, team := range s.teams {
 		if team.IsActive && team.BudgetResetAt != nil && now.After(*team.BudgetResetAt) {
-			teamCopy := *team
-			result = append(result, &teamCopy)
+			result = append(result, team.Clone())
 		}
 	}
 	return result, nil
@@ -823,8 +788,7 @@ func (s *MemoryStore) GetUsersNeedingBudgetReset(_ context.Context) ([]*User, er
 	now := time.Now()
 	for _, user := range s.users {
 		if user.IsActive && user.BudgetResetAt != nil && now.After(*user.BudgetResetAt) {
-			userCopy := *user
-			result = append(result, &userCopy)
+			result = append(result, user.Clone())
 		}
 	}
 	return result, nil
