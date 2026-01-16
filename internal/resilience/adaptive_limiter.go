@@ -24,10 +24,10 @@ type AdaptiveLimiter struct {
 	inflight int
 
 	// Window tracking
-	lastReset      time.Time
-	rttSamples     []time.Duration
-	maxSamples     int
-	resetInterval  time.Duration
+	lastReset     time.Time
+	rttSamples    []time.Duration
+	maxSamples    int
+	resetInterval time.Duration
 }
 
 // NewAdaptiveLimiter creates a new AdaptiveLimiter with default settings.
@@ -128,7 +128,7 @@ func (l *AdaptiveLimiter) updateLimit() {
 	}
 	avgRTT := sum / time.Duration(len(l.rttSamples))
 
-	// Gradient = minRTT / avgRTT
+	// Gradient scales with min/avg RTT.
 	gradient := float64(l.minRTT) / float64(avgRTT)
 
 	// To avoid being too aggressive, we can use a buffer

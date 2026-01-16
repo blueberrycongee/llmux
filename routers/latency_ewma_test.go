@@ -15,16 +15,16 @@ import (
 func TestLatencyRouter_EWMADynamicWeighting(t *testing.T) {
 	cfg := router.DefaultConfig()
 	cfg.Strategy = router.StrategyLowestLatency
-	cfg.LatencyBuffer = 10.0             // Very large buffer to ensure both are candidates
-	cfg.EWMAAlpha = 0.5                  // Fast smoothing factor for test
-	cfg.FailureThresholdPercent = 1.0    // Disable circuit breaker for this test
-	cfg.MinRequestsForThreshold = 1000   // Disable circuit breaker for this test
+	cfg.LatencyBuffer = 10.0           // Very large buffer to ensure both are candidates
+	cfg.EWMAAlpha = 0.5                // Fast smoothing factor for test
+	cfg.FailureThresholdPercent = 1.0  // Disable circuit breaker for this test
+	cfg.MinRequestsForThreshold = 1000 // Disable circuit breaker for this test
 
 	r := NewLatencyRouterWithConfig(cfg)
 
 	depA := &provider.Deployment{ID: "dep-a", ProviderName: "p1", ModelName: "gpt-4"}
 	depB := &provider.Deployment{ID: "dep-b", ProviderName: "p2", ModelName: "gpt-4"}
-	
+
 	r.AddDeployment(depA)
 	r.AddDeployment(depB)
 
@@ -78,13 +78,13 @@ func TestLatencyRouter_HighConcurrencyEWMA(t *testing.T) {
 
 	depA := &provider.Deployment{ID: "dep-a", ProviderName: "p1", ModelName: "gpt-4"}
 	depB := &provider.Deployment{ID: "dep-b", ProviderName: "p2", ModelName: "gpt-4"}
-	
+
 	r.AddDeployment(depA)
 	r.AddDeployment(depB)
 
 	ctx := context.Background()
 	var wg sync.WaitGroup
-	
+
 	// Simulate concurrent requests and metrics reporting
 	for i := 0; i < 10; i++ {
 		wg.Add(1)

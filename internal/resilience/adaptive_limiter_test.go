@@ -9,7 +9,7 @@ import (
 
 func TestAdaptiveLimiter_Basic(t *testing.T) {
 	limiter := NewAdaptiveLimiter(10, 100)
-	
+
 	// Initially limit should be minLimit
 	if limiter.Limit() != 10 {
 		t.Errorf("expected initial limit 10, got %d", limiter.Limit())
@@ -52,7 +52,7 @@ func TestAdaptiveLimiter_Stress(t *testing.T) {
 	// Simulation parameters
 	concurrentClients := 100
 	iterations := 50
-	
+
 	var wg sync.WaitGroup
 	wg.Add(concurrentClients)
 
@@ -63,7 +63,7 @@ func TestAdaptiveLimiter_Stress(t *testing.T) {
 	baseLatency := 20 * time.Millisecond
 
 	for i := 0; i < concurrentClients; i++ {
-		go func(id int) {
+		go func() {
 			defer wg.Done()
 			for j := 0; j < iterations; j++ {
 				start := time.Now()
@@ -73,9 +73,9 @@ func TestAdaptiveLimiter_Stress(t *testing.T) {
 					inflight := limiter.Inflight()
 					extraLatency := time.Duration(inflight) * 2 * time.Millisecond
 					time.Sleep(baseLatency + extraLatency + time.Duration(rand.Intn(5))*time.Millisecond)
-					
+
 					limiter.Release(time.Since(start))
-					
+
 					mu.Lock()
 					successCount++
 					mu.Unlock()
@@ -86,12 +86,12 @@ func TestAdaptiveLimiter_Stress(t *testing.T) {
 					time.Sleep(10 * time.Millisecond) // Wait before retry
 				}
 			}
-		}(i)
+		}()
 	}
 
 	wg.Wait()
 	t.Logf("Success: %d, Rejected: %d, Final Limit: %d", successCount, rejectCount, limiter.Limit())
-	
+
 	if successCount == 0 {
 		t.Error("No requests succeeded")
 	}
@@ -99,7 +99,7 @@ func TestAdaptiveLimiter_Stress(t *testing.T) {
 
 func TestAdaptiveLimiter_LatencyIncrease(t *testing.T) {
 	limiter := NewAdaptiveLimiter(10, 100)
-	
+
 	// 1. Train with low latency
 	for i := 0; i < 50; i++ {
 		if limiter.TryAcquire() {

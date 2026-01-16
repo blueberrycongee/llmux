@@ -85,9 +85,9 @@ func NewBaseRouter(config router.Config) *BaseRouter {
 		stats:       make(map[string]*statsEntry),
 		config:      config,
 		// #nosec G404 -- non-cryptographic randomness for routing decisions.
-		rng:         rand.New(rand.NewSource(time.Now().UnixNano())),
-		strategy:    config.Strategy,
-		statsStore:  nil, // Local mode
+		rng:        rand.New(rand.NewSource(time.Now().UnixNano())),
+		strategy:   config.Strategy,
+		statsStore: nil, // Local mode
 	}
 }
 

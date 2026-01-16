@@ -36,7 +36,7 @@ type Config struct {
 	DefaultTTL time.Duration `yaml:"default_ttl"` // Default TTL for cached entries
 
 	// Re-ranking configuration
-	EnableReranking   bool    `yaml:"enable_reranking"`   // Enable secondary re-ranking
+	EnableReranking    bool    `yaml:"enable_reranking"`    // Enable secondary re-ranking
 	RerankingThreshold float64 `yaml:"reranking_threshold"` // Threshold for re-ranking (0.0-1.0), default 0.8
 }
 

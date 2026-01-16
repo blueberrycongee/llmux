@@ -119,14 +119,14 @@ func (ce *CasbinEnforcer) AddDefaultPolicies() error {
 
 // Helper methods to format subjects and objects
 
-func KeySub(keyID string) string { return "key:" + keyID }
+func KeySub(keyID string) string   { return "key:" + keyID }
 func TeamSub(teamID string) string { return "team:" + teamID }
 func UserSub(userID string) string { return "user:" + userID }
-func OrgSub(orgID string) string { return "org:" + orgID }
-func RoleSub(role string) string { return "role:" + role }
+func OrgSub(orgID string) string   { return "org:" + orgID }
+func RoleSub(role string) string   { return "role:" + role }
 
 func ModelObj(modelName string) string { return "model:" + modelName }
-func PathObj(path string) string { return path }
+func PathObj(path string) string       { return path }
 
-func ActionUse() string { return "use" }
+func ActionUse() string                 { return "use" }
 func ActionMethod(method string) string { return strings.ToUpper(method) }

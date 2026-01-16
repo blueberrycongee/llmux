@@ -19,9 +19,9 @@ func Rerank(prompt string, candidates []RerankCandidate) *RerankCandidate {
 		candidates[i].SecondaryScore = score
 
 		// Final score could be a combination of vector score and secondary score
-		// For simplicity, we use the secondary score if it's high enough, 
+		// For simplicity, we use the secondary score if it's high enough,
 		// otherwise we can weight them.
-		// Here we just pick the one with the highest secondary score among those 
+		// Here we just pick the one with the highest secondary score among those
 		// that passed the initial vector threshold.
 		if score > maxScore {
 			maxScore = score

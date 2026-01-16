@@ -21,7 +21,7 @@ const (
 	GenAIRequestTopP          = "gen_ai.request.top_p"
 	GenAIRequestStream        = "gen_ai.request.stream"
 	GenAIOperationName        = "gen_ai.operation.name"
-	GenAIUsageInputTokens     = "gen_ai.usage.input_tokens" // #nosec G101 -- attribute key, not a credential.
+	GenAIUsageInputTokens     = "gen_ai.usage.input_tokens"  // #nosec G101 -- attribute key, not a credential.
 	GenAIUsageOutputTokens    = "gen_ai.usage.output_tokens" // #nosec G101 -- attribute key, not a credential.
 	GenAIResponseFinishReason = "gen_ai.response.finish_reason"
 	GenAIResponseID           = "gen_ai.response.id"

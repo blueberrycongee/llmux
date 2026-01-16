@@ -24,9 +24,9 @@ const (
 	AuditActionTokenRefresh AuditAction = "token_refresh"
 
 	// API Key actions
-	AuditActionAPIKeyCreate  AuditAction = "api_key_create" // #nosec G101 -- audit action name, not a credential.
-	AuditActionAPIKeyRevoke  AuditAction = "api_key_revoke" // #nosec G101 -- audit action name, not a credential.
-	AuditActionAPIKeyBlock   AuditAction = "api_key_block" // #nosec G101 -- audit action name, not a credential.
+	AuditActionAPIKeyCreate  AuditAction = "api_key_create"  // #nosec G101 -- audit action name, not a credential.
+	AuditActionAPIKeyRevoke  AuditAction = "api_key_revoke"  // #nosec G101 -- audit action name, not a credential.
+	AuditActionAPIKeyBlock   AuditAction = "api_key_block"   // #nosec G101 -- audit action name, not a credential.
 	AuditActionAPIKeyUnblock AuditAction = "api_key_unblock" // #nosec G101 -- audit action name, not a credential.
 
 	// Team actions

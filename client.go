@@ -96,7 +96,7 @@ func New(opts ...Option) (*Client, error) {
 		fallbackReporter:  cfg.FallbackReporter,
 		resilienceManager: resilience.NewManager(resilience.DefaultManagerConfig()),
 		// #nosec G404 -- non-cryptographic randomness for backoff jitter.
-		backoffRand:       rand.New(rand.NewSource(time.Now().UnixNano())),
+		backoffRand: rand.New(rand.NewSource(time.Now().UnixNano())),
 		requestPool: sync.Pool{
 			New: func() any { return new(types.ChatRequest) },
 		},
