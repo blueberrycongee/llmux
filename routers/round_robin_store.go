@@ -34,6 +34,7 @@ func (m *MemoryRoundRobinStore) NextIndex(_ context.Context, key string, modulo 
 	defer m.mu.Unlock()
 	next := m.counters[key]
 	m.counters[key] = next + 1
+	// #nosec G115 -- modulo bounds the value; result fits in int.
 	return int(next % uint64(modulo)), nil
 }
 

@@ -105,6 +105,7 @@ func (r *RoundRobinRouter) nextIndex(model string, count int) int {
 	}
 	counter := r.counterForModel(model)
 	next := counter.Add(1) - 1
+	// #nosec G115 -- count bounds the value; result fits in int.
 	return int(next % uint64(count))
 }
 

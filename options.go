@@ -16,13 +16,13 @@ type RateLimitKeyStrategy string
 
 const (
 	// RateLimitKeyByAPIKey uses the API key as the rate limit key.
-	RateLimitKeyByAPIKey RateLimitKeyStrategy = "api_key"
+	RateLimitKeyByAPIKey RateLimitKeyStrategy = "api_key" // #nosec G101 -- identifier value, not a credential.
 	// RateLimitKeyByUser uses the user ID as the rate limit key.
 	RateLimitKeyByUser RateLimitKeyStrategy = "user"
 	// RateLimitKeyByModel uses the model name as the rate limit key.
 	RateLimitKeyByModel RateLimitKeyStrategy = "model"
 	// RateLimitKeyByAPIKeyAndModel uses both API key and model as the rate limit key.
-	RateLimitKeyByAPIKeyAndModel RateLimitKeyStrategy = "api_key_model"
+	RateLimitKeyByAPIKeyAndModel RateLimitKeyStrategy = "api_key_model" // #nosec G101 -- identifier value, not a credential.
 )
 
 // RateLimiterConfig holds configuration for rate limiting.
