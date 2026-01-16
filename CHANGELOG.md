@@ -4,6 +4,21 @@ Recent changes and project history for context.
 
 ---
 
+## 2026-01-16
+
+### Security
+- Enable auth by default outside development mode and validate auth settings in config.
+- Enforce model name length validation across request types.
+
+### Observability
+- Default Langfuse input/output masking via environment flags.
+
+### Testing
+- Align test server with client handler, add pricing fixtures, and stabilize fallback retries.
+
+### Refactors
+- Remove legacy API handler implementation and share error response/constants.
+
 ## 2026-01-12
 
 ### Fixes
