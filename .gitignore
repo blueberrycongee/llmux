@@ -56,6 +56,7 @@ deploy/k8s/secret.yaml
 # Local skills
 skills/
 *.skill
+agent-skills/
 
 
 
