@@ -462,7 +462,7 @@ func TestConfigValidation_DistributedMode(t *testing.T) {
 			Providers: []ProviderConfig{
 				{Name: "openai", Type: "openai", APIKey: "sk-test", Models: []string{"gpt-4"}},
 			},
-			Auth: AuthConfig{Enabled: true},
+			Auth:       AuthConfig{Enabled: true},
 			Deployment: DeploymentConfig{Mode: "distributed"},
 			Database: DatabaseConfig{
 				Enabled:  true,

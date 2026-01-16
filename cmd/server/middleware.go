@@ -54,13 +54,13 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 		if next == nil {
 			return nil
 		}
-	handler := next
-	handler = managementBodyLimitMiddleware(handler)
-	handler = managementAuthzMiddleware(cfg)(handler)
-	if authMiddleware != nil {
-		handler = authMiddleware.ModelAccessMiddleware(handler)
-		handler = authMiddleware.Authenticate(handler)
-	}
+		handler := next
+		handler = managementBodyLimitMiddleware(handler)
+		handler = managementAuthzMiddleware(cfg)(handler)
+		if authMiddleware != nil {
+			handler = authMiddleware.ModelAccessMiddleware(handler)
+			handler = authMiddleware.Authenticate(handler)
+		}
 		if oidcMiddleware != nil {
 			handler = oidcMiddleware(handler)
 		}

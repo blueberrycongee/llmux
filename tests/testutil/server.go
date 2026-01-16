@@ -21,13 +21,13 @@ import (
 
 // TestServer manages a LLMux server instance for testing.
 type TestServer struct {
-	server   *http.Server
-	listener net.Listener
-	config   *config.Config
-	baseURL  string
-	logger   *slog.Logger
-	client   *llmux.Client
-	store    auth.Store
+	server      *http.Server
+	listener    net.Listener
+	config      *config.Config
+	baseURL     string
+	logger      *slog.Logger
+	client      *llmux.Client
+	store       auth.Store
 	pricingFile string
 }
 
@@ -134,11 +134,11 @@ func WithOIDC(oidcConfig *config.OIDCConfig) ServerOption {
 // NewTestServer creates a new test server with the given options.
 func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	options := &serverOptions{
-		mockAPIKey: "test-api-key",
-		models:     []string{"gpt-4o-mock", "gpt-3.5-turbo-mock"},
-		port:       0, // Random port
-		timeout:    30 * time.Second,
-		retryCount: 0,
+		mockAPIKey:   "test-api-key",
+		models:       []string{"gpt-4o-mock", "gpt-3.5-turbo-mock"},
+		port:         0, // Random port
+		timeout:      30 * time.Second,
+		retryCount:   0,
 		retryBackoff: 0,
 	}
 
@@ -276,9 +276,9 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 			TeamIDUpsert:     options.oidcConfig.TeamIDUpsert,
 		}
 
-		oidcMiddleware, err := auth.OIDCMiddleware(oidcCfg)
-		if err != nil {
-			return nil, fmt.Errorf("create OIDC middleware: %w", err)
+		oidcMiddleware, oidcErr := auth.OIDCMiddleware(oidcCfg)
+		if oidcErr != nil {
+			return nil, fmt.Errorf("create OIDC middleware: %w", oidcErr)
 		}
 		httpHandler = oidcMiddleware(httpHandler)
 	}
@@ -301,13 +301,13 @@ func NewTestServer(opts ...ServerOption) (*TestServer, error) {
 	}
 
 	return &TestServer{
-		server:   server,
-		listener: listener,
-		config:   cfg,
-		baseURL:  fmt.Sprintf("http://%s", listener.Addr().String()),
-		logger:   logger,
-		client:   client,
-		store:    store,
+		server:      server,
+		listener:    listener,
+		config:      cfg,
+		baseURL:     fmt.Sprintf("http://%s", listener.Addr().String()),
+		logger:      logger,
+		client:      client,
+		store:       store,
 		pricingFile: pricingFile,
 	}, nil
 }
