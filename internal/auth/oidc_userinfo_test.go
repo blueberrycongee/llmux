@@ -3,10 +3,14 @@ package auth
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
+
+	"github.com/blueberrycongee/llmux/internal/httputil"
 )
 
 func TestUserInfoClient_GetUserInfo(t *testing.T) {
@@ -167,6 +171,25 @@ func TestUserInfoClient_ErrorHandling(t *testing.T) {
 	_, err := client.GetUserInfo(context.Background(), "bad-token")
 	if err == nil {
 		t.Error("Expected error for unauthorized request")
+	}
+}
+
+func TestUserInfoClient_RejectsOversizeBody(t *testing.T) {
+	oversized := strings.Repeat("a", int(httputil.DefaultMaxResponseBodyBytes)+1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"sub":"` + oversized + `"}`))
+	}))
+	defer server.Close()
+
+	client := NewUserInfoClient(server.URL, 5*time.Minute)
+
+	_, err := client.GetUserInfo(context.Background(), "oversize-token")
+	if err == nil {
+		t.Fatal("expected error for oversized response body")
+	}
+	if !errors.Is(err, httputil.ErrResponseBodyTooLarge) {
+		t.Fatalf("expected ErrResponseBodyTooLarge, got %v", err)
 	}
 }
 

@@ -4,12 +4,13 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/goccy/go-json"
 	"github.com/google/uuid"
+
+	"github.com/blueberrycongee/llmux/internal/httputil"
 )
 
 // QdrantStore implements Store interface using Qdrant vector database.
@@ -104,7 +105,7 @@ func (q *QdrantStore) EnsureCollection(ctx context.Context) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		return fmt.Errorf("create collection failed: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
@@ -182,7 +183,7 @@ func (q *QdrantStore) Search(ctx context.Context, vector []float64, opts SearchO
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		return nil, fmt.Errorf("search failed: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
@@ -273,7 +274,7 @@ func (q *QdrantStore) InsertBatch(ctx context.Context, entries []Entry) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		return fmt.Errorf("upsert failed: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 
@@ -306,7 +307,7 @@ func (q *QdrantStore) Delete(ctx context.Context, id string) error {
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		return fmt.Errorf("delete failed: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 

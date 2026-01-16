@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"time"
 
 	"github.com/goccy/go-json"
+
+	"github.com/blueberrycongee/llmux/internal/httputil"
 )
 
 // OpenAIEmbedder implements Embedder using OpenAI's embedding API.
@@ -114,7 +115,7 @@ func (e *OpenAIEmbedder) EmbedBatch(ctx context.Context, texts []string) ([][]fl
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		return nil, fmt.Errorf("embedding failed: status=%d, body=%s", resp.StatusCode, string(body))
 	}
 

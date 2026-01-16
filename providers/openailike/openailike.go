@@ -7,13 +7,14 @@ import (
 	"bytes"
 	"context"
 	"fmt"
-	"io"
 	"net/http"
 	"net/url"
 	"path"
 	"strings"
 
 	"github.com/goccy/go-json"
+
+	"github.com/blueberrycongee/llmux/internal/httputil"
 
 	"github.com/blueberrycongee/llmux/pkg/errors"
 	"github.com/blueberrycongee/llmux/pkg/provider"
@@ -188,7 +189,7 @@ func (p *Provider) BuildRequest(ctx context.Context, req *types.ChatRequest) (*h
 
 // ParseResponse transforms the provider's response into the unified format.
 func (p *Provider) ParseResponse(resp *http.Response) (*types.ChatResponse, error) {
-	body, err := io.ReadAll(resp.Body)
+	body, err := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("read response: %w", err)
 	}

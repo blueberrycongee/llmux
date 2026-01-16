@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"io"
 	"net/http"
 	"sync"
 	"time"
+
+	"github.com/blueberrycongee/llmux/internal/httputil"
 )
 
 // UserInfoConfig contains configuration for OIDC UserInfo endpoint.
@@ -152,11 +153,11 @@ func (c *UserInfoClient) fetchUserInfo(ctx context.Context, accessToken string) 
 	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
-		body, _ := io.ReadAll(resp.Body)
+		body, _ := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 		return nil, fmt.Errorf("user info endpoint returned %d: %s", resp.StatusCode, string(body))
 	}
 
-	body, err := io.ReadAll(resp.Body)
+	body, err := httputil.ReadLimitedBody(resp.Body, httputil.DefaultMaxResponseBodyBytes)
 	if err != nil {
 		return nil, fmt.Errorf("read response body: %w", err)
 	}
