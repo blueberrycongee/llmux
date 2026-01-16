@@ -114,11 +114,12 @@ type DDLLMObsConfig struct {
 // DefaultDDLLMObsConfig returns configuration from environment variables.
 func DefaultDDLLMObsConfig() DDLLMObsConfig {
 	cfg := DDLLMObsConfig{
-		APIKey:        os.Getenv("DD_API_KEY"),
-		Site:          os.Getenv("DD_SITE"),
-		MLApp:         os.Getenv("DD_LLMOBS_ML_APP"),
-		BatchSize:     100,
-		FlushInterval: 5 * time.Second,
+		APIKey:                os.Getenv("DD_API_KEY"),
+		Site:                  os.Getenv("DD_SITE"),
+		MLApp:                 os.Getenv("DD_LLMOBS_ML_APP"),
+		BatchSize:             100,
+		FlushInterval:         5 * time.Second,
+		TurnOffMessageLogging: envBool("LLMUX_DD_LLMOBS_TURN_OFF_MESSAGE_LOGGING", true),
 	}
 
 	if cfg.MLApp == "" {

@@ -74,15 +74,16 @@ func DefaultDatadogConfig() DatadogConfig {
 	}
 
 	cfg := DatadogConfig{
-		APIKey:        os.Getenv("DD_API_KEY"),
-		Site:          os.Getenv("DD_SITE"),
-		AgentHost:     os.Getenv("LLMUX_DD_AGENT_HOST"),
-		AgentPort:     os.Getenv("LLMUX_DD_AGENT_PORT"),
-		Service:       os.Getenv("DD_SERVICE"),
-		Source:        "llmux",
-		Hostname:      hostname,
-		BatchSize:     100,
-		FlushInterval: 5 * time.Second,
+		APIKey:                os.Getenv("DD_API_KEY"),
+		Site:                  os.Getenv("DD_SITE"),
+		AgentHost:             os.Getenv("LLMUX_DD_AGENT_HOST"),
+		AgentPort:             os.Getenv("LLMUX_DD_AGENT_PORT"),
+		Service:               os.Getenv("DD_SERVICE"),
+		Source:                "llmux",
+		Hostname:              hostname,
+		BatchSize:             100,
+		FlushInterval:         5 * time.Second,
+		TurnOffMessageLogging: envBool("LLMUX_DD_TURN_OFF_MESSAGE_LOGGING", true),
 	}
 
 	if cfg.AgentPort == "" {

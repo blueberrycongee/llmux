@@ -12,6 +12,7 @@ Recent changes and project history for context.
 
 ### Observability
 - Default Langfuse input/output masking via environment flags.
+- Default Datadog and Datadog LLM Obs message logging off unless explicitly enabled.
 
 ### Testing
 - Align test server with client handler, add pricing fixtures, and stabilize fallback retries.
