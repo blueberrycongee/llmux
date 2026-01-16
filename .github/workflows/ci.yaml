@@ -6,7 +6,23 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  GO_VERSION: "1.24"
+  COVERAGE_THRESHOLD: "50"
+
 jobs:
+  dependency-review:
+    name: Dependency Review
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: Review dependencies
+        uses: actions/dependency-review-action@v4
+
   lint:
     name: Lint
     runs-on: ubuntu-latest
@@ -16,54 +32,137 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Verify go.mod and go.sum are tidy
         run: |
           go mod tidy
           git diff --exit-code -- go.mod go.sum
 
-      - name: Install and Run golangci-lint
+      - name: Install and run golangci-lint
         run: |
           curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin v2.7.2
           $(go env GOPATH)/bin/golangci-lint run ./...
 
-      - name: Run govulncheck
+      - name: Install and run staticcheck
         run: |
-          go install golang.org/x/vuln/cmd/govulncheck@latest
-          $(go env GOPATH)/bin/govulncheck ./...
+          go install honnef.co/go/tools/cmd/staticcheck@v0.6.1
+          $(go env GOPATH)/bin/staticcheck ./...
 
   test:
     name: Test
-    runs-on: ubuntu-latest
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        go-version: ["1.24.x", "1.24.0"]
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: ${{ matrix.go-version }}
 
-      - name: Run tests
-        run: go test -v -race -count=1 -coverprofile=coverage.out ./...
+      - name: Run tests (unix)
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          if [ "${{ matrix.os }}" = "ubuntu-latest" ] && [ "${{ matrix.go-version }}" = "1.24.x" ]; then
+            go test -v -race -count=1 -coverprofile=coverage.out ./...
+          else
+            go test -v -count=1 ./...
+          fi
+
+      - name: Run tests (windows)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          if ("${{ matrix.os }}" -eq "windows-latest" -and "${{ matrix.go-version }}" -eq "1.24.x") {
+            go test -v -race -count=1 -coverprofile=coverage.out ./...
+          } else {
+            go test -v -count=1 ./...
+          }
+
+      - name: Enforce coverage threshold
+        if: runner.os == 'Linux' && matrix.go-version == '1.24.x'
+        shell: bash
+        run: |
+          total=$(go tool cover -func=coverage.out | awk '/total:/ {print substr($3,1,length($3)-1)}')
+          TOTAL="${total}" THRESHOLD="${{ env.COVERAGE_THRESHOLD }}" python - <<'PY'
+          import os
+          import sys
+          total = float(os.environ["TOTAL"])
+          threshold = float(os.environ["THRESHOLD"])
+          if total < threshold:
+            print(f"coverage {total:.2f}% below threshold {threshold:.2f}%")
+            sys.exit(1)
+          print(f"coverage {total:.2f}% meets threshold {threshold:.2f}%")
+          PY
 
       - name: Upload coverage
+        if: runner.os == 'Linux' && matrix.go-version == '1.24.x'
         uses: codecov/codecov-action@v4
         with:
           files: ./coverage.out
           fail_ci_if_error: false
 
-  build:
-    name: Build
+  security:
+    name: Security
     runs-on: ubuntu-latest
-    needs: [lint, test]
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Go
         uses: actions/setup-go@v5
         with:
-          go-version: '1.24'
+          go-version: ${{ env.GO_VERSION }}
+
+      - name: Run gosec
+        run: |
+          go install github.com/securego/gosec/v2/cmd/gosec@v2.22.11
+          $(go env GOPATH)/bin/gosec -exclude-dir=tests -exclude-dir=bench -exclude-dir=.agent ./...
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        with:
+          config-path: .gitleaks.toml
+
+      - name: Generate SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          path: .
+          format: spdx-json
+          output-file: sbom.spdx.json
+
+      - name: Upload SBOM
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx
+          path: sbom.spdx.json
+
+      - name: Trivy filesystem scan
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          scanners: vuln,license
+          severity: CRITICAL,HIGH
+          ignore-unfixed: true
+          format: table
+          exit-code: "1"
+
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+    needs: [lint, test, security]
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: ${{ env.GO_VERSION }}
 
       - name: Build
         run: |

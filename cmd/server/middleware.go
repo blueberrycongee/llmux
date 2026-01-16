@@ -73,7 +73,7 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 
 const maxManagementBodyBytes int64 = 1 << 20
 
-const bootstrapTokenHeader = "X-LLMux-Bootstrap-Token"
+const bootstrapTokenHeader = "X-LLMux-Bootstrap-Token" // #nosec G101 -- header name, not a credential
 
 func managementAuthzMiddleware(cfg *config.Config) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
