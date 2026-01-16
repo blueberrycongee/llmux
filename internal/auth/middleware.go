@@ -16,6 +16,8 @@ type contextKey string
 const (
 	// AuthContextKey is the context key for AuthContext.
 	AuthContextKey contextKey = "auth"
+	// maxModelAccessBodyBytes should match the API default max request body size.
+	maxModelAccessBodyBytes int64 = 10 * 1024 * 1024
 )
 
 // Middleware provides HTTP middleware for API key authentication.
@@ -227,11 +229,16 @@ func (m *Middleware) ModelAccessMiddleware(next http.Handler) http.Handler {
 		}
 
 		origBody := r.Body
-		body, err := io.ReadAll(origBody)
+		limitedBody := io.LimitReader(origBody, maxModelAccessBodyBytes+1)
+		body, err := io.ReadAll(limitedBody)
 		_ = origBody.Close()
 		if err != nil {
 			r.Body = io.NopCloser(bytes.NewReader(body))
 			next.ServeHTTP(w, r)
+			return
+		}
+		if int64(len(body)) > maxModelAccessBodyBytes {
+			m.writeError(w, http.StatusRequestEntityTooLarge, "request body too large")
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))

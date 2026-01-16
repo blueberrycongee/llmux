@@ -204,6 +204,54 @@ func TestModelAccessMiddleware_AllowsCompletionsBody(t *testing.T) {
 	}
 }
 
+func TestModelAccessMiddleware_RejectsOversizedBody(t *testing.T) {
+	store := NewMemoryStore()
+	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
+
+	fullKey, hash, _ := GenerateAPIKey()
+	key := &APIKey{
+		ID:        "key-oversized",
+		KeyHash:   hash,
+		KeyPrefix: ExtractKeyPrefix(fullKey),
+		IsActive:  true,
+		CreatedAt: time.Now(),
+	}
+	if err := store.CreateAPIKey(context.Background(), key); err != nil {
+		t.Fatalf("CreateAPIKey: %v", err)
+	}
+
+	middleware := NewMiddleware(&MiddlewareConfig{
+		Store:   store,
+		Logger:  logger,
+		Enabled: true,
+	})
+
+	called := false
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+		w.WriteHeader(http.StatusOK)
+	})
+
+	oversizedPayload := strings.Repeat("a", int(maxModelAccessBodyBytes)+1)
+	reqBody := `{"model":"gpt-4","prompt":"` + oversizedPayload + `"}`
+	req := httptest.NewRequest(http.MethodPost, "/v1/completions", strings.NewReader(reqBody))
+	req.Header.Set("Authorization", "Bearer "+fullKey)
+
+	rr := httptest.NewRecorder()
+	chain := middleware.Authenticate(middleware.ModelAccessMiddleware(handler))
+	chain.ServeHTTP(rr, req)
+
+	if called {
+		t.Fatalf("handler should not be called for oversized body")
+	}
+	if rr.Code != http.StatusRequestEntityTooLarge {
+		t.Fatalf("expected status %d, got %d", http.StatusRequestEntityTooLarge, rr.Code)
+	}
+	if !strings.Contains(rr.Body.String(), "request body too large") {
+		t.Fatalf("expected request body too large error, got %s", rr.Body.String())
+	}
+}
+
 func TestModelAccessMiddleware_DeniesDisallowedModel(t *testing.T) {
 	store := NewMemoryStore()
 	logger := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: slog.LevelError}))
