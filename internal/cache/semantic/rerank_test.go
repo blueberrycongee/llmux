@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+
 	"github.com/blueberrycongee/llmux/internal/cache/semantic/vector"
 )
 
@@ -39,7 +40,7 @@ func TestCacheReranking(t *testing.T) {
 		store := &MockVectorStore{}
 
 		prompt := "What is the capital of France?"
-		
+
 		// Vector store returns two results, both with high vector similarity
 		// But result 2 is a much better string match
 		storeResults := []vector.SearchResult{
@@ -69,7 +70,7 @@ func TestCacheReranking(t *testing.T) {
 		cfg := DefaultConfig()
 		cfg.EnableReranking = true
 		cfg.SimilarityThreshold = 0.95
-		cfg.RerankingThreshold = 0.5 
+		cfg.RerankingThreshold = 0.5
 
 		cache, _ := New(embedder, store, cfg)
 

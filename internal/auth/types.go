@@ -364,35 +364,6 @@ func (u *User) Clone() *User {
 	return &clone
 }
 
-// Clone returns a deep copy of the Organization.
-func (o *Organization) Clone() *Organization {
-	if o == nil {
-		return nil
-	}
-	clone := *o
-
-	if o.Models != nil {
-		clone.Models = make([]string, len(o.Models))
-		copy(clone.Models, o.Models)
-	}
-
-	if o.ModelSpend != nil {
-		clone.ModelSpend = make(map[string]float64, len(o.ModelSpend))
-		for k, v := range o.ModelSpend {
-			clone.ModelSpend[k] = v
-		}
-	}
-
-	if o.Metadata != nil {
-		clone.Metadata = make(Metadata, len(o.Metadata))
-		for k, v := range o.Metadata {
-			clone.Metadata[k] = v
-		}
-	}
-
-	return &clone
-}
-
 // CanAccessModel checks if the API key is allowed to use the specified model.
 func (k *APIKey) CanAccessModel(model string) bool {
 	if len(k.AllowedModels) == 0 {
@@ -536,6 +507,35 @@ type Organization struct {
 	UpdatedAt  time.Time          `json:"updated_at"`
 }
 
+// Clone returns a deep copy of the Organization.
+func (o *Organization) Clone() *Organization {
+	if o == nil {
+		return nil
+	}
+	clone := *o
+
+	if o.Models != nil {
+		clone.Models = make([]string, len(o.Models))
+		copy(clone.Models, o.Models)
+	}
+
+	if o.ModelSpend != nil {
+		clone.ModelSpend = make(map[string]float64, len(o.ModelSpend))
+		for k, v := range o.ModelSpend {
+			clone.ModelSpend[k] = v
+		}
+	}
+
+	if o.Metadata != nil {
+		clone.Metadata = make(Metadata, len(o.Metadata))
+		for k, v := range o.Metadata {
+			clone.Metadata[k] = v
+		}
+	}
+
+	return &clone
+}
+
 // IsOverBudget checks if the organization has exceeded its budget.
 func (o *Organization) IsOverBudget() bool {
 	if o.MaxBudget <= 0 {
@@ -579,26 +579,6 @@ func (tm *TeamMembership) Clone() *TeamMembership {
 	return &clone
 }
 
-// Clone returns a deep copy of the OrganizationMembership.
-func (om *OrganizationMembership) Clone() *OrganizationMembership {
-	if om == nil {
-		return nil
-	}
-	clone := *om
-	clone.Budget = om.Budget.Clone()
-	return &clone
-}
-
-// Clone returns a deep copy of the EndUser.
-func (e *EndUser) Clone() *EndUser {
-	if e == nil {
-		return nil
-	}
-	clone := *e
-	clone.Budget = e.Budget.Clone()
-	return &clone
-}
-
 // IsOverBudget checks if the team member has exceeded their budget.
 func (tm *TeamMembership) IsOverBudget() bool {
 	if tm.Budget == nil || tm.Budget.MaxBudget == nil || *tm.Budget.MaxBudget <= 0 {
@@ -617,6 +597,16 @@ type OrganizationMembership struct {
 	BudgetID       *string    `json:"budget_id,omitempty"`
 	Budget         *Budget    `json:"budget,omitempty"`
 	JoinedAt       *time.Time `json:"joined_at,omitempty"`
+}
+
+// Clone returns a deep copy of the OrganizationMembership.
+func (om *OrganizationMembership) Clone() *OrganizationMembership {
+	if om == nil {
+		return nil
+	}
+	clone := *om
+	clone.Budget = om.Budget.Clone()
+	return &clone
 }
 
 // IsOverBudget checks if the organization member has exceeded their budget.
@@ -640,6 +630,16 @@ type EndUser struct {
 	BudgetID *string `json:"budget_id,omitempty"`
 	Budget   *Budget `json:"budget,omitempty"`
 	Blocked  bool    `json:"blocked"`
+}
+
+// Clone returns a deep copy of the EndUser.
+func (e *EndUser) Clone() *EndUser {
+	if e == nil {
+		return nil
+	}
+	clone := *e
+	clone.Budget = e.Budget.Clone()
+	return &clone
 }
 
 // IsOverBudget checks if the end user has exceeded their budget.

@@ -7,10 +7,10 @@ import (
 // EWMA represents an Exponentially Weighted Moving Average.
 // It is used to track metrics that change over time, giving more weight to recent values.
 type EWMA struct {
-	alpha float64
-	value float64
+	alpha       float64
+	value       float64
 	initialized bool
-	mu sync.RWMutex
+	mu          sync.RWMutex
 }
 
 // NewEWMA creates a new EWMA with the given alpha (smoothing factor).
@@ -30,7 +30,7 @@ func (e *EWMA) Add(newValue float64) {
 		e.value = newValue
 		e.initialized = true
 	} else {
-		e.value = (e.alpha * newValue) + (1.0 - e.alpha) * e.value
+		e.value = (e.alpha * newValue) + (1.0-e.alpha)*e.value
 	}
 }
 

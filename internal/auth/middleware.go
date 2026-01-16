@@ -155,17 +155,15 @@ func (m *Middleware) Authenticate(next http.Handler) http.Handler {
 				m.writePermissionDenied(w, "access denied by policy")
 				return
 			}
-		} else {
+		} else if key.KeyType == KeyTypeReadOnly {
 			// Legacy hardcoded key type restrictions.
-			if key.KeyType == KeyTypeReadOnly {
-				if r.Method != http.MethodGet && r.Method != http.MethodHead {
-					m.writePermissionDenied(w, "read-only key")
-					return
-				}
-				if r.URL.Path != "/v1/models" {
-					m.writePermissionDenied(w, "read-only key")
-					return
-				}
+			if r.Method != http.MethodGet && r.Method != http.MethodHead {
+				m.writePermissionDenied(w, "read-only key")
+				return
+			}
+			if r.URL.Path != "/v1/models" {
+				m.writePermissionDenied(w, "read-only key")
+				return
 			}
 		}
 
