@@ -1,29 +1,21 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetFooter } from "@/components/ui/sheet";
+import { Sheet, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator"; // We might need to create this or use hr
 import {
     Key,
     Shield,
     ShieldOff,
-    RefreshCw,
     Trash2,
-    Copy,
-    Check,
     Calendar,
-    DollarSign,
-    Activity,
     AlertCircle,
-    Save,
 } from "lucide-react";
 import { StatusBadge, BudgetProgress } from "@/components/shared/common";
 import { apiClient } from "@/lib/api";
-import type { APIKey, GenerateKeyRequest } from "@/types/api";
+import type { APIKey } from "@/types/api";
 import { useI18n } from "@/i18n/locale-provider";
 
 interface ApiKeySheetProps {

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -38,18 +38,16 @@ import {
     Edit,
     RefreshCw,
     AlertCircle,
-    MoreVertical,
     UserPlus,
     Shield,
     ShieldOff,
     Clock,
-    TrendingUp,
 } from "lucide-react";
 import { useTeamInfo, useTeamMembers, useUsers } from "@/hooks";
 import { apiClient } from "@/lib/api";
 import { StatusBadge, BudgetProgress, EmptyState, ErrorState } from "@/components/shared/common";
-import { Skeleton, CardSkeleton, TableRowSkeleton } from "@/components/ui/skeleton";
-import type { Team, CreateTeamRequest, User } from "@/types/api";
+import { Skeleton, CardSkeleton } from "@/components/ui/skeleton";
+import type { Team, CreateTeamRequest } from "@/types/api";
 import { useI18n } from "@/i18n/locale-provider";
 
 // Team Detail Header Component
@@ -187,13 +185,11 @@ function AddMemberDialog({
     open,
     onOpenChange,
     onAdd,
-    teamId,
     existingMembers,
 }: {
     open: boolean;
     onOpenChange: (open: boolean) => void;
     onAdd: (userId: string) => Promise<void>;
-    teamId: string;
     existingMembers: string[];
 }) {
     const [selectedUserId, setSelectedUserId] = useState("");
@@ -333,7 +329,7 @@ function MembersSection({
     onRemoveMember: (userId: string) => void;
 }) {
     const members = team.members || [];
-    const { users, isLoading: usersLoading } = useUsers({});
+    const { users } = useUsers({});
     const { t } = useI18n();
 
     // Create a map of user details
@@ -716,7 +712,6 @@ function TeamDetailSkeleton() {
 export default function TeamDetailPage() {
     const { t } = useI18n();
     const params = useParams();
-    const router = useRouter();
     const teamId = params.id as string;
 
     const { team, isLoading, error, refresh } = useTeamInfo(teamId);
@@ -859,7 +854,6 @@ export default function TeamDetailPage() {
                 open={addMemberDialogOpen}
                 onOpenChange={setAddMemberDialogOpen}
                 onAdd={handleAddMember}
-                teamId={teamId}
                 existingMembers={team.members || []}
             />
         </motion.div>

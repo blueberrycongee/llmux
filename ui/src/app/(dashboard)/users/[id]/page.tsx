@@ -35,15 +35,12 @@ import {
     RefreshCw,
     AlertCircle,
     Mail,
-    Shield,
-    ShieldOff,
     Clock,
     Building2,
     Activity,
     Zap,
 } from "lucide-react";
 import { useUserInfo, useApiKeys, useTeams } from "@/hooks";
-import { apiClient } from "@/lib/api";
 import { StatusBadge, RoleBadge, BudgetProgress, EmptyState, ErrorState } from "@/components/shared/common";
 import { Skeleton, CardSkeleton } from "@/components/ui/skeleton";
 import type { User, CreateUserRequest, UserRole } from "@/types/api";

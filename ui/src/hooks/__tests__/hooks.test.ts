@@ -4,10 +4,11 @@
  * 测试 API 数据获取 Hooks
  */
 
-import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
+import type { APIKey, PaginatedResponse, Team } from '@/types/api';
 
 // Mock API client
 vi.mock('@/lib/api', () => ({
@@ -181,7 +182,7 @@ describe('useApiKeys', () => {
     });
 
     it('应该正确获取 API Keys 列表', async () => {
-        const mockKeys = {
+        const mockKeys: PaginatedResponse<APIKey> = {
             data: [
                 {
                     id: 'key-1',
@@ -190,6 +191,8 @@ describe('useApiKeys', () => {
                     is_active: true,
                     blocked: false,
                     spent_budget: 10,
+                    created_at: '2026-01-01T00:00:00Z',
+                    updated_at: '2026-01-01T00:00:00Z',
                 },
             ],
             total: 1,
@@ -197,7 +200,7 @@ describe('useApiKeys', () => {
             offset: 0,
         };
 
-        vi.mocked(apiClient.listKeys).mockResolvedValue(mockKeys as any);
+        vi.mocked(apiClient.listKeys).mockResolvedValue(mockKeys);
 
         const { result } = renderHook(() => useApiKeys(), {
             wrapper: createWrapper(),
@@ -213,7 +216,7 @@ describe('useApiKeys', () => {
     });
 
     it('应该支持筛选参数', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } satisfies PaginatedResponse<APIKey>);
 
         renderHook(
             () => useApiKeys({ teamId: 'team-1', limit: 20 }),
@@ -232,7 +235,7 @@ describe('useApiKeys', () => {
     });
 
     it('createKey 应该创建密钥并刷新列表', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } satisfies PaginatedResponse<APIKey>);
         vi.mocked(apiClient.generateKey).mockResolvedValue({
             key: 'sk-full-key',
             key_prefix: 'sk-full',
@@ -254,7 +257,7 @@ describe('useApiKeys', () => {
     });
 
     it('deleteKey 应该删除密钥', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } satisfies PaginatedResponse<APIKey>);
         vi.mocked(apiClient.deleteKeys).mockResolvedValue({ deleted_count: 1 });
 
         const { result } = renderHook(() => useApiKeys(), {
@@ -271,7 +274,7 @@ describe('useApiKeys', () => {
     });
 
     it('blockKey 应该封禁密钥', async () => {
-        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
+        vi.mocked(apiClient.listKeys).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } satisfies PaginatedResponse<APIKey>);
         vi.mocked(apiClient.blockKey).mockResolvedValue({ success: true });
 
         const { result } = renderHook(() => useApiKeys(), {
@@ -338,7 +341,7 @@ describe('useTeams', () => {
     });
 
     it('应该正确获取团队列表', async () => {
-        const mockTeams = {
+        const mockTeams: PaginatedResponse<Team> = {
             data: [
                 {
                     team_id: 'team-1',
@@ -355,7 +358,7 @@ describe('useTeams', () => {
             offset: 0,
         };
 
-        vi.mocked(apiClient.listTeams).mockResolvedValue(mockTeams as any);
+        vi.mocked(apiClient.listTeams).mockResolvedValue(mockTeams);
 
         const { result } = renderHook(() => useTeams(), {
             wrapper: createWrapper(),
@@ -370,7 +373,7 @@ describe('useTeams', () => {
     });
 
     it('createTeam 应该创建团队', async () => {
-        vi.mocked(apiClient.listTeams).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } as any);
+        vi.mocked(apiClient.listTeams).mockResolvedValue({ data: [], total: 0, limit: 50, offset: 0 } satisfies PaginatedResponse<Team>);
         vi.mocked(apiClient.createTeam).mockResolvedValue({
             team_id: 'team-new',
             team_alias: 'New Team',
