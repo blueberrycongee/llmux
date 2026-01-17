@@ -145,9 +145,9 @@ func managementAuthzMiddleware(cfg *config.Config, enforcer *auth.CasbinEnforcer
 
 			authCtx := auth.GetAuthContext(r.Context())
 			if authCtx == nil {
-			writeAuthzError(w, r, http.StatusUnauthorized, "authentication required", "authentication_error")
-			return
-		}
+				writeAuthzError(w, r, http.StatusUnauthorized, "authentication required", "authentication_error")
+				return
+			}
 
 			if enforcer != nil {
 				var sub string
@@ -185,7 +185,7 @@ func managementAuthzMiddleware(cfg *config.Config, enforcer *auth.CasbinEnforcer
 				return
 			}
 
-		writeAuthzError(w, r, http.StatusForbidden, "management permission required", "permission_error")
+			writeAuthzError(w, r, http.StatusForbidden, "management permission required", "permission_error")
 		})
 	}
 }
