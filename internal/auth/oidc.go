@@ -16,6 +16,7 @@ type OIDCConfig struct {
 	IssuerURL    string
 	ClientID     string
 	ClientSecret string
+	RedirectURL  string
 
 	// Role mapping
 	RoleClaim        string            // JWT claim for role extraction (e.g. "groups", "roles")
@@ -128,50 +129,22 @@ func OIDCMiddleware(cfg OIDCConfig) (func(http.Handler) http.Handler, error) {
 				return
 			}
 
-			// Extract user info
-			userInfo := extractUserInfo(cfg, rawClaims, idToken.Subject)
+			identity := ExtractOIDCIdentity(cfg, rawClaims, idToken.Subject)
 
 			// Validate email domain if restriction is configured
-			if cfg.UserAllowedEmailDomain != "" && userInfo.Email != "" {
-				if !strings.HasSuffix(userInfo.Email, "@"+cfg.UserAllowedEmailDomain) {
-					http.Error(w, fmt.Sprintf("email domain not allowed: expected @%s", cfg.UserAllowedEmailDomain), http.StatusForbidden)
-					return
-				}
-			}
-
-			// Extract role using hierarchical priority if enabled
-			role := extractRole(cfg, rawClaims)
-
-			// Extract team IDs
-			teamIDs := extractTeamIDs(cfg, rawClaims)
-
-			// Extract organization ID
-			orgID := extractOrgID(cfg, rawClaims)
-
-			// Extract end user ID (for downstream tracking)
-			endUserID := extractStringClaim(rawClaims, cfg.EndUserIDJWTField)
-
-			// Build User object
-			user := &User{
-				ID:             userInfo.UserID,
-				Email:          strPtr(userInfo.Email),
-				Role:           role,
-				Teams:          teamIDs,
-				OrganizationID: strPtr(orgID),
-			}
-
-			// Set team ID if available (first team for single-team scenarios)
-			if len(teamIDs) > 0 {
-				user.TeamID = strPtr(teamIDs[0])
-			} else if cfg.DefaultTeamID != "" {
-				user.TeamID = strPtr(cfg.DefaultTeamID)
+			if !IsEmailDomainAllowed(cfg, identity.Email) {
+				http.Error(w, fmt.Sprintf("email domain not allowed: expected @%s", cfg.UserAllowedEmailDomain), http.StatusForbidden)
+				return
 			}
 
 			// Create AuthContext
 			authCtx := &AuthContext{
-				User:      user,
-				UserRole:  UserRole(role),
-				EndUserID: endUserID,
+				User:       identity.User,
+				UserRole:   identity.Role,
+				EndUserID:  identity.EndUserID,
+				SSOUserID:  identity.SSOUserID,
+				JWTTeamIDs: identity.TeamIDs,
+				JWTOrgID:   identity.OrgID,
 			}
 
 			ctx := context.WithValue(r.Context(), AuthContextKey, authCtx)
@@ -462,55 +435,24 @@ func OIDCMiddlewareWithSync(cfg OIDCConfig, syncer *UserTeamSyncer) (func(http.H
 				return
 			}
 
-			// Extract user info
-			userInfo := extractUserInfo(cfg, rawClaims, idToken.Subject)
+			identity := ExtractOIDCIdentity(cfg, rawClaims, idToken.Subject)
 
 			// Validate email domain if restriction is configured
-			if cfg.UserAllowedEmailDomain != "" && userInfo.Email != "" {
-				if !strings.HasSuffix(userInfo.Email, "@"+cfg.UserAllowedEmailDomain) {
-					http.Error(w, fmt.Sprintf("email domain not allowed: expected @%s", cfg.UserAllowedEmailDomain), http.StatusForbidden)
-					return
-				}
-			}
-
-			// Extract role using hierarchical priority if enabled
-			role := extractRole(cfg, rawClaims)
-
-			// Extract team IDs
-			teamIDs := extractTeamIDs(cfg, rawClaims)
-
-			// Extract organization ID
-			orgID := extractOrgID(cfg, rawClaims)
-
-			// Extract end user ID (for downstream tracking)
-			endUserID := extractStringClaim(rawClaims, cfg.EndUserIDJWTField)
-
-			// Build User object
-			user := &User{
-				ID:             userInfo.UserID,
-				Email:          strPtr(userInfo.Email),
-				Role:           role,
-				Teams:          teamIDs,
-				OrganizationID: strPtr(orgID),
-			}
-
-			// Set team ID if available (first team for single-team scenarios)
-			if len(teamIDs) > 0 {
-				user.TeamID = strPtr(teamIDs[0])
-			} else if cfg.DefaultTeamID != "" {
-				user.TeamID = strPtr(cfg.DefaultTeamID)
+			if !IsEmailDomainAllowed(cfg, identity.Email) {
+				http.Error(w, fmt.Sprintf("email domain not allowed: expected @%s", cfg.UserAllowedEmailDomain), http.StatusForbidden)
+				return
 			}
 
 			// === SSO SYNC INTEGRATION (P0 Fix) ===
 			// Invoke UserTeamSyncer to synchronize user roles and team memberships
 			if syncer != nil {
 				syncReq := &SyncRequest{
-					UserID:         userInfo.UserID,
-					Email:          strPtr(userInfo.Email),
-					SSOUserID:      idToken.Subject,
-					Role:           role,
-					TeamIDs:        teamIDs,
-					OrganizationID: strPtr(orgID),
+					UserID:         identity.UserID,
+					Email:          strPtr(identity.Email),
+					SSOUserID:      identity.SSOUserID,
+					Role:           string(identity.Role),
+					TeamIDs:        identity.TeamIDs,
+					OrganizationID: strPtr(identity.OrgID),
 				}
 
 				// Run sync in the request context (non-blocking for the main flow)
@@ -521,9 +463,12 @@ func OIDCMiddlewareWithSync(cfg OIDCConfig, syncer *UserTeamSyncer) (func(http.H
 
 			// Create AuthContext
 			authCtx := &AuthContext{
-				User:      user,
-				UserRole:  UserRole(role),
-				EndUserID: endUserID,
+				User:       identity.User,
+				UserRole:   identity.Role,
+				EndUserID:  identity.EndUserID,
+				SSOUserID:  identity.SSOUserID,
+				JWTTeamIDs: identity.TeamIDs,
+				JWTOrgID:   identity.OrgID,
 			}
 
 			ctx := context.WithValue(r.Context(), AuthContextKey, authCtx)

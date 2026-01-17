@@ -151,6 +151,8 @@ cors:
     - /invitation/
     - /control/
     - /metrics
+    - /auth/
+    - /api/auth/
 
 # Authentication (API Key validation)
 auth:
@@ -159,16 +161,36 @@ auth:
   skip_paths:               # Paths that don't require authentication
     - /health/ready
     - /health/live
+    - /auth/oidc/login
+    - /auth/oidc/callback
+    - /auth/me
+    - /auth/logout
+    - /api/auth/oidc/login
+    - /api/auth/oidc/callback
+    - /api/auth/me
+    - /api/auth/logout
   last_used_update_interval: 1m # Min interval to update key last_used_at (0 to disable)
   oidc:
     issuer_url: ${OIDC_ISSUER_URL}
     client_id: ${OIDC_CLIENT_ID}
     client_secret: ${OIDC_CLIENT_SECRET}
+    redirect_url: ${OIDC_REDIRECT_URL:} # Optional: override callback URL
     claim_mapping:
       role_claim: groups
       roles:
         "admin-group": "llmux-admin"
         "dev-team": "llmux-user"
+  session:
+    enabled: false
+    secret: ${LLMUX_SESSION_SECRET:}
+    cookie_name: llmux_session
+    state_cookie_name: llmux_oidc_state
+    cookie_domain: ""
+    cookie_path: /
+    cookie_secure: false # Set true in production with HTTPS
+    cookie_same_site: lax # lax, strict, none
+    ttl: 12h
+    state_ttl: 10m
 
 # PostgreSQL Database (for API keys, teams, usage logging)
 database:
