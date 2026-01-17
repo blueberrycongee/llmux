@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"time"
 
 	"github.com/go-jose/go-jose/v4"
@@ -15,10 +16,13 @@ import (
 
 // MockOIDCProvider simulates an OIDC provider for testing.
 type MockOIDCProvider struct {
-	server     *httptest.Server
-	privateKey *rsa.PrivateKey
-	signer     jose.Signer
-	issuer     string
+	server              *httptest.Server
+	privateKey          *rsa.PrivateKey
+	signer              jose.Signer
+	issuer              string
+	tokenClaims         map[string]interface{}
+	requireCodeVerifier bool
+	mu                  sync.RWMutex
 }
 
 // NewMockOIDCProvider creates a new mock OIDC provider.
@@ -44,6 +48,7 @@ func NewMockOIDCProvider() (*MockOIDCProvider, error) {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/.well-known/openid-configuration", p.handleDiscovery)
 	mux.HandleFunc("/keys", p.handleJWKS)
+	mux.HandleFunc("/token", p.handleToken)
 
 	p.server = httptest.NewServer(mux)
 	p.issuer = p.server.URL
@@ -59,6 +64,20 @@ func (p *MockOIDCProvider) URL() string {
 // Close shuts down the provider.
 func (p *MockOIDCProvider) Close() {
 	p.server.Close()
+}
+
+// SetTokenClaims configures the claims returned from the token endpoint.
+func (p *MockOIDCProvider) SetTokenClaims(claims map[string]interface{}) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.tokenClaims = claims
+}
+
+// RequireCodeVerifier enforces PKCE validation in the token endpoint.
+func (p *MockOIDCProvider) RequireCodeVerifier() {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.requireCodeVerifier = true
 }
 
 // SignToken creates a signed JWT with the given claims.
@@ -116,4 +135,48 @@ func (p *MockOIDCProvider) handleJWKS(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(jwks)
+}
+
+func (p *MockOIDCProvider) handleToken(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "invalid form", http.StatusBadRequest)
+		return
+	}
+
+	p.mu.RLock()
+	requireVerifier := p.requireCodeVerifier
+	p.mu.RUnlock()
+	if requireVerifier && r.FormValue("code_verifier") == "" {
+		http.Error(w, "missing code_verifier", http.StatusBadRequest)
+		return
+	}
+
+	claims := map[string]interface{}{
+		"sub":   "user-1",
+		"email": "user@example.com",
+	}
+	p.mu.RLock()
+	for k, v := range p.tokenClaims {
+		claims[k] = v
+	}
+	p.mu.RUnlock()
+
+	idToken, err := p.SignToken(claims)
+	if err != nil {
+		http.Error(w, "failed to sign token", http.StatusInternalServerError)
+		return
+	}
+
+	resp := map[string]interface{}{
+		"access_token": "access-token",
+		"id_token":     idToken,
+		"token_type":   "Bearer",
+		"expires_in":   3600,
+	}
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
 }

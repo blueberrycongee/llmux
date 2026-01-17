@@ -98,9 +98,10 @@ func TestSessionManager_StateRoundTrip(t *testing.T) {
 	}
 
 	state := &OIDCState{
-		State:    "state-1",
-		Nonce:    "nonce-1",
-		Redirect: "/dashboard",
+		State:        "state-1",
+		Nonce:        "nonce-1",
+		CodeVerifier: "code-verifier",
+		Redirect:     "/dashboard",
 	}
 
 	recorder := httptest.NewRecorder()
