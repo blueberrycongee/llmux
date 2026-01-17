@@ -1,7 +1,6 @@
-export type AppLocale = "cn" | "i18n";
+import type { AppLocale, Messages, MessageVars } from "./types";
 
-export type MessageVars = Record<string, string | number | boolean | null | undefined>;
-export type Messages = Record<string, string>;
+export type { AppLocale, Messages, MessageVars };
 
 export const LOCALE_COOKIE = "llmux_locale";
 export const LOCALE_STORAGE_KEY = "llmux_locale";

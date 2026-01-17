@@ -1,4 +1,4 @@
-import type { Messages } from "@/i18n/i18n";
+import type { Messages } from "@/i18n/types";
 
 export const messages: Messages = {
   // Navigation
