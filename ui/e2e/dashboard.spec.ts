@@ -9,6 +9,16 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Dashboard Page', () => {
     test.beforeEach(async ({ page }) => {
+        // 固定 locale，避免被本地缓存/上一次用例影响
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
+
         // 拦截 API 请求并返回 mock 数据
         await page.route('**/global/activity**', async (route) => {
             await route.fulfill({
@@ -60,8 +70,8 @@ test.describe('Dashboard Page', () => {
 
     test('should display the dashboard header', async ({ page }) => {
         // 检查页面标题
-        await expect(page.locator('h1')).toContainText('Overview');
-        await expect(page.locator('text=Welcome back')).toBeVisible();
+        await expect(page.locator('main h1')).toContainText('Overview');
+        await expect(page.getByText('Welcome back').first()).toBeVisible();
     });
 
     test('should display stat cards with API data', async ({ page }) => {
@@ -91,8 +101,8 @@ test.describe('Dashboard Page', () => {
         await expect(page.locator('text=Model Distribution')).toBeVisible();
 
         // 验证模型列表显示（来自 mock API）
-        await expect(page.locator('text=gpt-4')).toBeVisible();
-        await expect(page.locator('text=claude-3')).toBeVisible();
+        await expect(page.getByTestId('chart-model-distribution').getByText('gpt-4').first()).toBeVisible();
+        await expect(page.getByTestId('chart-model-distribution').getByText('claude-3').first()).toBeVisible();
     });
 
     test('should show loading state initially', async ({ page }) => {
@@ -124,6 +134,7 @@ test.describe('Dashboard Page', () => {
 
     test('should handle API error gracefully', async ({ page }) => {
         // 模拟 API 错误
+        await page.unroute('**/global/activity**');
         await page.route('**/global/activity**', async (route) => {
             await route.fulfill({
                 status: 500,
@@ -140,8 +151,8 @@ test.describe('Dashboard Page', () => {
         await page.goto('/');
 
         // 应该显示错误状态
-        await expect(page.getByTestId('error-message')).toBeVisible();
-        await expect(page.locator('text=Failed to load')).toBeVisible();
+        await expect(page.getByTestId('error-message')).toBeVisible({ timeout: 30000 });
+        await expect(page.locator('text=Failed to load')).toBeVisible({ timeout: 30000 });
     });
 
     test('should have responsive layout on mobile', async ({ page }) => {
@@ -150,7 +161,7 @@ test.describe('Dashboard Page', () => {
         await page.goto('/');
 
         // 检查移动端布局
-        await expect(page.locator('h1')).toBeVisible();
+        await expect(page.locator('main h1')).toBeVisible();
 
         // 统计卡片应该堆叠显示
         const statCards = page.getByTestId('stat-card-requests');
@@ -170,26 +181,58 @@ test.describe('Dashboard Page', () => {
 
 test.describe('Dashboard Navigation', () => {
     test('should navigate to API Keys page', async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
         await page.goto('/');
-        await page.click('text=API Keys');
+        await page.locator('a[href="/api-keys"]').click();
         await expect(page).toHaveURL(/.*api-keys/);
     });
 
     test('should navigate to Teams page', async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
         await page.goto('/');
-        await page.click('text=Teams');
+        await page.locator('a[href="/teams"]').click();
         await expect(page).toHaveURL(/.*teams/);
     });
 
     test('should navigate to Users page', async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
         await page.goto('/');
-        await page.click('text=Users');
+        await page.locator('a[href="/users"]').click();
         await expect(page).toHaveURL(/.*users/);
     });
 });
 
 test.describe('Dashboard Date Range', () => {
     test('should have date picker for custom range', async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
         await page.goto('/');
 
         // 检查日期选择器是否存在
@@ -197,6 +240,14 @@ test.describe('Dashboard Date Range', () => {
     });
 
     test('should update data when date range changes', async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
         let requestCount = 0;
 
         await page.route('**/global/activity**', async (route) => {

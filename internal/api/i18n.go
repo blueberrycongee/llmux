@@ -1,8 +1,8 @@
 package api //nolint:revive // package name is intentional
 
 import (
-	"strings"
 	"net/http"
+	"strings"
 )
 
 func detectLocaleFromRequest(r *http.Request) string {
@@ -116,6 +116,8 @@ func localizeManagementMessage(locale string, message string) string {
 		return "未找到该组织"
 	case "failed to create organization":
 		return "创建组织失败"
+	case "failed to create organization budget":
+		return "创建组织预算失败"
 	case "failed to update organization":
 		return "更新组织失败"
 	case "failed to get organization info":
@@ -206,6 +208,8 @@ func localizeManagementMessage(locale string, message string) string {
 		return "获取邀请列表失败"
 	case "failed to deactivate invitation":
 		return "停用邀请失败"
+	case "invitation link has been deactivated":
+		return "邀请链接已停用"
 	}
 
 	return message

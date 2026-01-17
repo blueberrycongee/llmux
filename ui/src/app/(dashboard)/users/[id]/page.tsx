@@ -47,16 +47,17 @@ import { apiClient } from "@/lib/api";
 import { StatusBadge, RoleBadge, BudgetProgress, EmptyState, ErrorState } from "@/components/shared/common";
 import { Skeleton, CardSkeleton } from "@/components/ui/skeleton";
 import type { User, CreateUserRequest, UserRole } from "@/types/api";
+import { useI18n } from "@/i18n/locale-provider";
 
 // Role options
-const roleOptions: { value: UserRole; label: string }[] = [
-    { value: "proxy_admin", label: "Proxy Admin" },
-    { value: "proxy_admin_viewer", label: "Admin Viewer" },
-    { value: "org_admin", label: "Org Admin" },
-    { value: "internal_user", label: "Internal User" },
-    { value: "internal_user_viewer", label: "Internal Viewer" },
-    { value: "team", label: "Team" },
-    { value: "customer", label: "Customer" },
+const roleOptions: { value: UserRole; labelKey: string }[] = [
+    { value: "proxy_admin", labelKey: "role.admin" },
+    { value: "proxy_admin_viewer", labelKey: "role.adminViewer" },
+    { value: "org_admin", labelKey: "role.orgAdmin" },
+    { value: "internal_user", labelKey: "role.internalUser" },
+    { value: "internal_user_viewer", labelKey: "role.viewer" },
+    { value: "team", labelKey: "role.team" },
+    { value: "customer", labelKey: "role.customer" },
 ];
 
 // User Detail Header
@@ -67,6 +68,7 @@ function UserDetailHeader({
     user: User;
     onEdit: () => void;
 }) {
+    const { t } = useI18n();
     return (
         <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
@@ -81,7 +83,7 @@ function UserDetailHeader({
                 <div>
                     <div className="flex items-center gap-3">
                         <h1 className="text-2xl font-bold tracking-tight">
-                            {user.user_alias || "Unnamed User"}
+                            {user.user_alias || t("dashboard.users.row.unnamed")}
                         </h1>
                         <StatusBadge isActive={user.is_active} />
                         <RoleBadge role={user.user_role} />
@@ -97,7 +99,7 @@ function UserDetailHeader({
             </div>
             <Button onClick={onEdit} className="gap-2">
                 <Edit className="w-4 h-4" />
-                Edit User
+                {t("dashboard.userDetail.action.edit")}
             </Button>
         </div>
     );
@@ -105,34 +107,39 @@ function UserDetailHeader({
 
 // Stats Cards
 function UserStatsCards({ user }: { user: User }) {
+    const { t } = useI18n();
     const stats = [
         {
-            label: "Teams",
+            label: t("dashboard.userDetail.stats.teams"),
             value: user.teams?.length || 0,
             icon: Users,
             color: "text-blue-400",
             bgColor: "bg-blue-500/10",
         },
         {
-            label: "Budget Used",
+            label: t("dashboard.userDetail.stats.budgetUsed"),
             value: `$${user.spend.toFixed(2)}`,
-            subtitle: user.max_budget ? `of $${user.max_budget.toFixed(2)}` : "No limit",
+            subtitle: user.max_budget
+                ? t("dashboard.userDetail.stats.ofBudget", { amount: user.max_budget.toFixed(2) })
+                : t("dashboard.userDetail.stats.noLimit"),
             icon: DollarSign,
             color: "text-green-400",
             bgColor: "bg-green-500/10",
         },
         {
-            label: "Rate Limit",
-            value: user.rpm_limit ? `${user.rpm_limit} RPM` : "Unlimited",
+            label: t("dashboard.userDetail.stats.rateLimit"),
+            value: user.rpm_limit ? `${user.rpm_limit} RPM` : t("dashboard.userDetail.stats.rateUnlimited"),
             subtitle: user.tpm_limit ? `${user.tpm_limit.toLocaleString()} TPM` : undefined,
             icon: Zap,
             color: "text-yellow-400",
             bgColor: "bg-yellow-500/10",
         },
         {
-            label: "Models",
-            value: user.models?.length || "All",
-            subtitle: user.models?.length ? `${user.models.slice(0, 2).join(", ")}...` : "All models allowed",
+            label: t("dashboard.userDetail.stats.models"),
+            value: user.models?.length || t("dashboard.userDetail.stats.modelsAll"),
+            subtitle: user.models?.length
+                ? `${user.models.slice(0, 2).join(", ")}...`
+                : t("dashboard.userDetail.stats.modelsAllAllowed"),
             icon: Key,
             color: "text-purple-400",
             bgColor: "bg-purple-500/10",
@@ -172,6 +179,7 @@ function UserStatsCards({ user }: { user: User }) {
 function TeamsSection({ user }: { user: User }) {
     const { teams, isLoading } = useTeams({});
     const userTeamIds = user.teams || [];
+    const { t } = useI18n();
 
     // Filter to get user's teams
     const userTeams = teams.filter((t) => userTeamIds.includes(t.team_id));
@@ -180,14 +188,14 @@ function TeamsSection({ user }: { user: User }) {
         return (
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle className="text-lg">Teams</CardTitle>
-                    <CardDescription>Teams this user belongs to</CardDescription>
+                    <CardTitle className="text-lg">{t("dashboard.userDetail.stats.teams")}</CardTitle>
+                    <CardDescription>{t("dashboard.userDetail.teams.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <EmptyState
                         icon={<Users className="w-12 h-12" />}
-                        title="No teams"
-                        description="This user is not a member of any teams"
+                        title={t("dashboard.userDetail.teams.empty.title")}
+                        description={t("dashboard.userDetail.teams.empty.desc")}
                         className="py-6"
                     />
                 </CardContent>
@@ -198,8 +206,13 @@ function TeamsSection({ user }: { user: User }) {
     return (
         <Card className="glass-card">
             <CardHeader>
-                <CardTitle className="text-lg">Teams</CardTitle>
-                <CardDescription>{userTeams.length} team{userTeams.length !== 1 ? "s" : ""}</CardDescription>
+                <CardTitle className="text-lg">{t("dashboard.userDetail.stats.teams")}</CardTitle>
+                <CardDescription>
+                    {t("dashboard.organizationDetail.teams.count", {
+                        count: userTeams.length,
+                        item: t("dashboard.userDetail.stats.teams"),
+                    })}
+                </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
                 {isLoading ? (
@@ -226,7 +239,7 @@ function TeamsSection({ user }: { user: User }) {
                                             <div>
                                                 <div className="font-medium">{team.team_alias || team.team_id}</div>
                                                 <div className="text-xs text-muted-foreground">
-                                                    {team.members?.length || 0} members
+                                                    {t("dashboard.userDetail.teams.membersCount", { count: team.members?.length || 0 })}
                                                 </div>
                                             </div>
                                         </div>
@@ -245,12 +258,13 @@ function TeamsSection({ user }: { user: User }) {
 // API Keys Section
 function ApiKeysSection({ userId }: { userId: string }) {
     const { keys, isLoading } = useApiKeys({ userId });
+    const { t } = useI18n();
 
     if (isLoading) {
         return (
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle className="text-lg">API Keys</CardTitle>
+                    <CardTitle className="text-lg">{t("dashboard.apiKeys.title")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">
@@ -267,18 +281,18 @@ function ApiKeysSection({ userId }: { userId: string }) {
         return (
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle className="text-lg">API Keys</CardTitle>
-                    <CardDescription>Keys associated with this user</CardDescription>
+                    <CardTitle className="text-lg">{t("dashboard.apiKeys.title")}</CardTitle>
+                    <CardDescription>{t("dashboard.userDetail.apiKeys.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <EmptyState
                         icon={<Key className="w-12 h-12" />}
-                        title="No API keys"
-                        description="This user has no associated API keys"
+                        title={t("dashboard.userDetail.apiKeys.empty.title")}
+                        description={t("dashboard.userDetail.apiKeys.empty.desc")}
                         action={
                             <Link href="/api-keys">
                                 <Button variant="outline" size="sm">
-                                    Go to API Keys
+                                    {t("dashboard.userDetail.apiKeys.action.go")}
                                 </Button>
                             </Link>
                         }
@@ -293,11 +307,16 @@ function ApiKeysSection({ userId }: { userId: string }) {
         <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between">
                 <div>
-                    <CardTitle className="text-lg">API Keys</CardTitle>
-                    <CardDescription>{keys.length} key{keys.length !== 1 ? "s" : ""}</CardDescription>
+                    <CardTitle className="text-lg">{t("dashboard.apiKeys.title")}</CardTitle>
+                    <CardDescription>
+                        {t("dashboard.userDetail.apiKeys.count", {
+                            count: keys.length,
+                            item: t("dashboard.apiKeys.title"),
+                        })}
+                    </CardDescription>
                 </div>
                 <Link href="/api-keys">
-                    <Button variant="outline" size="sm">View All</Button>
+                    <Button variant="outline" size="sm">{t("common.viewAll")}</Button>
                 </Link>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -332,28 +351,29 @@ function ApiKeysSection({ userId }: { userId: string }) {
 
 // Settings Section
 function SettingsSection({ user }: { user: User }) {
+    const { t } = useI18n();
     return (
         <Card className="glass-card">
             <CardHeader>
-                <CardTitle className="text-lg">User Settings</CardTitle>
-                <CardDescription>Configuration and limits</CardDescription>
+                <CardTitle className="text-lg">{t("dashboard.userDetail.settings.title")}</CardTitle>
+                <CardDescription>{t("dashboard.userDetail.settings.subtitle")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {/* Budget Settings */}
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-green-400" />
-                        Budget Configuration
+                        {t("dashboard.userDetail.settings.budget.title")}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Max Budget</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.userDetail.settings.budget.max")}</div>
                             <div className="text-lg font-semibold">
-                                {user.max_budget ? `$${user.max_budget.toFixed(2)}` : "Unlimited"}
+                                {user.max_budget ? `$${user.max_budget.toFixed(2)}` : t("budget.noLimit")}
                             </div>
                         </div>
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Current Spend</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.userDetail.settings.budget.current")}</div>
                             <div className="text-lg font-semibold">${user.spend.toFixed(2)}</div>
                         </div>
                     </div>
@@ -366,7 +386,7 @@ function SettingsSection({ user }: { user: User }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Zap className="w-4 h-4 text-yellow-400" />
-                        Rate Limits
+                        {t("dashboard.userDetail.settings.rate.title")}
                     </h4>
                     <div className="grid grid-cols-3 gap-4">
                         <div className="p-4 rounded-lg bg-secondary/50">
@@ -382,7 +402,7 @@ function SettingsSection({ user }: { user: User }) {
                             </div>
                         </div>
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Max Parallel</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.userDetail.settings.rate.maxParallel")}</div>
                             <div className="text-lg font-semibold">
                                 {user.max_parallel_requests?.toLocaleString() || "∞"}
                             </div>
@@ -394,7 +414,7 @@ function SettingsSection({ user }: { user: User }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Key className="w-4 h-4 text-purple-400" />
-                        Allowed Models
+                        {t("dashboard.userDetail.settings.models.title")}
                     </h4>
                     <div className="flex flex-wrap gap-2">
                         {user.models && user.models.length > 0 ? (
@@ -404,7 +424,7 @@ function SettingsSection({ user }: { user: User }) {
                                 </Badge>
                             ))
                         ) : (
-                            <span className="text-muted-foreground text-sm">All models allowed</span>
+                            <span className="text-muted-foreground text-sm">{t("dashboard.userDetail.settings.models.allAllowed")}</span>
                         )}
                     </div>
                 </div>
@@ -413,18 +433,18 @@ function SettingsSection({ user }: { user: User }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Clock className="w-4 h-4 text-blue-400" />
-                        Metadata
+                        {t("dashboard.userDetail.settings.meta.title")}
                     </h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         {user.created_at && (
                             <div>
-                                <span className="text-muted-foreground">Created:</span>
+                                <span className="text-muted-foreground">{t("dashboard.userDetail.settings.meta.created")}</span>
                                 <span className="ml-2">{new Date(user.created_at).toLocaleDateString()}</span>
                             </div>
                         )}
                         {user.updated_at && (
                             <div>
-                                <span className="text-muted-foreground">Updated:</span>
+                                <span className="text-muted-foreground">{t("dashboard.userDetail.settings.meta.updated")}</span>
                                 <span className="ml-2">{new Date(user.updated_at).toLocaleDateString()}</span>
                             </div>
                         )}
@@ -432,7 +452,7 @@ function SettingsSection({ user }: { user: User }) {
                             <div className="col-span-2">
                                 <span className="text-muted-foreground flex items-center gap-1">
                                     <Building2 className="w-3.5 h-3.5" />
-                                    Organization:
+                                    {t("dashboard.userDetail.settings.meta.organization")}
                                 </span>
                                 <span className="ml-2 font-mono text-xs">{user.organization_id}</span>
                             </div>
@@ -456,6 +476,7 @@ function EditUserDialog({
     user: User;
     onSave: (updates: Partial<CreateUserRequest>) => Promise<void>;
 }) {
+    const { t } = useI18n();
     const [alias, setAlias] = useState(user.user_alias || "");
     const [email, setEmail] = useState(user.user_email || "");
     const [role, setRole] = useState<UserRole>(user.user_role);
@@ -476,7 +497,7 @@ function EditUserDialog({
             });
             onOpenChange(false);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update user");
+            setError(err instanceof Error ? err.message : t("dashboard.userDetail.dialog.edit.error.updateFailed"));
         } finally {
             setIsSaving(false);
         }
@@ -486,52 +507,52 @@ function EditUserDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Edit User</DialogTitle>
+                    <DialogTitle>{t("dashboard.userDetail.dialog.edit.title")}</DialogTitle>
                     <DialogDescription>
-                        Update user information and settings.
+                        {t("dashboard.userDetail.dialog.edit.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="alias">Display Name</Label>
+                        <Label htmlFor="alias">{t("dashboard.users.form.displayName")}</Label>
                         <Input
                             id="alias"
                             value={alias}
                             onChange={(e) => setAlias(e.target.value)}
-                            placeholder="e.g., John Doe"
+                            placeholder={t("dashboard.users.form.displayName.placeholder")}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email">{t("dashboard.users.form.email")}</Label>
                         <Input
                             id="email"
                             type="email"
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
-                            placeholder="john@example.com"
+                            placeholder={t("dashboard.users.form.email.placeholder")}
                         />
                     </div>
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="role">Role</Label>
+                            <Label htmlFor="role">{t("dashboard.users.form.role")}</Label>
                             <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select role" />
+                                    <SelectValue placeholder={t("dashboard.users.form.role.placeholder")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {roleOptions.map((opt) => (
                                         <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
+                                            {t(opt.labelKey)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="budget">Max Budget</Label>
+                            <Label htmlFor="budget">{t("dashboard.users.form.maxBudget")}</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                                 <Input
@@ -539,7 +560,7 @@ function EditUserDialog({
                                     type="number"
                                     value={maxBudget}
                                     onChange={(e) => setMaxBudget(e.target.value)}
-                                    placeholder="1000"
+                                    placeholder={t("dashboard.users.form.maxBudget.placeholder")}
                                     className="pl-7"
                                 />
                             </div>
@@ -556,16 +577,16 @@ function EditUserDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button onClick={handleSave} disabled={isSaving}>
                         {isSaving ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Saving...
+                                {t("dashboard.userDetail.dialog.edit.submit.saving")}
                             </>
                         ) : (
-                            "Save Changes"
+                            t("dashboard.userDetail.dialog.edit.submit.save")
                         )}
                     </Button>
                 </DialogFooter>
@@ -608,6 +629,7 @@ function UserDetailSkeleton() {
 
 // Main Component
 export default function UserDetailPage() {
+    const { t } = useI18n();
     const params = useParams();
     const userId = params.id as string;
 
@@ -632,7 +654,7 @@ export default function UserDetailPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     </Link>
-                    <h1 className="text-2xl font-bold">User Details</h1>
+                    <h1 className="text-2xl font-bold">{t("dashboard.userDetail.error.title")}</h1>
                 </div>
                 <ErrorState message={error.message} onRetry={refresh} />
             </div>
@@ -648,15 +670,15 @@ export default function UserDetailPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     </Link>
-                    <h1 className="text-2xl font-bold">User Not Found</h1>
+                    <h1 className="text-2xl font-bold">{t("dashboard.userDetail.notFound.title")}</h1>
                 </div>
                 <EmptyState
                     icon={<Users className="w-12 h-12" />}
-                    title="User not found"
-                    description="The user you're looking for doesn't exist or has been deleted."
+                    title={t("dashboard.userDetail.notFound.emptyTitle")}
+                    description={t("dashboard.userDetail.notFound.emptyDesc")}
                     action={
                         <Link href="/users">
-                            <Button>Back to Users</Button>
+                            <Button>{t("dashboard.userDetail.notFound.action.back")}</Button>
                         </Link>
                     }
                 />
@@ -684,11 +706,11 @@ export default function UserDetailPage() {
                 <TabsList className="w-full md:w-auto">
                     <TabsTrigger value="overview" className="gap-2">
                         <Activity className="w-4 h-4" />
-                        Overview
+                        {t("dashboard.userDetail.tabs.overview")}
                     </TabsTrigger>
                     <TabsTrigger value="settings" className="gap-2">
                         <Settings className="w-4 h-4" />
-                        Settings
+                        {t("dashboard.userDetail.tabs.settings")}
                     </TabsTrigger>
                 </TabsList>
 

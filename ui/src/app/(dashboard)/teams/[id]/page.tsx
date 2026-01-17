@@ -50,6 +50,7 @@ import { apiClient } from "@/lib/api";
 import { StatusBadge, BudgetProgress, EmptyState, ErrorState } from "@/components/shared/common";
 import { Skeleton, CardSkeleton, TableRowSkeleton } from "@/components/ui/skeleton";
 import type { Team, CreateTeamRequest, User } from "@/types/api";
+import { useI18n } from "@/i18n/locale-provider";
 
 // Team Detail Header Component
 function TeamDetailHeader({
@@ -63,6 +64,7 @@ function TeamDetailHeader({
     onBlock: () => void;
     onUnblock: () => void;
 }) {
+    const { t } = useI18n();
     return (
         <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
@@ -84,7 +86,7 @@ function TeamDetailHeader({
                     <p className="text-sm text-muted-foreground font-mono">{team.team_id}</p>
                     {team.organization_id && (
                         <p className="text-xs text-muted-foreground mt-1">
-                            Organization: {team.organization_id}
+                            {t("dashboard.teamDetail.header.organization", { orgId: team.organization_id })}
                         </p>
                     )}
                 </div>
@@ -93,17 +95,17 @@ function TeamDetailHeader({
                 {team.blocked ? (
                     <Button variant="outline" onClick={onUnblock} className="gap-2">
                         <Shield className="w-4 h-4" />
-                        Unblock
+                        {t("dashboard.teamDetail.action.unblock")}
                     </Button>
                 ) : (
                     <Button variant="outline" onClick={onBlock} className="gap-2 text-yellow-500 hover:text-yellow-400">
                         <ShieldOff className="w-4 h-4" />
-                        Block
+                        {t("dashboard.teamDetail.action.block")}
                     </Button>
                 )}
                 <Button onClick={onEdit} className="gap-2">
                     <Edit className="w-4 h-4" />
-                    Edit
+                    {t("dashboard.teamDetail.action.edit")}
                 </Button>
             </div>
         </div>
@@ -112,34 +114,39 @@ function TeamDetailHeader({
 
 // Stats Cards Component
 function TeamStatsCards({ team }: { team: Team }) {
+    const { t } = useI18n();
     const stats = [
         {
-            label: "Members",
+            label: t("dashboard.teamDetail.stats.members"),
             value: team.members?.length || 0,
             icon: Users,
             color: "text-blue-400",
             bgColor: "bg-blue-500/10",
         },
         {
-            label: "Budget Used",
+            label: t("dashboard.teamDetail.stats.budgetUsed"),
             value: `$${team.spend.toFixed(2)}`,
-            subtitle: team.max_budget ? `of $${team.max_budget.toFixed(2)}` : "No limit",
+            subtitle: team.max_budget
+                ? t("dashboard.teamDetail.stats.ofBudget", { amount: team.max_budget.toFixed(2) })
+                : t("dashboard.teamDetail.stats.noLimit"),
             icon: DollarSign,
             color: "text-green-400",
             bgColor: "bg-green-500/10",
         },
         {
-            label: "Rate Limit",
-            value: team.rpm_limit ? `${team.rpm_limit} RPM` : "Unlimited",
+            label: t("dashboard.teamDetail.stats.rateLimit"),
+            value: team.rpm_limit ? `${team.rpm_limit} RPM` : t("dashboard.teamDetail.stats.rateUnlimited"),
             subtitle: team.tpm_limit ? `${team.tpm_limit.toLocaleString()} TPM` : undefined,
             icon: Zap,
             color: "text-yellow-400",
             bgColor: "bg-yellow-500/10",
         },
         {
-            label: "Models",
-            value: team.models?.length || "All",
-            subtitle: team.models?.length ? `${team.models.slice(0, 2).join(", ")}...` : "All models allowed",
+            label: t("dashboard.teamDetail.stats.models"),
+            value: team.models?.length || t("dashboard.teamDetail.stats.modelsAll"),
+            subtitle: team.models?.length
+                ? `${team.models.slice(0, 2).join(", ")}...`
+                : t("dashboard.teamDetail.stats.modelsAllAllowed"),
             icon: Key,
             color: "text-purple-400",
             bgColor: "bg-purple-500/10",
@@ -194,6 +201,7 @@ function AddMemberDialog({
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const { users, isLoading } = useUsers({});
+    const { t } = useI18n();
 
     // Filter out existing members
     const availableUsers = users.filter(
@@ -205,7 +213,7 @@ function AddMemberDialog({
 
     const handleAdd = async () => {
         if (!selectedUserId) {
-            setError("Please select a user");
+            setError(t("dashboard.teamDetail.dialog.addMember.validation.selectUser"));
             return;
         }
 
@@ -216,7 +224,7 @@ function AddMemberDialog({
             await onAdd(selectedUserId);
             handleClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to add member");
+            setError(err instanceof Error ? err.message : t("dashboard.teamDetail.dialog.addMember.error.addFailed"));
         } finally {
             setIsAdding(false);
         }
@@ -233,17 +241,17 @@ function AddMemberDialog({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Add Team Member</DialogTitle>
+                    <DialogTitle>{t("dashboard.teamDetail.dialog.addMember.title")}</DialogTitle>
                     <DialogDescription>
-                        Select a user to add to this team.
+                        {t("dashboard.teamDetail.dialog.addMember.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Search Users</Label>
+                        <Label>{t("dashboard.teamDetail.dialog.addMember.searchLabel")}</Label>
                         <Input
-                            placeholder="Search by name, email, or ID..."
+                            placeholder={t("dashboard.teamDetail.dialog.addMember.searchPlaceholder")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -251,10 +259,10 @@ function AddMemberDialog({
 
                     <div className="max-h-64 overflow-y-auto border rounded-lg divide-y">
                         {isLoading ? (
-                            <div className="p-4 text-center text-muted-foreground">Loading users...</div>
+                            <div className="p-4 text-center text-muted-foreground">{t("dashboard.teamDetail.dialog.addMember.loading")}</div>
                         ) : availableUsers.length === 0 ? (
                             <div className="p-4 text-center text-muted-foreground">
-                                {searchQuery ? "No matching users found" : "No available users"}
+                                {searchQuery ? t("dashboard.teamDetail.dialog.addMember.noMatch") : t("dashboard.teamDetail.dialog.addMember.none")}
                             </div>
                         ) : (
                             availableUsers.map((user) => (
@@ -293,7 +301,7 @@ function AddMemberDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={handleClose}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button
                         onClick={handleAdd}
@@ -302,10 +310,10 @@ function AddMemberDialog({
                         {isAdding ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Adding...
+                                {t("dashboard.teamDetail.dialog.addMember.submit.adding")}
                             </>
                         ) : (
-                            "Add Member"
+                            t("dashboard.teamDetail.dialog.addMember.submit.add")
                         )}
                     </Button>
                 </DialogFooter>
@@ -326,6 +334,7 @@ function MembersSection({
 }) {
     const members = team.members || [];
     const { users, isLoading: usersLoading } = useUsers({});
+    const { t } = useI18n();
 
     // Create a map of user details
     const userMap = new Map(users.map((u) => [u.user_id, u]));
@@ -334,24 +343,29 @@ function MembersSection({
         <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between py-4">
                 <div>
-                    <CardTitle className="text-lg">Team Members</CardTitle>
-                    <CardDescription>{members.length} member{members.length !== 1 ? "s" : ""}</CardDescription>
+                    <CardTitle className="text-lg">{t("dashboard.teamDetail.members.title")}</CardTitle>
+                    <CardDescription>
+                        {t("dashboard.organizationDetail.teams.count", {
+                            count: members.length,
+                            item: t("dashboard.teamDetail.stats.members"),
+                        })}
+                    </CardDescription>
                 </div>
                 <Button onClick={onAddMember} size="sm" className="gap-2">
                     <UserPlus className="w-4 h-4" />
-                    Add Member
+                    {t("dashboard.teamDetail.members.action.add")}
                 </Button>
             </CardHeader>
             <CardContent className="p-0">
                 {members.length === 0 ? (
                     <EmptyState
                         icon={<Users className="w-12 h-12" />}
-                        title="No members yet"
-                        description="Add users to this team to get started"
+                        title={t("dashboard.teamDetail.members.empty.title")}
+                        description={t("dashboard.teamDetail.members.empty.desc")}
                         action={
                             <Button onClick={onAddMember} variant="outline" size="sm">
                                 <Plus className="w-4 h-4 mr-2" />
-                                Add First Member
+                                {t("dashboard.teamDetail.members.empty.action")}
                             </Button>
                         }
                         className="py-8"
@@ -360,10 +374,10 @@ function MembersSection({
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-xs uppercase text-muted-foreground">User</TableHead>
-                                <TableHead className="text-xs uppercase text-muted-foreground">Email</TableHead>
-                                <TableHead className="text-xs uppercase text-muted-foreground">Role</TableHead>
-                                <TableHead className="text-xs uppercase text-muted-foreground">Status</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.teamDetail.members.table.user")}</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.teamDetail.members.table.email")}</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.teamDetail.members.table.role")}</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.teamDetail.members.table.status")}</TableHead>
                                 <TableHead className="text-xs uppercase text-muted-foreground w-16"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -407,7 +421,7 @@ function MembersSection({
                                                 {user ? (
                                                     <StatusBadge isActive={user.is_active} size="sm" />
                                                 ) : (
-                                                    <Badge variant="secondary">Unknown</Badge>
+                                                    <Badge variant="secondary">{t("dashboard.teamDetail.members.table.unknown")}</Badge>
                                                 )}
                                             </TableCell>
                                             <TableCell>
@@ -444,6 +458,7 @@ function EditTeamDialog({
     team: Team;
     onSave: (updates: Partial<CreateTeamRequest>) => Promise<void>;
 }) {
+    const { t } = useI18n();
     const [name, setName] = useState(team.team_alias || "");
     const [maxBudget, setMaxBudget] = useState(team.max_budget?.toString() || "");
     const [rpmLimit, setRpmLimit] = useState(team.rpm_limit?.toString() || "");
@@ -464,7 +479,7 @@ function EditTeamDialog({
             });
             onOpenChange(false);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update team");
+            setError(err instanceof Error ? err.message : t("dashboard.teamDetail.dialog.edit.error.updateFailed"));
         } finally {
             setIsSaving(false);
         }
@@ -474,15 +489,15 @@ function EditTeamDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Edit Team</DialogTitle>
+                    <DialogTitle>{t("dashboard.teamDetail.dialog.edit.title")}</DialogTitle>
                     <DialogDescription>
-                        Update team settings and limits.
+                        {t("dashboard.teamDetail.dialog.edit.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Team Name</Label>
+                        <Label htmlFor="name">{t("dashboard.teamDetail.dialog.edit.field.name")}</Label>
                         <Input
                             id="name"
                             value={name}
@@ -493,7 +508,7 @@ function EditTeamDialog({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="budget">Max Budget</Label>
+                            <Label htmlFor="budget">{t("dashboard.teamDetail.dialog.edit.field.maxBudget")}</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                                 <Input
@@ -507,7 +522,7 @@ function EditTeamDialog({
                             </div>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="rpm">Rate Limit (RPM)</Label>
+                            <Label htmlFor="rpm">{t("dashboard.teamDetail.dialog.edit.field.rpm")}</Label>
                             <Input
                                 id="rpm"
                                 type="number"
@@ -519,7 +534,7 @@ function EditTeamDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="tpm">Token Limit (TPM)</Label>
+                        <Label htmlFor="tpm">{t("dashboard.teamDetail.dialog.edit.field.tpm")}</Label>
                         <Input
                             id="tpm"
                             type="number"
@@ -539,16 +554,16 @@ function EditTeamDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button onClick={handleSave} disabled={isSaving}>
                         {isSaving ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Saving...
+                                {t("dashboard.teamDetail.dialog.edit.submit.saving")}
                             </>
                         ) : (
-                            "Save Changes"
+                            t("dashboard.teamDetail.dialog.edit.submit.save")
                         )}
                     </Button>
                 </DialogFooter>
@@ -559,28 +574,29 @@ function EditTeamDialog({
 
 // Settings Tab Component
 function SettingsSection({ team }: { team: Team }) {
+    const { t } = useI18n();
     return (
         <Card className="glass-card">
             <CardHeader>
-                <CardTitle className="text-lg">Team Settings</CardTitle>
-                <CardDescription>View and manage team configuration</CardDescription>
+                <CardTitle className="text-lg">{t("dashboard.teamDetail.settings.title")}</CardTitle>
+                <CardDescription>{t("dashboard.teamDetail.settings.subtitle")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {/* Budget Settings */}
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-green-400" />
-                        Budget Configuration
+                        {t("dashboard.teamDetail.settings.budget.title")}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Max Budget</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.teamDetail.settings.budget.max")}</div>
                             <div className="text-lg font-semibold">
-                                {team.max_budget ? `$${team.max_budget.toFixed(2)}` : "Unlimited"}
+                                {team.max_budget ? `$${team.max_budget.toFixed(2)}` : t("budget.noLimit")}
                             </div>
                         </div>
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Current Spend</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.teamDetail.settings.budget.current")}</div>
                             <div className="text-lg font-semibold">${team.spend.toFixed(2)}</div>
                         </div>
                     </div>
@@ -593,7 +609,7 @@ function SettingsSection({ team }: { team: Team }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Zap className="w-4 h-4 text-yellow-400" />
-                        Rate Limits
+                        {t("dashboard.teamDetail.settings.rate.title")}
                     </h4>
                     <div className="grid grid-cols-3 gap-4">
                         <div className="p-4 rounded-lg bg-secondary/50">
@@ -609,7 +625,7 @@ function SettingsSection({ team }: { team: Team }) {
                             </div>
                         </div>
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Max Parallel</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.teamDetail.settings.rate.maxParallel")}</div>
                             <div className="text-lg font-semibold">
                                 {team.max_parallel_requests?.toLocaleString() || "∞"}
                             </div>
@@ -621,7 +637,7 @@ function SettingsSection({ team }: { team: Team }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Key className="w-4 h-4 text-purple-400" />
-                        Allowed Models
+                        {t("dashboard.teamDetail.settings.models.title")}
                     </h4>
                     <div className="flex flex-wrap gap-2">
                         {team.models && team.models.length > 0 ? (
@@ -631,7 +647,7 @@ function SettingsSection({ team }: { team: Team }) {
                                 </Badge>
                             ))
                         ) : (
-                            <span className="text-muted-foreground text-sm">All models allowed</span>
+                            <span className="text-muted-foreground text-sm">{t("dashboard.teamDetail.settings.models.allAllowed")}</span>
                         )}
                     </div>
                 </div>
@@ -640,15 +656,15 @@ function SettingsSection({ team }: { team: Team }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Clock className="w-4 h-4 text-blue-400" />
-                        Metadata
+                        {t("dashboard.teamDetail.settings.meta.title")}
                     </h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                            <span className="text-muted-foreground">Created:</span>
+                            <span className="text-muted-foreground">{t("dashboard.teamDetail.settings.meta.created")}</span>
                             <span className="ml-2">{new Date(team.created_at).toLocaleDateString()}</span>
                         </div>
                         <div>
-                            <span className="text-muted-foreground">Updated:</span>
+                            <span className="text-muted-foreground">{t("dashboard.teamDetail.settings.meta.updated")}</span>
                             <span className="ml-2">{new Date(team.updated_at).toLocaleDateString()}</span>
                         </div>
                     </div>
@@ -698,6 +714,7 @@ function TeamDetailSkeleton() {
 
 // Main Component
 export default function TeamDetailPage() {
+    const { t } = useI18n();
     const params = useParams();
     const router = useRouter();
     const teamId = params.id as string;
@@ -755,7 +772,7 @@ export default function TeamDetailPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     </Link>
-                    <h1 className="text-2xl font-bold">Team Details</h1>
+                    <h1 className="text-2xl font-bold">{t("dashboard.teamDetail.error.title")}</h1>
                 </div>
                 <ErrorState message={error.message} onRetry={refresh} />
             </div>
@@ -771,15 +788,15 @@ export default function TeamDetailPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     </Link>
-                    <h1 className="text-2xl font-bold">Team Not Found</h1>
+                    <h1 className="text-2xl font-bold">{t("dashboard.teamDetail.notFound.title")}</h1>
                 </div>
                 <EmptyState
                     icon={<Users className="w-12 h-12" />}
-                    title="Team not found"
-                    description="The team you're looking for doesn't exist or has been deleted."
+                    title={t("dashboard.teamDetail.notFound.emptyTitle")}
+                    description={t("dashboard.teamDetail.notFound.emptyDesc")}
                     action={
                         <Link href="/teams">
-                            <Button>Back to Teams</Button>
+                            <Button>{t("dashboard.teamDetail.notFound.action.back")}</Button>
                         </Link>
                     }
                 />
@@ -809,11 +826,11 @@ export default function TeamDetailPage() {
                 <TabsList className="w-full md:w-auto">
                     <TabsTrigger value="members" className="gap-2">
                         <Users className="w-4 h-4" />
-                        Members
+                        {t("dashboard.teamDetail.tabs.members")}
                     </TabsTrigger>
                     <TabsTrigger value="settings" className="gap-2">
                         <Settings className="w-4 h-4" />
-                        Settings
+                        {t("dashboard.teamDetail.tabs.settings")}
                     </TabsTrigger>
                 </TabsList>
 

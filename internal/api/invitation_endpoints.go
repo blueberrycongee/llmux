@@ -281,9 +281,12 @@ func (h *InvitationHandler) DeactivateInvitation(w http.ResponseWriter, r *http.
 		return
 	}
 
+	locale := detectLocaleFromRequest(r)
+	msg := localizeManagementMessage(locale, "invitation link has been deactivated")
+
 	h.writeJSON(w, http.StatusOK, map[string]string{
 		"status":  "deactivated",
-		"message": "invitation link has been deactivated",
+		"message": msg,
 	})
 }
 

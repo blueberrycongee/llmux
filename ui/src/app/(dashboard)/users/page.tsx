@@ -47,16 +47,17 @@ import { useUsers } from "@/hooks";
 import type { User, CreateUserRequest, UserRole } from "@/types/api";
 import { StatusBadge, RoleBadge, BudgetProgress, PageHeader, EmptyState, ErrorState } from "@/components/shared/common";
 import { Skeleton, TableRowSkeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/i18n/locale-provider";
 
 // User role options
-const roleOptions: { value: UserRole; label: string }[] = [
-    { value: "proxy_admin", label: "Proxy Admin" },
-    { value: "proxy_admin_viewer", label: "Admin Viewer" },
-    { value: "org_admin", label: "Org Admin" },
-    { value: "internal_user", label: "Internal User" },
-    { value: "internal_user_viewer", label: "Internal Viewer" },
-    { value: "team", label: "Team" },
-    { value: "customer", label: "Customer" },
+const roleOptions: { value: UserRole; labelKey: string }[] = [
+    { value: "proxy_admin", labelKey: "role.admin" },
+    { value: "proxy_admin_viewer", labelKey: "role.adminViewer" },
+    { value: "org_admin", labelKey: "role.orgAdmin" },
+    { value: "internal_user", labelKey: "role.internalUser" },
+    { value: "internal_user_viewer", labelKey: "role.viewer" },
+    { value: "team", labelKey: "role.team" },
+    { value: "customer", labelKey: "role.customer" },
 ];
 
 // Create User Dialog
@@ -75,6 +76,7 @@ function CreateUserDialog({
     const [maxBudget, setMaxBudget] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t } = useI18n();
 
     const handleCreate = async () => {
         setIsCreating(true);
@@ -93,7 +95,7 @@ function CreateUserDialog({
             });
             handleClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create user");
+            setError(err instanceof Error ? err.message : t("dashboard.users.form.error.createFailed"));
         } finally {
             setIsCreating(false);
         }
@@ -112,29 +114,29 @@ function CreateUserDialog({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Create New User</DialogTitle>
+                    <DialogTitle>{t("dashboard.users.dialog.create.title")}</DialogTitle>
                     <DialogDescription>
-                        Add a new user to the system.
+                        {t("dashboard.users.dialog.create.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="alias">Display Name</Label>
+                        <Label htmlFor="alias">{t("dashboard.users.form.displayName")}</Label>
                         <Input
                             id="alias"
-                            placeholder="e.g., John Doe"
+                            placeholder={t("dashboard.users.form.displayName.placeholder")}
                             value={alias}
                             onChange={(e) => setAlias(e.target.value)}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="email">Email Address</Label>
+                        <Label htmlFor="email">{t("dashboard.users.form.email")}</Label>
                         <Input
                             id="email"
                             type="email"
-                            placeholder="john@example.com"
+                            placeholder={t("dashboard.users.form.email.placeholder")}
                             value={email}
                             onChange={(e) => setEmail(e.target.value)}
                         />
@@ -142,28 +144,28 @@ function CreateUserDialog({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="role">Role</Label>
+                            <Label htmlFor="role">{t("dashboard.users.form.role")}</Label>
                             <Select value={role} onValueChange={(v) => setRole(v as UserRole)}>
                                 <SelectTrigger>
-                                    <SelectValue placeholder="Select role" />
+                                    <SelectValue placeholder={t("dashboard.users.form.role.placeholder")} />
                                 </SelectTrigger>
                                 <SelectContent>
                                     {roleOptions.map((opt) => (
                                         <SelectItem key={opt.value} value={opt.value}>
-                                            {opt.label}
+                                            {t(opt.labelKey)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="budget">Max Budget</Label>
+                            <Label htmlFor="budget">{t("dashboard.users.form.maxBudget")}</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                                 <Input
                                     id="budget"
                                     type="number"
-                                    placeholder="1000"
+                                    placeholder={t("dashboard.users.form.maxBudget.placeholder")}
                                     value={maxBudget}
                                     onChange={(e) => setMaxBudget(e.target.value)}
                                     className="pl-7"
@@ -182,16 +184,16 @@ function CreateUserDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={handleClose}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button onClick={handleCreate} disabled={isCreating}>
                         {isCreating ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Creating...
+                                {t("dashboard.users.form.submit.creating")}
                             </>
                         ) : (
-                            "Create User"
+                            t("dashboard.users.form.submit.create")
                         )}
                     </Button>
                 </DialogFooter>
@@ -211,6 +213,7 @@ function UserRow({
     index: number;
 }) {
     const [showMenu, setShowMenu] = useState(false);
+    const { t } = useI18n();
 
     return (
         <motion.tr
@@ -226,7 +229,7 @@ function UserRow({
                         <Users className="w-5 h-5 text-primary" />
                     </div>
                     <div>
-                        <div className="font-medium">{user.user_alias || "Unnamed User"}</div>
+                        <div className="font-medium">{user.user_alias || t("dashboard.users.row.unnamed")}</div>
                         <div className="text-xs text-muted-foreground font-mono">
                             {user.user_id.slice(0, 16)}...
                         </div>
@@ -251,10 +254,13 @@ function UserRow({
                     {user.teams && user.teams.length > 0 ? (
                         <Badge variant="secondary" className="gap-1">
                             <Users className="w-3 h-3" />
-                            {user.teams.length} team{user.teams.length !== 1 ? "s" : ""}
+                            {t("dashboard.organizationDetail.teams.count", {
+                                count: user.teams.length,
+                                item: t("dashboard.organizationDetail.stats.teams"),
+                            })}
                         </Badge>
                     ) : (
-                        <span className="text-muted-foreground text-sm">No teams</span>
+                        <span className="text-muted-foreground text-sm">{t("dashboard.users.row.noTeams")}</span>
                     )}
                 </div>
             </TableCell>
@@ -301,7 +307,7 @@ function UserRow({
                                             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-red-400"
                                         >
                                             <Trash2 className="w-4 h-4" />
-                                            Delete
+                                            {t("common.delete")}
                                         </button>
                                     </motion.div>
                                 </>
@@ -316,18 +322,19 @@ function UserRow({
 
 // Table Skeleton
 function UsersTableSkeleton() {
+    const { t } = useI18n();
     return (
         <Card className="glass-card">
             <CardContent className="p-0">
                 <Table>
                     <TableHeader>
                         <TableRow className="hover:bg-transparent">
-                            <TableHead className="text-xs uppercase text-muted-foreground">User</TableHead>
-                            <TableHead className="text-xs uppercase text-muted-foreground">Email</TableHead>
-                            <TableHead className="text-xs uppercase text-muted-foreground">Role</TableHead>
-                            <TableHead className="text-xs uppercase text-muted-foreground">Teams</TableHead>
-                            <TableHead className="text-xs uppercase text-muted-foreground">Budget</TableHead>
-                            <TableHead className="text-xs uppercase text-muted-foreground">Status</TableHead>
+                            <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.users.table.user")}</TableHead>
+                            <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.users.table.email")}</TableHead>
+                            <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.users.table.role")}</TableHead>
+                            <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.users.table.teams")}</TableHead>
+                            <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.users.table.budget")}</TableHead>
+                            <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.users.table.status")}</TableHead>
                             <TableHead className="w-24"></TableHead>
                         </TableRow>
                     </TableHeader>
@@ -343,6 +350,7 @@ function UsersTableSkeleton() {
 }
 
 export default function UsersPage() {
+    const { t } = useI18n();
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [debouncedSearch, setDebouncedSearch] = useState("");
@@ -374,8 +382,8 @@ export default function UsersPage() {
         <div className="space-y-6">
             {/* Header */}
             <PageHeader
-                title="Users"
-                description="Manage system users and their permissions."
+                title={t("dashboard.users.title")}
+                description={t("dashboard.users.description")}
                 action={
                     <Button
                         className="gap-2"
@@ -383,7 +391,7 @@ export default function UsersPage() {
                         data-testid="create-user-button"
                     >
                         <UserPlus className="w-4 h-4" />
-                        Create User
+                        {t("dashboard.users.action.create")}
                     </Button>
                 }
             />
@@ -398,28 +406,29 @@ export default function UsersPage() {
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search users..."
+                        placeholder={t("dashboard.users.search.placeholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-9"
+                        data-testid="search-input"
                     />
                 </div>
                 <div className="flex items-center gap-2">
                     <Select value={roleFilter} onValueChange={setRoleFilter}>
                         <SelectTrigger className="w-40">
                             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-                            <SelectValue placeholder="All Roles" />
+                            <SelectValue placeholder={t("dashboard.users.filter.allRoles")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Roles</SelectItem>
+                            <SelectItem value="all">{t("dashboard.users.filter.allRoles")}</SelectItem>
                             {roleOptions.map((opt) => (
                                 <SelectItem key={opt.value} value={opt.value}>
-                                    {opt.label}
+                                    {t(opt.labelKey)}
                                 </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
-                    <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+                    <Button variant="ghost" size="icon" onClick={refresh} title={t("common.refresh")}>
                         <RefreshCw className="w-4 h-4" />
                     </Button>
                 </div>
@@ -437,17 +446,17 @@ export default function UsersPage() {
                 <Card className="glass-card">
                     <EmptyState
                         icon={<Users className="w-12 h-12" />}
-                        title={debouncedSearch || roleFilter !== "all" ? "No matching users" : "No users yet"}
+                        title={debouncedSearch || roleFilter !== "all" ? t("dashboard.users.empty.noMatch") : t("dashboard.users.empty.none")}
                         description={
                             debouncedSearch || roleFilter !== "all"
-                                ? "Try adjusting your search or filter"
-                                : "Create your first user to get started"
+                                ? t("dashboard.users.empty.tryAdjust")
+                                : t("dashboard.users.empty.createFirst")
                         }
                         action={
                             !debouncedSearch && roleFilter === "all" && (
                                 <Button onClick={() => setCreateDialogOpen(true)}>
                                     <UserPlus className="w-4 h-4 mr-2" />
-                                    Create User
+                                    {t("dashboard.users.action.create")}
                                 </Button>
                             )
                         }
@@ -463,12 +472,12 @@ export default function UsersPage() {
                             <Table>
                                 <TableHeader>
                                     <TableRow className="hover:bg-transparent">
-                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">User</TableHead>
-                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">Email</TableHead>
-                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">Role</TableHead>
-                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">Teams</TableHead>
-                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">Budget</TableHead>
-                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">Status</TableHead>
+                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">{t("dashboard.users.table.user")}</TableHead>
+                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">{t("dashboard.users.table.email")}</TableHead>
+                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">{t("dashboard.users.table.role")}</TableHead>
+                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">{t("dashboard.users.table.teams")}</TableHead>
+                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">{t("dashboard.users.table.budget")}</TableHead>
+                                        <TableHead className="text-xs uppercase text-muted-foreground font-medium">{t("dashboard.users.table.status")}</TableHead>
                                         <TableHead className="w-24"></TableHead>
                                     </TableRow>
                                 </TableHeader>
@@ -491,7 +500,7 @@ export default function UsersPage() {
                     {/* Pagination info */}
                     <div className="flex items-center justify-between text-sm text-muted-foreground mt-4">
                         <span>
-                            Showing {users.length} of {total} user{total !== 1 ? "s" : ""}
+                            {t("pagination.showingCountOfTotal", { count: users.length, total, item: t("dashboard.users.pagination.item") })}
                         </span>
                     </div>
                 </motion.div>

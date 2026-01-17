@@ -35,6 +35,7 @@ import { useOrganizations } from "@/hooks";
 import type { Organization, CreateOrganizationRequest } from "@/types/api";
 import { BudgetProgress, PageHeader, EmptyState, ErrorState } from "@/components/shared/common";
 import { CardSkeleton } from "@/components/ui/skeleton";
+import { useI18n } from "@/i18n/locale-provider";
 
 // Organization Card Skeleton
 function OrgCardSkeleton() {
@@ -77,10 +78,11 @@ function CreateOrganizationDialog({
     const [maxBudget, setMaxBudget] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t } = useI18n();
 
     const handleCreate = async () => {
         if (!name.trim()) {
-            setError("Organization name is required");
+            setError(t("dashboard.organizations.form.name.required"));
             return;
         }
 
@@ -94,7 +96,7 @@ function CreateOrganizationDialog({
             });
             handleClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create organization");
+            setError(err instanceof Error ? err.message : t("dashboard.organizations.form.error.createFailed"));
         } finally {
             setIsCreating(false);
         }
@@ -111,18 +113,18 @@ function CreateOrganizationDialog({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Create New Organization</DialogTitle>
+                    <DialogTitle>{t("dashboard.organizations.dialog.create.title")}</DialogTitle>
                     <DialogDescription>
-                        Create an organization to group teams and manage budgets.
+                        {t("dashboard.organizations.dialog.create.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Organization Name</Label>
+                        <Label htmlFor="name">{t("dashboard.organizations.form.name.label")}</Label>
                         <Input
                             id="name"
-                            placeholder="e.g., Acme Corp"
+                            placeholder={t("dashboard.organizations.form.name.placeholder")}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             data-testid="org-name-input"
@@ -130,13 +132,13 @@ function CreateOrganizationDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="budget">Max Budget (optional)</Label>
+                        <Label htmlFor="budget">{t("dashboard.organizations.form.maxBudget.label")}</Label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                             <Input
                                 id="budget"
                                 type="number"
-                                placeholder="10000"
+                                placeholder={t("dashboard.organizations.form.maxBudget.placeholder")}
                                 value={maxBudget}
                                 onChange={(e) => setMaxBudget(e.target.value)}
                                 className="pl-7"
@@ -154,16 +156,16 @@ function CreateOrganizationDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={handleClose}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button onClick={handleCreate} disabled={isCreating} data-testid="create-org-submit">
                         {isCreating ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Creating...
+                                {t("dashboard.organizations.form.submit.creating")}
                             </>
                         ) : (
-                            "Create Organization"
+                            t("dashboard.organizations.form.submit.create")
                         )}
                     </Button>
                 </DialogFooter>
@@ -181,6 +183,7 @@ function OrganizationCard({
     onDelete: (orgId: string) => void;
 }) {
     const [showMenu, setShowMenu] = useState(false);
+    const { t } = useI18n();
 
     return (
         <motion.div
@@ -210,7 +213,7 @@ function OrganizationCard({
                         <div className="flex items-center gap-2">
                             <Badge variant="success" className="gap-1">
                                 <Shield className="w-3 h-3" />
-                                Active
+                                {t("dashboard.organizations.card.active")}
                             </Badge>
 
                             <div className="relative">
@@ -244,7 +247,7 @@ function OrganizationCard({
                                                     className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-red-400"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
-                                                    Delete
+                                                    {t("common.delete")}
                                                 </button>
                                             </motion.div>
                                         </>
@@ -259,15 +262,15 @@ function OrganizationCard({
                         <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50">
                             <DollarSign className="w-4 h-4 text-green-400" />
                             <div>
-                                <div className="text-xs text-muted-foreground">Spend</div>
+                                <div className="text-xs text-muted-foreground">{t("dashboard.organizations.card.spend")}</div>
                                 <div className="font-semibold">${org.spend.toFixed(2)}</div>
                             </div>
                         </div>
                         <div className="flex items-center gap-2 p-3 rounded-lg bg-secondary/50">
                             <Key className="w-4 h-4 text-purple-400" />
                             <div>
-                                <div className="text-xs text-muted-foreground">Models</div>
-                                <div className="font-semibold">{org.models?.length || "All"}</div>
+                                <div className="text-xs text-muted-foreground">{t("dashboard.organizations.card.models")}</div>
+                                <div className="font-semibold">{org.models?.length || t("dashboard.organizations.card.modelsAll")}</div>
                             </div>
                         </div>
                     </div>
@@ -281,7 +284,7 @@ function OrganizationCard({
                         className="mt-4 flex items-center justify-between p-3 -mx-3 rounded-lg hover:bg-secondary/50 transition-colors group/link"
                     >
                         <span className="text-sm font-medium text-muted-foreground group-hover/link:text-foreground">
-                            View Details
+                            {t("common.viewDetails")}
                         </span>
                         <ChevronRight className="w-4 h-4 text-muted-foreground group-hover/link:text-foreground group-hover/link:translate-x-1 transition-all" />
                     </Link>
@@ -292,6 +295,7 @@ function OrganizationCard({
 }
 
 export default function OrganizationsPage() {
+    const { t } = useI18n();
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -316,8 +320,8 @@ export default function OrganizationsPage() {
         <div className="space-y-6">
             {/* Header */}
             <PageHeader
-                title="Organizations"
-                description="Manage organizations and their billing settings."
+                title={t("dashboard.organizations.title")}
+                description={t("dashboard.organizations.description")}
                 action={
                     <Button
                         className="gap-2"
@@ -325,7 +329,7 @@ export default function OrganizationsPage() {
                         data-testid="create-org-button"
                     >
                         <Plus className="w-4 h-4" />
-                        New Organization
+                        {t("dashboard.organizations.action.new")}
                     </Button>
                 }
             />
@@ -340,14 +344,14 @@ export default function OrganizationsPage() {
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search organizations..."
+                        placeholder={t("dashboard.organizations.search.placeholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-9"
                         data-testid="search-input"
                     />
                 </div>
-                <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+                <Button variant="ghost" size="icon" onClick={refresh} title={t("common.refresh")}>
                     <RefreshCw className="w-4 h-4" />
                 </Button>
             </motion.div>
@@ -373,17 +377,21 @@ export default function OrganizationsPage() {
                     <Card className="glass-card">
                         <EmptyState
                             icon={<Building2 className="w-12 h-12" />}
-                            title={searchQuery ? `No organizations matching "${searchQuery}"` : "No organizations yet"}
+                            title={
+                                searchQuery
+                                    ? t("dashboard.organizations.empty.noMatch", { query: searchQuery })
+                                    : t("dashboard.organizations.empty.none")
+                            }
                             description={
                                 searchQuery
-                                    ? "Try adjusting your search query"
-                                    : "Create your first organization to get started"
+                                    ? t("dashboard.organizations.empty.tryAdjust")
+                                    : t("dashboard.organizations.empty.createFirst")
                             }
                             action={
                                 !searchQuery && (
                                     <Button onClick={() => setCreateDialogOpen(true)}>
                                         <Plus className="w-4 h-4 mr-2" />
-                                        New Organization
+                                        {t("dashboard.organizations.action.new")}
                                     </Button>
                                 )
                             }
@@ -411,7 +419,11 @@ export default function OrganizationsPage() {
             {/* Pagination Info */}
             {!isLoading && filteredOrgs.length > 0 && (
                 <div className="text-sm text-muted-foreground">
-                    Showing {filteredOrgs.length} of {total} organization{total !== 1 ? "s" : ""}
+                    {t("pagination.showingCountOfTotal", {
+                        count: filteredOrgs.length,
+                        total,
+                        item: t("dashboard.organizations.title"),
+                    })}
                 </div>
             )}
 

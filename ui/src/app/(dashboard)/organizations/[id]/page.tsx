@@ -47,6 +47,7 @@ import { apiClient } from "@/lib/api";
 import { StatusBadge, BudgetProgress, EmptyState, ErrorState, RoleBadge } from "@/components/shared/common";
 import { Skeleton, CardSkeleton, TableRowSkeleton } from "@/components/ui/skeleton";
 import type { Organization, CreateOrganizationRequest, OrganizationMembership } from "@/types/api";
+import { useI18n } from "@/i18n/locale-provider";
 
 // Organization Detail Header
 function OrgDetailHeader({
@@ -56,6 +57,7 @@ function OrgDetailHeader({
     org: Organization;
     onEdit: () => void;
 }) {
+    const { t } = useI18n();
     return (
         <div className="flex items-start justify-between">
             <div className="flex items-center gap-4">
@@ -74,7 +76,7 @@ function OrgDetailHeader({
                         </h1>
                         <Badge variant="success" className="gap-1">
                             <Shield className="w-3 h-3" />
-                            Active
+                            {t("dashboard.organizationDetail.badge.active")}
                         </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground font-mono">{org.organization_id}</p>
@@ -82,7 +84,7 @@ function OrgDetailHeader({
             </div>
             <Button onClick={onEdit} className="gap-2">
                 <Edit className="w-4 h-4" />
-                Edit
+                {t("dashboard.organizationDetail.action.edit")}
             </Button>
         </div>
     );
@@ -90,33 +92,38 @@ function OrgDetailHeader({
 
 // Stats Cards
 function OrgStatsCards({ org, memberCount, teamCount }: { org: Organization; memberCount: number; teamCount: number }) {
+    const { t } = useI18n();
     const stats = [
         {
-            label: "Teams",
+            label: t("dashboard.organizationDetail.stats.teams"),
             value: teamCount,
             icon: Users,
             color: "text-blue-400",
             bgColor: "bg-blue-500/10",
         },
         {
-            label: "Members",
+            label: t("dashboard.organizationDetail.stats.members"),
             value: memberCount,
             icon: Users,
             color: "text-green-400",
             bgColor: "bg-green-500/10",
         },
         {
-            label: "Budget Used",
+            label: t("dashboard.organizationDetail.stats.budgetUsed"),
             value: `$${org.spend.toFixed(2)}`,
-            subtitle: org.max_budget ? `of $${org.max_budget.toFixed(2)}` : "No limit",
+            subtitle: org.max_budget
+                ? t("dashboard.organizationDetail.stats.ofBudget", { amount: org.max_budget.toFixed(2) })
+                : t("dashboard.organizationDetail.stats.noLimit"),
             icon: DollarSign,
             color: "text-yellow-400",
             bgColor: "bg-yellow-500/10",
         },
         {
-            label: "Models",
-            value: org.models?.length || "All",
-            subtitle: org.models?.length ? `${org.models.slice(0, 2).join(", ")}...` : "All models allowed",
+            label: t("dashboard.organizationDetail.stats.models"),
+            value: org.models?.length || t("dashboard.organizationDetail.stats.modelsAll"),
+            subtitle: org.models?.length
+                ? `${org.models.slice(0, 2).join(", ")}...`
+                : t("dashboard.organizationDetail.stats.modelsAllAllowed"),
             icon: Key,
             color: "text-purple-400",
             bgColor: "bg-purple-500/10",
@@ -155,12 +162,13 @@ function OrgStatsCards({ org, memberCount, teamCount }: { org: Organization; mem
 // Teams Section
 function TeamsSection({ organizationId }: { organizationId: string }) {
     const { teams, isLoading } = useTeams({ organizationId });
+    const { t } = useI18n();
 
     if (isLoading) {
         return (
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle className="text-lg">Teams</CardTitle>
+                    <CardTitle className="text-lg">{t("dashboard.organizationDetail.teams.title")}</CardTitle>
                 </CardHeader>
                 <CardContent>
                     <div className="space-y-3">
@@ -177,19 +185,19 @@ function TeamsSection({ organizationId }: { organizationId: string }) {
         return (
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle className="text-lg">Teams</CardTitle>
-                    <CardDescription>Teams in this organization</CardDescription>
+                    <CardTitle className="text-lg">{t("dashboard.organizationDetail.teams.title")}</CardTitle>
+                    <CardDescription>{t("dashboard.organizationDetail.teams.subtitle")}</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <EmptyState
                         icon={<Users className="w-12 h-12" />}
-                        title="No teams"
-                        description="This organization has no teams yet"
+                        title={t("dashboard.organizationDetail.teams.empty.title")}
+                        description={t("dashboard.organizationDetail.teams.empty.desc")}
                         action={
                             <Link href="/teams">
                                 <Button variant="outline" size="sm">
                                     <Plus className="w-4 h-4 mr-2" />
-                                    Create Team
+                                    {t("dashboard.organizationDetail.teams.empty.action")}
                                 </Button>
                             </Link>
                         }
@@ -204,11 +212,16 @@ function TeamsSection({ organizationId }: { organizationId: string }) {
         <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between py-4">
                 <div>
-                    <CardTitle className="text-lg">Teams</CardTitle>
-                    <CardDescription>{teams.length} team{teams.length !== 1 ? "s" : ""}</CardDescription>
+                    <CardTitle className="text-lg">{t("dashboard.organizationDetail.teams.title")}</CardTitle>
+                    <CardDescription>
+                        {t("dashboard.organizationDetail.teams.count", {
+                            count: teams.length,
+                            item: t("dashboard.organizationDetail.stats.teams"),
+                        })}
+                    </CardDescription>
                 </div>
                 <Link href="/teams">
-                    <Button variant="outline" size="sm">View All</Button>
+                    <Button variant="outline" size="sm">{t("common.viewAll")}</Button>
                 </Link>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -229,7 +242,7 @@ function TeamsSection({ organizationId }: { organizationId: string }) {
                                         <div>
                                             <div className="font-medium">{team.team_alias || team.team_id}</div>
                                             <div className="text-xs text-muted-foreground">
-                                                {team.members?.length || 0} members • ${team.spend.toFixed(2)} spent
+                                                {t("dashboard.organizationDetail.stats.members")}: {team.members?.length || 0} • ${team.spend.toFixed(2)}
                                             </div>
                                         </div>
                                     </div>
@@ -262,6 +275,7 @@ function AddMemberDialog({
     const [error, setError] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState("");
     const { users, isLoading } = useUsers({});
+    const { t } = useI18n();
 
     // Filter out existing members
     const availableUsers = users.filter(
@@ -273,7 +287,7 @@ function AddMemberDialog({
 
     const handleAdd = async () => {
         if (!selectedUserId) {
-            setError("Please select a user");
+            setError(t("dashboard.organizationDetail.dialog.addMember.validation.selectUser"));
             return;
         }
 
@@ -284,7 +298,7 @@ function AddMemberDialog({
             await onAdd(selectedUserId, role);
             handleClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to add member");
+            setError(err instanceof Error ? err.message : t("dashboard.organizationDetail.dialog.addMember.error.addFailed"));
         } finally {
             setIsAdding(false);
         }
@@ -302,17 +316,17 @@ function AddMemberDialog({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-lg">
                 <DialogHeader>
-                    <DialogTitle>Add Organization Member</DialogTitle>
+                    <DialogTitle>{t("dashboard.organizationDetail.dialog.addMember.title")}</DialogTitle>
                     <DialogDescription>
-                        Select a user to add to this organization.
+                        {t("dashboard.organizationDetail.dialog.addMember.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label>Search Users</Label>
+                        <Label>{t("dashboard.organizationDetail.dialog.addMember.searchLabel")}</Label>
                         <Input
-                            placeholder="Search by name, email, or ID..."
+                            placeholder={t("dashboard.organizationDetail.dialog.addMember.searchPlaceholder")}
                             value={searchQuery}
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
@@ -320,10 +334,10 @@ function AddMemberDialog({
 
                     <div className="max-h-48 overflow-y-auto border rounded-lg divide-y">
                         {isLoading ? (
-                            <div className="p-4 text-center text-muted-foreground">Loading users...</div>
+                            <div className="p-4 text-center text-muted-foreground">{t("dashboard.organizationDetail.dialog.addMember.loading")}</div>
                         ) : availableUsers.length === 0 ? (
                             <div className="p-4 text-center text-muted-foreground">
-                                {searchQuery ? "No matching users found" : "No available users"}
+                                {searchQuery ? t("dashboard.organizationDetail.dialog.addMember.noMatch") : t("dashboard.organizationDetail.dialog.addMember.none")}
                             </div>
                         ) : (
                             availableUsers.map((user) => (
@@ -353,7 +367,7 @@ function AddMemberDialog({
                     </div>
 
                     <div className="space-y-2">
-                        <Label>Role</Label>
+                        <Label>{t("dashboard.organizationDetail.dialog.addMember.role")}</Label>
                         <div className="flex gap-2">
                             <Button
                                 type="button"
@@ -361,7 +375,7 @@ function AddMemberDialog({
                                 size="sm"
                                 onClick={() => setRole("member")}
                             >
-                                Member
+                                {t("dashboard.organizationDetail.dialog.addMember.role.member")}
                             </Button>
                             <Button
                                 type="button"
@@ -369,7 +383,7 @@ function AddMemberDialog({
                                 size="sm"
                                 onClick={() => setRole("org_admin")}
                             >
-                                Admin
+                                {t("dashboard.organizationDetail.dialog.addMember.role.admin")}
                             </Button>
                         </div>
                     </div>
@@ -384,16 +398,16 @@ function AddMemberDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={handleClose}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button onClick={handleAdd} disabled={isAdding || !selectedUserId}>
                         {isAdding ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Adding...
+                                {t("dashboard.organizationDetail.dialog.addMember.submit.adding")}
                             </>
                         ) : (
-                            "Add Member"
+                            t("dashboard.organizationDetail.dialog.addMember.submit.add")
                         )}
                     </Button>
                 </DialogFooter>
@@ -416,20 +430,21 @@ function MembersSection({
 }) {
     const { users } = useUsers({});
     const userMap = new Map(users.map((u) => [u.user_id, u]));
+    const { t } = useI18n();
 
     if (isLoading) {
         return (
             <Card className="glass-card">
                 <CardHeader>
-                    <CardTitle className="text-lg">Members</CardTitle>
+                    <CardTitle className="text-lg">{t("dashboard.organizationDetail.members.title")}</CardTitle>
                 </CardHeader>
                 <CardContent className="p-0">
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                                <TableHead>User</TableHead>
-                                <TableHead>Role</TableHead>
-                                <TableHead>Spend</TableHead>
+                                <TableHead>{t("dashboard.organizationDetail.members.table.user")}</TableHead>
+                                <TableHead>{t("dashboard.organizationDetail.members.table.role")}</TableHead>
+                                <TableHead>{t("dashboard.organizationDetail.members.table.spend")}</TableHead>
                                 <TableHead className="w-16"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -448,24 +463,29 @@ function MembersSection({
         <Card className="glass-card">
             <CardHeader className="flex flex-row items-center justify-between py-4">
                 <div>
-                    <CardTitle className="text-lg">Members</CardTitle>
-                    <CardDescription>{members.length} member{members.length !== 1 ? "s" : ""}</CardDescription>
+                    <CardTitle className="text-lg">{t("dashboard.organizationDetail.members.title")}</CardTitle>
+                    <CardDescription>
+                        {t("dashboard.organizationDetail.teams.count", {
+                            count: members.length,
+                            item: t("dashboard.organizationDetail.stats.members"),
+                        })}
+                    </CardDescription>
                 </div>
                 <Button onClick={onAddMember} size="sm" className="gap-2">
                     <UserPlus className="w-4 h-4" />
-                    Add Member
+                    {t("dashboard.organizationDetail.members.action.add")}
                 </Button>
             </CardHeader>
             <CardContent className="p-0">
                 {members.length === 0 ? (
                     <EmptyState
                         icon={<Users className="w-12 h-12" />}
-                        title="No members yet"
-                        description="Add users to this organization"
+                        title={t("dashboard.organizationDetail.members.empty.title")}
+                        description={t("dashboard.organizationDetail.members.empty.desc")}
                         action={
                             <Button onClick={onAddMember} variant="outline" size="sm">
                                 <Plus className="w-4 h-4 mr-2" />
-                                Add First Member
+                                {t("dashboard.organizationDetail.members.empty.action")}
                             </Button>
                         }
                         className="py-8"
@@ -474,10 +494,10 @@ function MembersSection({
                     <Table>
                         <TableHeader>
                             <TableRow className="hover:bg-transparent">
-                                <TableHead className="text-xs uppercase text-muted-foreground">User</TableHead>
-                                <TableHead className="text-xs uppercase text-muted-foreground">Role</TableHead>
-                                <TableHead className="text-xs uppercase text-muted-foreground">Spend</TableHead>
-                                <TableHead className="text-xs uppercase text-muted-foreground">Joined</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.organizationDetail.members.table.user")}</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.organizationDetail.members.table.role")}</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.organizationDetail.members.table.spend")}</TableHead>
+                                <TableHead className="text-xs uppercase text-muted-foreground">{t("dashboard.organizationDetail.members.table.joined")}</TableHead>
                                 <TableHead className="w-16"></TableHead>
                             </TableRow>
                         </TableHeader>
@@ -520,7 +540,7 @@ function MembersSection({
                                             <TableCell className="text-muted-foreground text-sm">
                                                 {member.joined_at
                                                     ? new Date(member.joined_at).toLocaleDateString()
-                                                    : "—"}
+                                                    : t("dashboard.organizationDetail.members.table.joinedEmpty")}
                                             </TableCell>
                                             <TableCell>
                                                 <Button
@@ -546,28 +566,29 @@ function MembersSection({
 
 // Settings Section
 function SettingsSection({ org }: { org: Organization }) {
+    const { t } = useI18n();
     return (
         <Card className="glass-card">
             <CardHeader>
-                <CardTitle className="text-lg">Organization Settings</CardTitle>
-                <CardDescription>Configuration and limits</CardDescription>
+                <CardTitle className="text-lg">{t("dashboard.organizationDetail.settings.title")}</CardTitle>
+                <CardDescription>{t("dashboard.organizationDetail.settings.subtitle")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
                 {/* Budget Settings */}
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <DollarSign className="w-4 h-4 text-green-400" />
-                        Budget Configuration
+                        {t("dashboard.organizationDetail.settings.budget.title")}
                     </h4>
                     <div className="grid grid-cols-2 gap-4">
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Max Budget</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.organizationDetail.settings.budget.max")}</div>
                             <div className="text-lg font-semibold">
-                                {org.max_budget ? `$${org.max_budget.toFixed(2)}` : "Unlimited"}
+                                {org.max_budget ? `$${org.max_budget.toFixed(2)}` : t("budget.noLimit")}
                             </div>
                         </div>
                         <div className="p-4 rounded-lg bg-secondary/50">
-                            <div className="text-sm text-muted-foreground">Current Spend</div>
+                            <div className="text-sm text-muted-foreground">{t("dashboard.organizationDetail.settings.budget.current")}</div>
                             <div className="text-lg font-semibold">${org.spend.toFixed(2)}</div>
                         </div>
                     </div>
@@ -580,7 +601,7 @@ function SettingsSection({ org }: { org: Organization }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Key className="w-4 h-4 text-purple-400" />
-                        Allowed Models
+                        {t("dashboard.organizationDetail.settings.models.title")}
                     </h4>
                     <div className="flex flex-wrap gap-2">
                         {org.models && org.models.length > 0 ? (
@@ -590,7 +611,7 @@ function SettingsSection({ org }: { org: Organization }) {
                                 </Badge>
                             ))
                         ) : (
-                            <span className="text-muted-foreground text-sm">All models allowed</span>
+                            <span className="text-muted-foreground text-sm">{t("dashboard.organizationDetail.settings.models.allAllowed")}</span>
                         )}
                     </div>
                 </div>
@@ -598,7 +619,7 @@ function SettingsSection({ org }: { org: Organization }) {
                 {/* Model Spend */}
                 {org.model_spend && Object.keys(org.model_spend).length > 0 && (
                     <div className="space-y-3">
-                        <h4 className="text-sm font-medium">Spend by Model</h4>
+                        <h4 className="text-sm font-medium">{t("dashboard.organizationDetail.settings.spendByModel")}</h4>
                         <div className="space-y-2">
                             {Object.entries(org.model_spend).map(([model, spend]) => (
                                 <div key={model} className="flex items-center justify-between p-3 rounded-lg bg-secondary/50">
@@ -614,15 +635,15 @@ function SettingsSection({ org }: { org: Organization }) {
                 <div className="space-y-3">
                     <h4 className="text-sm font-medium flex items-center gap-2">
                         <Clock className="w-4 h-4 text-blue-400" />
-                        Metadata
+                        {t("dashboard.organizationDetail.settings.meta.title")}
                     </h4>
                     <div className="grid grid-cols-2 gap-4 text-sm">
                         <div>
-                            <span className="text-muted-foreground">Created:</span>
+                            <span className="text-muted-foreground">{t("dashboard.organizationDetail.settings.meta.created")}</span>
                             <span className="ml-2">{new Date(org.created_at).toLocaleDateString()}</span>
                         </div>
                         <div>
-                            <span className="text-muted-foreground">Updated:</span>
+                            <span className="text-muted-foreground">{t("dashboard.organizationDetail.settings.meta.updated")}</span>
                             <span className="ml-2">{new Date(org.updated_at).toLocaleDateString()}</span>
                         </div>
                     </div>
@@ -644,6 +665,7 @@ function EditOrgDialog({
     org: Organization;
     onSave: (updates: Partial<CreateOrganizationRequest>) => Promise<void>;
 }) {
+    const { t } = useI18n();
     const [name, setName] = useState(org.organization_alias);
     const [maxBudget, setMaxBudget] = useState(org.max_budget?.toString() || "");
     const [isSaving, setIsSaving] = useState(false);
@@ -651,7 +673,7 @@ function EditOrgDialog({
 
     const handleSave = async () => {
         if (!name.trim()) {
-            setError("Organization name is required");
+            setError(t("dashboard.organizations.form.name.required"));
             return;
         }
 
@@ -665,7 +687,7 @@ function EditOrgDialog({
             });
             onOpenChange(false);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update organization");
+            setError(err instanceof Error ? err.message : t("dashboard.organizationDetail.dialog.edit.error.updateFailed"));
         } finally {
             setIsSaving(false);
         }
@@ -675,25 +697,25 @@ function EditOrgDialog({
         <Dialog open={open} onOpenChange={onOpenChange}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Edit Organization</DialogTitle>
+                    <DialogTitle>{t("dashboard.organizationDetail.dialog.edit.title")}</DialogTitle>
                     <DialogDescription>
-                        Update organization settings.
+                        {t("dashboard.organizationDetail.dialog.edit.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Organization Name</Label>
+                        <Label htmlFor="name">{t("dashboard.organizations.form.name.label")}</Label>
                         <Input
                             id="name"
                             value={name}
                             onChange={(e) => setName(e.target.value)}
-                            placeholder="e.g., Acme Corp"
+                            placeholder={t("dashboard.organizations.form.name.placeholder")}
                         />
                     </div>
 
                     <div className="space-y-2">
-                        <Label htmlFor="budget">Max Budget</Label>
+                        <Label htmlFor="budget">{t("dashboard.organizationDetail.settings.budget.max")}</Label>
                         <div className="relative">
                             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                             <Input
@@ -701,7 +723,7 @@ function EditOrgDialog({
                                 type="number"
                                 value={maxBudget}
                                 onChange={(e) => setMaxBudget(e.target.value)}
-                                placeholder="10000"
+                                placeholder={t("dashboard.organizations.form.maxBudget.placeholder")}
                                 className="pl-7"
                             />
                         </div>
@@ -717,16 +739,16 @@ function EditOrgDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={() => onOpenChange(false)}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button onClick={handleSave} disabled={isSaving}>
                         {isSaving ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Saving...
+                                {t("dashboard.organizationDetail.dialog.edit.submit.saving")}
                             </>
                         ) : (
-                            "Save Changes"
+                            t("dashboard.organizationDetail.dialog.edit.submit.save")
                         )}
                     </Button>
                 </DialogFooter>
@@ -769,6 +791,7 @@ function OrgDetailSkeleton() {
 
 // Main Component
 export default function OrganizationDetailPage() {
+    const { t } = useI18n();
     const params = useParams();
     const orgId = params.id as string;
 
@@ -805,7 +828,7 @@ export default function OrganizationDetailPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     </Link>
-                    <h1 className="text-2xl font-bold">Organization Details</h1>
+                    <h1 className="text-2xl font-bold">{t("dashboard.organizationDetail.error.title")}</h1>
                 </div>
                 <ErrorState message={error.message} onRetry={refresh} />
             </div>
@@ -821,15 +844,15 @@ export default function OrganizationDetailPage() {
                             <ArrowLeft className="w-5 h-5" />
                         </Button>
                     </Link>
-                    <h1 className="text-2xl font-bold">Organization Not Found</h1>
+                    <h1 className="text-2xl font-bold">{t("dashboard.organizationDetail.notFound.title")}</h1>
                 </div>
                 <EmptyState
                     icon={<Building2 className="w-12 h-12" />}
-                    title="Organization not found"
-                    description="The organization you're looking for doesn't exist or has been deleted."
+                    title={t("dashboard.organizationDetail.notFound.emptyTitle")}
+                    description={t("dashboard.organizationDetail.notFound.emptyDesc")}
                     action={
                         <Link href="/organizations">
-                            <Button>Back to Organizations</Button>
+                            <Button>{t("dashboard.organizationDetail.notFound.action.back")}</Button>
                         </Link>
                     }
                 />
@@ -861,15 +884,15 @@ export default function OrganizationDetailPage() {
                 <TabsList className="w-full md:w-auto">
                     <TabsTrigger value="teams" className="gap-2">
                         <Users className="w-4 h-4" />
-                        Teams
+                        {t("dashboard.organizationDetail.teams.title")}
                     </TabsTrigger>
                     <TabsTrigger value="members" className="gap-2">
                         <Users className="w-4 h-4" />
-                        Members
+                        {t("dashboard.organizationDetail.members.title")}
                     </TabsTrigger>
                     <TabsTrigger value="settings" className="gap-2">
                         <Settings className="w-4 h-4" />
-                        Settings
+                        {t("nav.settings")}
                     </TabsTrigger>
                 </TabsList>
 

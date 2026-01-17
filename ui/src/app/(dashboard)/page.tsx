@@ -21,6 +21,7 @@ import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { useModelSpend } from "@/hooks/use-model-spend";
 import { useState, useMemo } from "react";
 import { ClientOnly } from "@/components/client-only";
+import { useI18n } from "@/i18n/locale-provider";
 
 const AreaChart = dynamic(
   () => import("@tremor/react").then((mod) => mod.AreaChart),
@@ -114,6 +115,7 @@ function ChartSkeleton({ className = "" }: { className?: string }) {
 
 // Error component
 function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => void }) {
+  const { t } = useI18n();
   return (
     <div
       data-testid="error-message"
@@ -122,20 +124,21 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => vo
       <div className="w-12 h-12 rounded-full bg-red-500/10 flex items-center justify-center mb-4">
         <Activity className="w-6 h-6 text-red-400" />
       </div>
-      <p className="text-muted-foreground mb-4">Failed to load dashboard data</p>
+      <p className="text-muted-foreground mb-4">{t("dashboard.overview.error.loadFailed")}</p>
       <p className="text-sm text-muted-foreground mb-4">{message}</p>
       <button
         onClick={onRetry}
         className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition-colors"
       >
         <RefreshCw className="w-4 h-4" />
-        Retry
+        {t("common.retry")}
       </button>
     </div>
   );
 }
 
 export default function DashboardPage() {
+  const { t } = useI18n();
   const [dateRange, setDateRange] = useState<DateRange>("30d");
 
   // Use useMemo for stable date calculation (P3 fix: makes render function pure)
@@ -166,7 +169,7 @@ export default function DashboardPage() {
   // Build stats array from API data
   const stats = [
     {
-      name: "Total Requests",
+      name: t("dashboard.overview.stats.totalRequests"),
       value: formatNumber(totalRequests),
       testId: "requests",
       icon: Activity,
@@ -174,7 +177,7 @@ export default function DashboardPage() {
       bgColor: "bg-blue-500/10",
     },
     {
-      name: "Total Tokens",
+      name: t("dashboard.overview.stats.totalTokens"),
       value: formatNumber(totalTokens),
       testId: "tokens",
       icon: Zap,
@@ -182,7 +185,7 @@ export default function DashboardPage() {
       bgColor: "bg-purple-500/10",
     },
     {
-      name: "Total Cost",
+      name: t("dashboard.overview.stats.totalCost"),
       value: formatCurrency(totalCost),
       testId: "cost",
       icon: DollarSign,
@@ -190,7 +193,7 @@ export default function DashboardPage() {
       bgColor: "bg-orange-500/10",
     },
     {
-      name: "Avg Latency",
+      name: t("dashboard.overview.stats.avgLatency"),
       value: formatLatency(avgLatency),
       testId: "latency",
       icon: Zap,
@@ -198,7 +201,7 @@ export default function DashboardPage() {
       bgColor: "bg-green-500/10",
     },
     {
-      name: "Success Rate",
+      name: t("dashboard.overview.stats.successRate"),
       value: formatPercentage(successRate),
       testId: "success-rate",
       icon: CheckCircle,
@@ -207,12 +210,19 @@ export default function DashboardPage() {
     },
   ];
 
-  // Transform daily data for chart
-  const chartData = dailyData.map((d) => ({
-    date: d.date,
-    Requests: d.api_requests,
-    Tokens: d.total_tokens,
-  }));
+  const requestsLabel = t("dashboard.overview.chart.legend.requests");
+  const tokensLabel = t("dashboard.overview.chart.legend.tokens");
+
+  // Transform daily data for chart (localize legend labels)
+  const chartData = useMemo(
+    () =>
+      dailyData.map((d) => ({
+        date: d.date,
+        [requestsLabel]: d.api_requests,
+        [tokensLabel]: d.total_tokens,
+      })),
+    [dailyData, requestsLabel, tokensLabel]
+  );
 
   // Transform model data for donut chart
   const modelChartData = models.map((m) => ({
@@ -241,9 +251,9 @@ export default function DashboardPage() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
         >
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Overview</h1>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">{t("dashboard.overview.title")}</h1>
           <p className="text-muted-foreground">
-            Welcome back! Here&apos;s what&apos;s happening with your LLM gateway.
+            {t("dashboard.overview.subtitle")}
           </p>
         </motion.div>
         <ErrorMessage
@@ -267,9 +277,9 @@ export default function DashboardPage() {
         className="flex items-center justify-between"
       >
         <div>
-          <h1 className="text-4xl font-bold tracking-tight mb-2">Overview</h1>
+          <h1 className="text-4xl font-bold tracking-tight mb-2">{t("dashboard.overview.title")}</h1>
           <p className="text-muted-foreground">
-            Welcome back! Here&apos;s what&apos;s happening with your LLM gateway.
+            {t("dashboard.overview.subtitle")}
           </p>
         </div>
 
@@ -288,7 +298,11 @@ export default function DashboardPage() {
                 : "text-muted-foreground hover:text-foreground"
                 }`}
             >
-              {range === "7d" ? "7 Days" : range === "30d" ? "30 Days" : "90 Days"}
+              {range === "7d"
+                ? t("dashboard.overview.range.7d")
+                : range === "30d"
+                  ? t("dashboard.overview.range.30d")
+                  : t("dashboard.overview.range.90d")}
             </button>
           ))}
         </div>
@@ -356,8 +370,8 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} className="lg:col-span-2">
           <Card className="glass-card h-full" data-testid="chart-request-volume">
             <CardHeader>
-              <CardTitle className="text-xl">Request Volume</CardTitle>
-              <CardDescription>Daily requests and token usage</CardDescription>
+              <CardTitle className="text-xl">{t("dashboard.overview.charts.requestVolume.title")}</CardTitle>
+              <CardDescription>{t("dashboard.overview.charts.requestVolume.desc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -368,7 +382,7 @@ export default function DashboardPage() {
                     className="h-80"
                     data={chartData}
                     index="date"
-                    categories={["Requests", "Tokens"]}
+                    categories={[requestsLabel, tokensLabel]}
                     colors={["blue", "purple"]}
                     showLegend={true}
                     showGridLines={false}
@@ -380,7 +394,7 @@ export default function DashboardPage() {
                 </ClientOnly>
               ) : (
                 <div className="h-80 flex items-center justify-center text-muted-foreground">
-                  No data available for the selected period
+                  {t("dashboard.overview.charts.requestVolume.empty")}
                 </div>
               )}
             </CardContent>
@@ -391,8 +405,8 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants}>
           <Card className="glass-card h-full" data-testid="chart-model-distribution">
             <CardHeader>
-              <CardTitle className="text-xl">Model Distribution</CardTitle>
-              <CardDescription>Usage by model provider</CardDescription>
+              <CardTitle className="text-xl">{t("dashboard.overview.charts.modelDistribution.title")}</CardTitle>
+              <CardDescription>{t("dashboard.overview.charts.modelDistribution.desc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -434,7 +448,7 @@ export default function DashboardPage() {
                 </>
               ) : (
                 <div className="h-48 flex items-center justify-center text-muted-foreground">
-                  No model data available
+                  {t("dashboard.overview.charts.modelDistribution.empty")}
                 </div>
               )}
             </CardContent>
@@ -445,8 +459,8 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants} className="lg:col-span-2">
           <Card className="glass-card h-full">
             <CardHeader>
-              <CardTitle className="text-xl">Top Models by Spend</CardTitle>
-              <CardDescription>Highest spending models this period</CardDescription>
+              <CardTitle className="text-xl">{t("dashboard.overview.topModels.title")}</CardTitle>
+              <CardDescription>{t("dashboard.overview.topModels.desc")}</CardDescription>
             </CardHeader>
             <CardContent>
               {isLoading ? (
@@ -495,7 +509,7 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="h-48 flex items-center justify-center text-muted-foreground">
-                  No model data available
+                  {t("dashboard.overview.charts.modelDistribution.empty")}
                 </div>
               )}
             </CardContent>
@@ -506,8 +520,8 @@ export default function DashboardPage() {
         <motion.div variants={itemVariants}>
           <Card className="glass-card h-full">
             <CardHeader>
-              <CardTitle className="text-xl">Quick Stats</CardTitle>
-              <CardDescription>Key performance indicators</CardDescription>
+              <CardTitle className="text-xl">{t("dashboard.overview.quickStats.title")}</CardTitle>
+              <CardDescription>{t("dashboard.overview.quickStats.desc")}</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -516,7 +530,7 @@ export default function DashboardPage() {
                     <Activity className="w-5 h-5 text-blue-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Active Models</p>
+                    <p className="text-sm font-medium">{t("dashboard.overview.quickStats.activeModels")}</p>
                     <p className="text-2xl font-bold">{models.length}</p>
                   </div>
                 </div>
@@ -526,7 +540,7 @@ export default function DashboardPage() {
                     <CheckCircle className="w-5 h-5 text-green-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Success Rate</p>
+                    <p className="text-sm font-medium">{t("dashboard.overview.stats.successRate")}</p>
                     <p className="text-2xl font-bold">{formatPercentage(successRate)}</p>
                   </div>
                 </div>
@@ -536,7 +550,7 @@ export default function DashboardPage() {
                     <Users className="w-5 h-5 text-purple-400" />
                   </div>
                   <div>
-                    <p className="text-sm font-medium">Avg Daily Requests</p>
+                    <p className="text-sm font-medium">{t("dashboard.overview.quickStats.avgDailyRequests")}</p>
                     <p className="text-2xl font-bold">
                       {dailyData.length > 0
                         ? formatNumber(

@@ -40,6 +40,7 @@ import { useApiKeys } from "@/hooks/use-api-keys";
 import type { APIKey, GenerateKeyRequest } from "@/types/api";
 import { ApiKeySheet } from "@/components/api-keys/api-key-sheet";
 import { StatusBadge, BudgetProgress } from "@/components/shared/common";
+import { useI18n } from "@/i18n/locale-provider";
 
 // Skeleton component for loading state
 function KeyRowSkeleton() {
@@ -83,6 +84,7 @@ function KeyRow({
 }) {
     const [showMenu, setShowMenu] = useState(false);
     const [copied, setCopied] = useState(false);
+    const { t } = useI18n();
 
     const copyPrefix = async (e: React.MouseEvent) => {
         e.stopPropagation();
@@ -97,10 +99,10 @@ function KeyRow({
         const diffMs = now.getTime() - date.getTime();
         const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
 
-        if (diffDays === 0) return "Today";
-        if (diffDays === 1) return "Yesterday";
-        if (diffDays < 7) return `${diffDays} days ago`;
-        if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`;
+        if (diffDays === 0) return t("time.today");
+        if (diffDays === 1) return t("time.yesterday");
+        if (diffDays < 7) return t("time.daysAgo", { days: diffDays });
+        if (diffDays < 30) return t("time.weeksAgo", { weeks: Math.floor(diffDays / 7) });
         return date.toLocaleDateString();
     };
 
@@ -143,11 +145,11 @@ function KeyRow({
                             )}
                         </button>
                         <span className="text-xs text-muted-foreground">
-                            Created {formatDate(apiKey.created_at)}
+                            {t("time.created", { time: formatDate(apiKey.created_at) })}
                         </span>
                         {apiKey.last_used_at && (
                             <span className="text-xs text-muted-foreground">
-                                Last used {formatDate(apiKey.last_used_at)}
+                                {t("time.lastUsed", { time: formatDate(apiKey.last_used_at) })}
                             </span>
                         )}
                     </div>
@@ -189,7 +191,7 @@ function KeyRow({
                                             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-green-400"
                                         >
                                             <Shield className="w-4 h-4" />
-                                            Unblock Key
+                                            {t("dashboard.apiKeys.menu.unblock")}
                                         </button>
                                     ) : (
                                         <button
@@ -200,7 +202,7 @@ function KeyRow({
                                             className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-yellow-400"
                                         >
                                             <ShieldOff className="w-4 h-4" />
-                                            Block Key
+                                            {t("dashboard.apiKeys.menu.block")}
                                         </button>
                                     )}
                                     <button
@@ -211,7 +213,7 @@ function KeyRow({
                                         className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors"
                                     >
                                         <RefreshCw className="w-4 h-4" />
-                                        Regenerate Key
+                                        {t("dashboard.apiKeys.menu.regenerate")}
                                     </button>
                                     <div className="my-1 border-t border-border" />
                                     <button
@@ -222,7 +224,7 @@ function KeyRow({
                                         className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-red-400"
                                     >
                                         <Trash2 className="w-4 h-4" />
-                                        Delete Key
+                                        {t("dashboard.apiKeys.menu.delete")}
                                     </button>
                                 </motion.div>
                             </>
@@ -250,10 +252,11 @@ function CreateKeyDialog({
     const [createdKey, setCreatedKey] = useState<string | null>(null);
     const [copied, setCopied] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t } = useI18n();
 
     const handleCreate = async () => {
         if (!name.trim()) {
-            setError("Name is required");
+            setError(t("dashboard.apiKeys.form.validation.nameRequired"));
             return;
         }
 
@@ -267,7 +270,7 @@ function CreateKeyDialog({
             });
             setCreatedKey(result.key);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create key");
+            setError(err instanceof Error ? err.message : t("dashboard.apiKeys.form.error.createFailed"));
         } finally {
             setIsCreating(false);
         }
@@ -294,12 +297,12 @@ function CreateKeyDialog({
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
                     <DialogTitle>
-                        {createdKey ? "API Key Created!" : "Create New API Key"}
+                        {createdKey ? t("dashboard.apiKeys.dialog.created.title") : t("dashboard.apiKeys.dialog.create.title")}
                     </DialogTitle>
                     <DialogDescription>
                         {createdKey
-                            ? "Make sure to copy your API key now. You won't be able to see it again!"
-                            : "Create a new API key to access LLM models."}
+                            ? t("dashboard.apiKeys.dialog.created.description")
+                            : t("dashboard.apiKeys.dialog.create.description")}
                     </DialogDescription>
                 </DialogHeader>
 
@@ -322,24 +325,24 @@ function CreateKeyDialog({
                         <div className="flex items-start gap-2 p-3 bg-yellow-500/10 border border-yellow-500/20 rounded-lg">
                             <AlertCircle className="w-5 h-5 text-yellow-500 flex-shrink-0 mt-0.5" />
                             <p className="text-sm text-yellow-200">
-                                This is the only time you will see this key. Store it securely.
+                                {t("dashboard.apiKeys.dialog.created.warning")}
                             </p>
                         </div>
                     </div>
                 ) : (
                     <div className="space-y-4">
                         <div className="space-y-2">
-                            <Label htmlFor="name">Key Name</Label>
+                            <Label htmlFor="name">{t("dashboard.apiKeys.form.name.label")}</Label>
                             <Input
                                 id="name"
-                                placeholder="e.g., Production API Key"
+                                placeholder={t("dashboard.apiKeys.form.name.placeholder")}
                                 value={name}
                                 onChange={(e) => setName(e.target.value)}
                                 data-testid="key-name-input"
                             />
                         </div>
                         <div className="space-y-2">
-                            <Label htmlFor="budget">Max Budget (Optional)</Label>
+                            <Label htmlFor="budget">{t("dashboard.apiKeys.form.maxBudget.label")}</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                                     $
@@ -347,7 +350,7 @@ function CreateKeyDialog({
                                 <Input
                                     id="budget"
                                     type="number"
-                                    placeholder="100.00"
+                                    placeholder={t("dashboard.apiKeys.form.maxBudget.placeholder")}
                                     value={maxBudget}
                                     onChange={(e) => setMaxBudget(e.target.value)}
                                     className="pl-7"
@@ -355,7 +358,7 @@ function CreateKeyDialog({
                                 />
                             </div>
                             <p className="text-xs text-muted-foreground">
-                                Leave empty for unlimited budget
+                                {t("dashboard.apiKeys.form.maxBudget.hint")}
                             </p>
                         </div>
                         {error && (
@@ -370,12 +373,12 @@ function CreateKeyDialog({
                 <DialogFooter>
                     {createdKey ? (
                         <Button onClick={handleClose} className="w-full">
-                            Done
+                            {t("dashboard.apiKeys.form.submit.done")}
                         </Button>
                     ) : (
                         <>
                             <Button variant="ghost" onClick={handleClose}>
-                                Cancel
+                                {t("dashboard.apiKeys.form.submit.cancel")}
                             </Button>
                             <Button
                                 onClick={handleCreate}
@@ -385,10 +388,10 @@ function CreateKeyDialog({
                                 {isCreating ? (
                                     <>
                                         <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                        Creating...
+                                        {t("dashboard.apiKeys.form.submit.creating")}
                                     </>
                                 ) : (
-                                    "Create Key"
+                                    t("dashboard.apiKeys.form.submit.create")
                                 )}
                             </Button>
                         </>
@@ -400,6 +403,7 @@ function CreateKeyDialog({
 }
 
 export default function ApiKeysPage() {
+    const { t } = useI18n();
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
     const [selectedKeys, setSelectedKeys] = useState<Set<string>>(new Set());
@@ -457,14 +461,14 @@ export default function ApiKeysPage() {
     };
 
     const handleBatchBlock = async () => {
-        if (confirm(`Are you sure you want to block ${selectedKeys.size} keys?`)) {
+        if (confirm(t("dashboard.apiKeys.confirm.blockKeys", { count: selectedKeys.size }))) {
             await Promise.all(Array.from(selectedKeys).map((id) => blockKey(id)));
             setSelectedKeys(new Set());
         }
     };
 
     const handleBatchDelete = async () => {
-        if (confirm(`Are you sure you want to delete ${selectedKeys.size} keys? This cannot be undone.`)) {
+        if (confirm(t("dashboard.apiKeys.confirm.deleteKeys", { count: selectedKeys.size }))) {
             await Promise.all(Array.from(selectedKeys).map((id) => deleteKey(id)));
             setSelectedKeys(new Set());
         }
@@ -479,9 +483,9 @@ export default function ApiKeysPage() {
                 className="flex items-center justify-between"
             >
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">API Keys</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">{t("dashboard.apiKeys.title")}</h1>
                     <p className="text-muted-foreground">
-                        Manage your API keys for accessing LLM models.
+                        {t("dashboard.apiKeys.description")}
                     </p>
                 </div>
                 <Button
@@ -490,7 +494,7 @@ export default function ApiKeysPage() {
                     data-testid="create-key-button"
                 >
                     <Plus className="w-4 h-4" />
-                    Create New Key
+                    {t("dashboard.apiKeys.actions.createNew")}
                 </Button>
             </motion.div>
 
@@ -504,7 +508,7 @@ export default function ApiKeysPage() {
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search keys..."
+                        placeholder={t("dashboard.apiKeys.search.placeholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-9"
@@ -515,15 +519,15 @@ export default function ApiKeysPage() {
                     <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
                         <SelectTrigger className="w-32">
                             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-                            <SelectValue placeholder="Filter" />
+                            <SelectValue placeholder={t("dashboard.apiKeys.filter.placeholder")} />
                         </SelectTrigger>
                         <SelectContent>
-                            <SelectItem value="all">All Keys</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="blocked">Blocked</SelectItem>
+                            <SelectItem value="all">{t("dashboard.apiKeys.filter.all")}</SelectItem>
+                            <SelectItem value="active">{t("dashboard.apiKeys.filter.active")}</SelectItem>
+                            <SelectItem value="blocked">{t("dashboard.apiKeys.filter.blocked")}</SelectItem>
                         </SelectContent>
                     </Select>
-                    <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+                    <Button variant="ghost" size="icon" onClick={refresh} title={t("common.refresh")}>
                         <RefreshCw className="w-4 h-4" />
                     </Button>
                 </div>
@@ -539,7 +543,7 @@ export default function ApiKeysPage() {
                         className="flex items-center gap-4 p-2 bg-secondary/30 rounded-lg border border-border/50"
                     >
                         <span className="text-sm font-medium px-2">
-                            {selectedKeys.size} selected
+                            {t("dashboard.apiKeys.actions.batchSelected", { count: selectedKeys.size })}
                         </span>
                         <div className="h-4 w-px bg-border" />
                         <Button
@@ -549,7 +553,7 @@ export default function ApiKeysPage() {
                             className="text-yellow-400 hover:text-yellow-500"
                         >
                             <ShieldOff className="w-4 h-4 mr-2" />
-                            Block Selected
+                            {t("dashboard.apiKeys.actions.blockSelected")}
                         </Button>
                         <Button
                             variant="ghost"
@@ -558,7 +562,7 @@ export default function ApiKeysPage() {
                             className="text-red-400 hover:text-red-500"
                         >
                             <Trash2 className="w-4 h-4 mr-2" />
-                            Delete Selected
+                            {t("dashboard.apiKeys.actions.deleteSelected")}
                         </Button>
                     </motion.div>
                 )}
@@ -573,9 +577,9 @@ export default function ApiKeysPage() {
                     data-testid="error-message"
                 >
                     <AlertCircle className="w-5 h-5 text-red-400" />
-                    <p className="text-red-400">Failed to load API keys: {error.message}</p>
+                    <p className="text-red-400">{t("dashboard.apiKeys.error.loadFailed", { error: error.message })}</p>
                     <Button variant="ghost" size="sm" onClick={refresh} className="ml-auto">
-                        Retry
+                        {t("common.retry")}
                     </Button>
                 </motion.div>
             )}
@@ -594,7 +598,7 @@ export default function ApiKeysPage() {
                                 onCheckedChange={handleSelectAll}
                             />
                             <CardTitle>
-                                Active Keys{" "}
+                                {t("dashboard.apiKeys.list.title")}{" "}
                                 {!isLoading && (
                                     <span className="text-muted-foreground font-normal">({total})</span>
                                 )}
@@ -614,9 +618,9 @@ export default function ApiKeysPage() {
                                 data-testid="empty-state"
                             >
                                 {searchQuery ? (
-                                    <>No keys matching "{searchQuery}"</>
+                                    <>{t("dashboard.apiKeys.empty.noMatch", { query: searchQuery })}</>
                                 ) : (
-                                    <>No API keys found. Create one to get started.</>
+                                    <>{t("dashboard.apiKeys.empty.noKeys")}</>
                                 )}
                             </div>
                         ) : (

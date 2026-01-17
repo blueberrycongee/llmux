@@ -31,6 +31,7 @@ import {
 import { useTeams } from "@/hooks/use-teams";
 import type { Team, CreateTeamRequest } from "@/types/api";
 import Link from "next/link";
+import { useI18n } from "@/i18n/locale-provider";
 
 // Skeleton component for loading state
 function TeamCardSkeleton() {
@@ -58,11 +59,12 @@ function TeamCardSkeleton() {
 
 // Status badge component
 function StatusBadge({ isActive, blocked }: { isActive: boolean; blocked: boolean }) {
+    const { t } = useI18n();
     if (blocked) {
         return (
             <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-red-500/10 text-red-400">
                 <ShieldOff className="w-3 h-3" />
-                Blocked
+                {t("status.blocked")}
             </span>
         );
     }
@@ -70,25 +72,26 @@ function StatusBadge({ isActive, blocked }: { isActive: boolean; blocked: boolea
         return (
             <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-green-500/10 text-green-400">
                 <Shield className="w-3 h-3" />
-                Active
+                {t("status.active")}
             </span>
         );
     }
     return (
         <span className="inline-flex items-center gap-1 px-2 py-1 text-xs font-medium rounded-full bg-gray-500/10 text-gray-400">
-            Inactive
+            {t("status.inactive")}
         </span>
     );
 }
 
 // Budget progress component
 function BudgetProgress({ spent, max }: { spent: number; max?: number }) {
+    const { t } = useI18n();
     if (!max) {
         return (
             <div className="text-sm">
-                <span className="text-muted-foreground">Spent: </span>
+                <span className="text-muted-foreground">{t("budget.spent")}: </span>
                 <span className="font-medium">${spent.toFixed(2)}</span>
-                <span className="text-muted-foreground"> / No limit</span>
+                <span className="text-muted-foreground"> / {t("budget.noLimit")}</span>
             </div>
         );
     }
@@ -100,7 +103,7 @@ function BudgetProgress({ spent, max }: { spent: number; max?: number }) {
     return (
         <div className="space-y-1">
             <div className="flex items-center justify-between text-sm">
-                <span className="text-muted-foreground">Budget</span>
+                <span className="text-muted-foreground">{t("budget.budget")}</span>
                 <span className={isOverLimit ? "text-red-400" : isNearLimit ? "text-yellow-400" : ""}>
                     ${spent.toFixed(2)} / ${max.toFixed(2)}
                 </span>
@@ -129,6 +132,7 @@ function TeamCard({
     onDelete: (teamId: string) => void;
 }) {
     const [showMenu, setShowMenu] = useState(false);
+    const { t } = useI18n();
 
     return (
         <motion.div
@@ -190,7 +194,7 @@ function TeamCard({
                                                         className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-green-400"
                                                     >
                                                         <Shield className="w-4 h-4" />
-                                                        Unblock
+                                                        {t("dashboard.teamDetail.action.unblock")}
                                                     </button>
                                                 ) : (
                                                     <button
@@ -201,7 +205,7 @@ function TeamCard({
                                                         className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-yellow-400"
                                                     >
                                                         <ShieldOff className="w-4 h-4" />
-                                                        Block
+                                                        {t("dashboard.teamDetail.action.block")}
                                                     </button>
                                                 )}
                                                 <div className="my-1 border-t border-border" />
@@ -213,7 +217,7 @@ function TeamCard({
                                                     className="w-full flex items-center gap-2 px-3 py-2 text-sm hover:bg-secondary transition-colors text-red-400"
                                                 >
                                                     <Trash2 className="w-4 h-4" />
-                                                    Delete
+                                                    {t("common.delete")}
                                                 </button>
                                             </motion.div>
                                         </>
@@ -227,14 +231,14 @@ function TeamCard({
                     <div className="grid grid-cols-2 gap-4 mb-4">
                         <div className="flex items-center gap-2 text-sm">
                             <Users className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Members:</span>
+                            <span className="text-muted-foreground">{t("dashboard.teams.card.members")}</span>
                             <span className="font-medium">{team.members?.length || 0}</span>
                         </div>
                         <div className="flex items-center gap-2 text-sm">
                             <Key className="w-4 h-4 text-muted-foreground" />
-                            <span className="text-muted-foreground">Rate:</span>
+                            <span className="text-muted-foreground">{t("dashboard.teams.card.rate")}</span>
                             <span className="font-medium">
-                                {team.rpm_limit ? `${team.rpm_limit} RPM` : "No limit"}
+                                {team.rpm_limit ? `${team.rpm_limit} RPM` : t("dashboard.teams.card.rateUnlimited")}
                             </span>
                         </div>
                     </div>
@@ -248,7 +252,7 @@ function TeamCard({
                         className="mt-4 flex items-center justify-between p-3 -mx-3 rounded-lg hover:bg-secondary/50 transition-colors group/link"
                     >
                         <span className="text-sm font-medium text-muted-foreground group-hover/link:text-foreground">
-                            View Details
+                            {t("common.viewDetails")}
                         </span>
                         <ChevronRight className="w-4 h-4 text-muted-foreground group-hover/link:text-foreground group-hover/link:translate-x-1 transition-all" />
                     </Link>
@@ -273,10 +277,11 @@ function CreateTeamDialog({
     const [rpmLimit, setRpmLimit] = useState("");
     const [isCreating, setIsCreating] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const { t } = useI18n();
 
     const handleCreate = async () => {
         if (!name.trim()) {
-            setError("Team name is required");
+            setError(t("dashboard.teams.dialog.create.form.validation.nameRequired"));
             return;
         }
 
@@ -291,7 +296,7 @@ function CreateTeamDialog({
             });
             handleClose();
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to create team");
+            setError(err instanceof Error ? err.message : t("dashboard.teams.dialog.create.form.error.createFailed"));
         } finally {
             setIsCreating(false);
         }
@@ -309,18 +314,18 @@ function CreateTeamDialog({
         <Dialog open={open} onOpenChange={handleClose}>
             <DialogContent className="sm:max-w-md">
                 <DialogHeader>
-                    <DialogTitle>Create New Team</DialogTitle>
+                    <DialogTitle>{t("dashboard.teams.dialog.create.title")}</DialogTitle>
                     <DialogDescription>
-                        Create a team to organize users and manage access.
+                        {t("dashboard.teams.dialog.create.description")}
                     </DialogDescription>
                 </DialogHeader>
 
                 <div className="space-y-4">
                     <div className="space-y-2">
-                        <Label htmlFor="name">Team Name</Label>
+                        <Label htmlFor="name">{t("dashboard.teams.dialog.create.form.name")}</Label>
                         <Input
                             id="name"
-                            placeholder="e.g., Engineering"
+                            placeholder={t("dashboard.teams.dialog.create.form.name.placeholder")}
                             value={name}
                             onChange={(e) => setName(e.target.value)}
                             data-testid="team-name-input"
@@ -329,7 +334,7 @@ function CreateTeamDialog({
 
                     <div className="grid grid-cols-2 gap-4">
                         <div className="space-y-2">
-                            <Label htmlFor="budget">Max Budget</Label>
+                            <Label htmlFor="budget">{t("dashboard.teams.dialog.create.form.maxBudget")}</Label>
                             <div className="relative">
                                 <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
                                     $
@@ -337,7 +342,7 @@ function CreateTeamDialog({
                                 <Input
                                     id="budget"
                                     type="number"
-                                    placeholder="1000"
+                                    placeholder={t("dashboard.teams.dialog.create.form.maxBudget.placeholder")}
                                     value={maxBudget}
                                     onChange={(e) => setMaxBudget(e.target.value)}
                                     className="pl-7"
@@ -346,11 +351,11 @@ function CreateTeamDialog({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="rpm">Rate Limit (RPM)</Label>
+                            <Label htmlFor="rpm">{t("dashboard.teams.dialog.create.form.rpm")}</Label>
                             <Input
                                 id="rpm"
                                 type="number"
-                                placeholder="100"
+                                placeholder={t("dashboard.teams.dialog.create.form.rpm.placeholder")}
                                 value={rpmLimit}
                                 onChange={(e) => setRpmLimit(e.target.value)}
                             />
@@ -367,7 +372,7 @@ function CreateTeamDialog({
 
                 <DialogFooter>
                     <Button variant="ghost" onClick={handleClose}>
-                        Cancel
+                        {t("common.cancel")}
                     </Button>
                     <Button
                         onClick={handleCreate}
@@ -377,10 +382,10 @@ function CreateTeamDialog({
                         {isCreating ? (
                             <>
                                 <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Creating...
+                                {t("dashboard.teams.dialog.create.submit.creating")}
                             </>
                         ) : (
-                            "Create Team"
+                            t("dashboard.teams.dialog.create.submit.create")
                         )}
                     </Button>
                 </DialogFooter>
@@ -390,6 +395,7 @@ function CreateTeamDialog({
 }
 
 export default function TeamsPage() {
+    const { t } = useI18n();
     const [createDialogOpen, setCreateDialogOpen] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -421,9 +427,9 @@ export default function TeamsPage() {
                 className="flex items-center justify-between"
             >
                 <div>
-                    <h1 className="text-3xl font-bold tracking-tight">Teams</h1>
+                    <h1 className="text-3xl font-bold tracking-tight">{t("dashboard.teams.title")}</h1>
                     <p className="text-muted-foreground">
-                        Manage teams and member access.
+                        {t("dashboard.teams.description")}
                     </p>
                 </div>
                 <Button
@@ -432,7 +438,7 @@ export default function TeamsPage() {
                     data-testid="create-team-button"
                 >
                     <Plus className="w-4 h-4" />
-                    Create Team
+                    {t("dashboard.teams.action.create")}
                 </Button>
             </motion.div>
 
@@ -446,14 +452,14 @@ export default function TeamsPage() {
                 <div className="relative flex-1 max-w-sm">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                     <Input
-                        placeholder="Search teams..."
+                        placeholder={t("dashboard.teams.search.placeholder")}
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
                         className="pl-9"
                         data-testid="search-input"
                     />
                 </div>
-                <Button variant="ghost" size="icon" onClick={refresh} title="Refresh">
+                <Button variant="ghost" size="icon" onClick={refresh} title={t("common.refresh")}>
                     <RefreshCw className="w-4 h-4" />
                 </Button>
             </motion.div>
@@ -467,9 +473,9 @@ export default function TeamsPage() {
                     data-testid="error-message"
                 >
                     <AlertCircle className="w-5 h-5 text-red-400" />
-                    <p className="text-red-400">Failed to load teams: {error.message}</p>
+                    <p className="text-red-400">{t("dashboard.teams.error.loadFailed", { error: error.message })}</p>
                     <Button variant="ghost" size="sm" onClick={refresh} className="ml-auto">
-                        Retry
+                        {t("common.retry")}
                     </Button>
                 </motion.div>
             )}
@@ -490,17 +496,19 @@ export default function TeamsPage() {
                 >
                     <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
                     <h3 className="text-lg font-medium mb-2">
-                        {searchQuery ? `No teams matching "${searchQuery}"` : "No teams yet"}
+                        {searchQuery
+                            ? t("dashboard.teams.empty.noMatch", { query: searchQuery })
+                            : t("dashboard.teams.empty.none")}
                     </h3>
                     <p className="text-muted-foreground mb-4">
                         {searchQuery
-                            ? "Try adjusting your search query"
-                            : "Create your first team to get started"}
+                            ? t("dashboard.teams.empty.tryAdjust")
+                            : t("dashboard.teams.empty.createFirst")}
                     </p>
                     {!searchQuery && (
                         <Button onClick={() => setCreateDialogOpen(true)}>
                             <Plus className="w-4 h-4 mr-2" />
-                            Create Team
+                            {t("dashboard.teams.action.create")}
                         </Button>
                     )}
                 </motion.div>

@@ -24,6 +24,7 @@ import {
 import { StatusBadge, BudgetProgress } from "@/components/shared/common";
 import { apiClient } from "@/lib/api";
 import type { APIKey, GenerateKeyRequest } from "@/types/api";
+import { useI18n } from "@/i18n/locale-provider";
 
 interface ApiKeySheetProps {
     apiKey: APIKey | null;
@@ -33,6 +34,7 @@ interface ApiKeySheetProps {
 }
 
 export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeySheetProps) {
+    const { t } = useI18n();
     const [isEditing, setIsEditing] = useState(false);
     const [name, setName] = useState("");
     const [maxBudget, setMaxBudget] = useState("");
@@ -60,7 +62,7 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
             onUpdate();
             setIsEditing(false);
         } catch (err) {
-            setError(err instanceof Error ? err.message : "Failed to update key");
+            setError(err instanceof Error ? err.message : t("dashboard.apiKeySheet.error.updateFailed"));
         } finally {
             setIsSaving(false);
         }
@@ -85,7 +87,7 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
     };
 
     const handleDelete = async () => {
-        if (confirm("Are you sure you want to delete this API key? This action cannot be undone.")) {
+        if (confirm(t("dashboard.apiKeySheet.confirm.delete"))) {
             try {
                 await apiClient.deleteKeys([apiKey.id]);
                 onUpdate();
@@ -101,11 +103,11 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
             <div className="space-y-6">
                 <SheetHeader>
                     <div className="flex items-center justify-between">
-                        <SheetTitle>API Key Details</SheetTitle>
+                        <SheetTitle>{t("dashboard.apiKeySheet.title")}</SheetTitle>
                         <StatusBadge isActive={apiKey.is_active} blocked={apiKey.blocked} />
                     </div>
                     <SheetDescription>
-                        View and manage configuration for this API key.
+                        {t("dashboard.apiKeySheet.description")}
                     </SheetDescription>
                 </SheetHeader>
 
@@ -125,17 +127,17 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
                         </div>
                         <div className="flex items-center gap-2 text-xs text-muted-foreground">
                             <Calendar className="w-3 h-3" />
-                            Created {new Date(apiKey.created_at).toLocaleDateString()}
+                            {t("time.created", { time: new Date(apiKey.created_at).toLocaleDateString() })}
                         </div>
                     </div>
 
                     {/* Edit Form */}
                     <div className="space-y-4">
                         <div className="flex items-center justify-between">
-                            <h4 className="text-sm font-medium">Configuration</h4>
+                            <h4 className="text-sm font-medium">{t("dashboard.apiKeySheet.section.configuration")}</h4>
                             {!isEditing && (
                                 <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
-                                    Edit
+                                    {t("dashboard.apiKeySheet.action.edit")}
                                 </Button>
                             )}
                         </div>
@@ -143,7 +145,7 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
                         {isEditing ? (
                             <div className="space-y-4 p-4 border rounded-lg animate-in fade-in slide-in-from-top-2">
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-name">Name</Label>
+                                    <Label htmlFor="edit-name">{t("dashboard.apiKeySheet.field.name")}</Label>
                                     <Input
                                         id="edit-name"
                                         value={name}
@@ -151,7 +153,7 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="edit-budget">Max Budget</Label>
+                                    <Label htmlFor="edit-budget">{t("dashboard.apiKeySheet.field.maxBudget")}</Label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">$</span>
                                         <Input
@@ -171,10 +173,10 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
                                 )}
                                 <div className="flex gap-2 justify-end">
                                     <Button variant="ghost" size="sm" onClick={() => setIsEditing(false)}>
-                                        Cancel
+                                        {t("dashboard.apiKeySheet.action.cancel")}
                                     </Button>
                                     <Button size="sm" onClick={handleSave} disabled={isSaving}>
-                                        {isSaving ? "Saving..." : "Save Changes"}
+                                        {isSaving ? t("dashboard.apiKeySheet.action.saving") : t("dashboard.apiKeySheet.action.saveChanges")}
                                     </Button>
                                 </div>
                             </div>
@@ -182,13 +184,13 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
                             <div className="space-y-4">
                                 <div className="grid grid-cols-2 gap-4">
                                     <div className="p-3 rounded-lg border bg-card">
-                                        <div className="text-xs text-muted-foreground mb-1">Max Budget</div>
+                                        <div className="text-xs text-muted-foreground mb-1">{t("dashboard.apiKeySheet.field.maxBudget")}</div>
                                         <div className="font-medium">
-                                            {apiKey.max_budget ? `$${apiKey.max_budget.toFixed(2)}` : "Unlimited"}
+                                            {apiKey.max_budget ? `$${apiKey.max_budget.toFixed(2)}` : t("budget.noLimit")}
                                         </div>
                                     </div>
                                     <div className="p-3 rounded-lg border bg-card">
-                                        <div className="text-xs text-muted-foreground mb-1">Spend</div>
+                                        <div className="text-xs text-muted-foreground mb-1">{t("dashboard.apiKeySheet.field.spend")}</div>
                                         <div className="font-medium">${apiKey.spent_budget.toFixed(2)}</div>
                                     </div>
                                 </div>
@@ -201,22 +203,22 @@ export function ApiKeySheet({ apiKey, open, onOpenChange, onUpdate }: ApiKeyShee
 
                     {/* Actions */}
                     <div className="space-y-3 pt-6 border-t">
-                        <h4 className="text-sm font-medium text-muted-foreground">Danger Zone</h4>
+                        <h4 className="text-sm font-medium text-muted-foreground">{t("dashboard.apiKeySheet.section.danger")}</h4>
                         <div className="flex flex-col gap-2">
                             {apiKey.blocked ? (
                                 <Button variant="outline" className="justify-start text-green-400 hover:text-green-500" onClick={handleUnblock}>
                                     <Shield className="w-4 h-4 mr-2" />
-                                    Unblock API Key
+                                    {t("dashboard.apiKeySheet.action.unblock")}
                                 </Button>
                             ) : (
                                 <Button variant="outline" className="justify-start text-yellow-400 hover:text-yellow-500" onClick={handleBlock}>
                                     <ShieldOff className="w-4 h-4 mr-2" />
-                                    Block API Key
+                                    {t("dashboard.apiKeySheet.action.block")}
                                 </Button>
                             )}
                             <Button variant="outline" className="justify-start text-red-400 hover:text-red-500 hover:bg-red-500/10" onClick={handleDelete}>
                                 <Trash2 className="w-4 h-4 mr-2" />
-                                Delete API Key
+                                {t("dashboard.apiKeySheet.action.delete")}
                             </Button>
                         </div>
                     </div>

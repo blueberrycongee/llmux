@@ -26,7 +26,8 @@ describe('LLMuxApiClient', () => {
     describe('初始化', () => {
         it('应该使用默认 URL 创建客户端', () => {
             const defaultClient = new LLMuxApiClient();
-            expect(defaultClient.getBaseUrl()).toBe('http://localhost:8080');
+            // 在浏览器环境（vitest/jsdom）下，默认使用当前 origin（代理模式）
+            expect(defaultClient.getBaseUrl()).toBe(window.location.origin);
         });
 
         it('应该使用自定义 URL 创建客户端', () => {

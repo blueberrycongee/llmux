@@ -8,6 +8,16 @@ import { test, expect } from '@playwright/test';
 
 test.describe('Teams Management', () => {
     test.beforeEach(async ({ page }) => {
+        // 固定 locale，避免被本地缓存/上一次用例影响
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
+
         // Mock Team List
         await page.route('**/team/list*', async (route) => {
             await route.fulfill({
@@ -15,8 +25,28 @@ test.describe('Teams Management', () => {
                 contentType: 'application/json',
                 body: JSON.stringify({
                     data: [
-                        { team_id: 'team-1', team_alias: 'Engineering', is_active: true, blocked: false, spend: 100, models: [], members: [] },
-                        { team_id: 'team-2', team_alias: 'Marketing', is_active: true, blocked: false, spend: 50, models: [], members: [] },
+                        {
+                            team_id: 'team-1',
+                            team_alias: 'Engineering',
+                            is_active: true,
+                            blocked: false,
+                            spend: 100,
+                            models: [],
+                            members: [],
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                        },
+                        {
+                            team_id: 'team-2',
+                            team_alias: 'Marketing',
+                            is_active: true,
+                            blocked: false,
+                            spend: 50,
+                            models: [],
+                            members: [],
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                        },
                     ],
                     total: 2
                 }),
@@ -36,12 +66,24 @@ test.describe('Teams Management', () => {
                     max_budget: 1000,
                     spend: 100,
                     models: ['gpt-4'],
-                    members: [
-                        { user_id: 'user-1', role: 'admin' },
-                        { user_id: 'user-2', role: 'user' }
-                    ],
+                    members: ['user-1', 'user-2'],
                     created_at: new Date().toISOString(),
                     updated_at: new Date().toISOString()
+                }),
+            });
+        });
+
+        // Mock Users (Team detail page may fetch user list)
+        await page.route('**/user/list*', async (route) => {
+            await route.fulfill({
+                status: 200,
+                contentType: 'application/json',
+                body: JSON.stringify({
+                    data: [
+                        { user_id: 'user-1', user_alias: 'Alice', user_email: 'alice@example.com', user_role: 'internal_user', is_active: true, spend: 0 },
+                        { user_id: 'user-2', user_alias: 'Bob', user_email: 'bob@example.com', user_role: 'internal_user_viewer', is_active: true, spend: 0 },
+                    ],
+                    total: 2,
                 }),
             });
         });
@@ -66,17 +108,32 @@ test.describe('Teams Management', () => {
 
 test.describe('Users Management', () => {
     test.beforeEach(async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
+
         // Mock User List
         await page.route('**/user/list*', async (route) => {
+            const url = new URL(route.request().url());
+            const search = url.searchParams.get('search') || '';
+
+            const all = [
+                { user_id: 'user-1', user_alias: 'Alice', user_email: 'alice@example.com', user_role: 'internal_user', is_active: true, spend: 50, max_budget: 500 },
+                { user_id: 'user-2', user_alias: 'Bob', user_email: 'bob@example.com', user_role: 'internal_user_viewer', is_active: true, spend: 20, max_budget: 200 },
+            ];
+            const filtered = search ? all.filter(u => (u.user_alias || '').includes(search) || (u.user_email || '').includes(search)) : all;
+
             await route.fulfill({
                 status: 200,
                 contentType: 'application/json',
                 body: JSON.stringify({
-                    data: [
-                        { user_id: 'user-1', user_alias: 'Alice', user_email: 'alice@example.com', user_role: 'admin', spend: 50, max_budget: 500 },
-                        { user_id: 'user-2', user_alias: 'Bob', user_email: 'bob@example.com', user_role: 'user', spend: 20, max_budget: 200 },
-                    ],
-                    total: 2
+                    data: filtered,
+                    total: filtered.length
                 }),
             });
         });
@@ -96,12 +153,21 @@ test.describe('Users Management', () => {
         await page.waitForTimeout(1000);
         await expect(page.getByText('Alice').first()).toBeVisible();
         // Bob should not be visible after filtering
-        await expect(page.getByText('Bob')).not.toBeVisible();
+        await expect(page.getByText('Bob', { exact: true }).first()).not.toBeVisible();
     });
 });
 
 test.describe('API Keys Management', () => {
     test.beforeEach(async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
+
         // Mock Key List
         await page.route('**/key/list*', async (route) => {
             await route.fulfill({
@@ -159,6 +225,15 @@ test.describe('API Keys Management', () => {
 
 test.describe('Organizations Management', () => {
     test.beforeEach(async ({ page }) => {
+        await page.addInitScript(() => {
+            try {
+                window.localStorage.setItem('llmux_locale', 'i18n');
+            } catch {
+                // ignore
+            }
+            document.cookie = 'llmux_locale=i18n; path=/';
+        });
+
         // Mock Organization List
         await page.route('**/organization/list*', async (route) => {
             await route.fulfill({
