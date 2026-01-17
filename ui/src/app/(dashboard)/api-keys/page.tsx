@@ -516,7 +516,7 @@ export default function ApiKeysPage() {
                     />
                 </div>
                 <div className="flex items-center gap-2">
-                    <Select value={filterType} onValueChange={(v: any) => setFilterType(v)}>
+                    <Select value={filterType} onValueChange={(v: "all" | "active" | "blocked") => setFilterType(v)}>
                         <SelectTrigger className="w-32">
                             <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
                             <SelectValue placeholder={t("dashboard.apiKeys.filter.placeholder")} />

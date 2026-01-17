@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { Shield, ShieldOff, AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
+import { Shield, ShieldOff, AlertTriangle, Clock } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/locale-provider";

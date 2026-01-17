@@ -5,8 +5,6 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import React from 'react';
 
 // Mock framer-motion to avoid animation issues in tests
@@ -40,25 +38,6 @@ import { useModelSpend } from '@/hooks/use-model-spend';
 
 // Import the component after mocks
 // Note: We'll import Dashboard component once it's refactored to use hooks
-
-function createTestWrapper() {
-    const queryClient = new QueryClient({
-        defaultOptions: {
-            queries: {
-                retry: false,
-                gcTime: 0,
-            },
-        },
-    });
-
-    return function Wrapper({ children }: { children: React.ReactNode }) {
-        return React.createElement(
-            QueryClientProvider,
-            { client: queryClient },
-            children
-        );
-    };
-}
 
 describe('Dashboard Stats Display', () => {
     beforeEach(() => {

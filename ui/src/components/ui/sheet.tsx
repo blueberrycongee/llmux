@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, type HTMLMotionProps } from "framer-motion";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useI18n } from "@/i18n/locale-provider";
@@ -27,7 +27,7 @@ export function Sheet({
     );
 }
 
-interface SheetContentProps extends React.HTMLAttributes<HTMLDivElement> {
+interface SheetContentProps extends HTMLMotionProps<"div"> {
     side?: "right" | "left";
 }
 
@@ -65,7 +65,7 @@ export function SheetContent({
                             side === "left" && "left-0 border-r border-l-0",
                             className
                         )}
-                        {...props as any}
+                        {...props}
                     >
                         <div className="flex flex-col h-full">
                             {children}

@@ -19,6 +19,7 @@ import {
 import dynamic from "next/dynamic";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { useModelSpend } from "@/hooks/use-model-spend";
+import { useProviderSpend } from "@/hooks/use-provider-spend";
 import { useState, useMemo } from "react";
 import { ClientOnly } from "@/components/client-only";
 import { useI18n } from "@/i18n/locale-provider";
@@ -163,8 +164,15 @@ export default function DashboardPage() {
     refresh: refreshModels,
   } = useModelSpend({ startDate, endDate, limit: 10 });
 
-  const isLoading = statsLoading || modelsLoading;
-  const error = statsError || modelsError;
+  const {
+    providers,
+    isLoading: providersLoading,
+    error: providersError,
+    refresh: refreshProviders,
+  } = useProviderSpend({ startDate, endDate, limit: 10 });
+
+  const isLoading = statsLoading || modelsLoading || providersLoading;
+  const error = statsError || modelsError || providersError;
 
   // Build stats array from API data
   const stats = [
@@ -224,22 +232,31 @@ export default function DashboardPage() {
     [dailyData, requestsLabel, tokensLabel]
   );
 
-  // Transform model data for donut chart
-  const modelChartData = models.map((m) => ({
-    name: m.model,
-    value: m.spend,
+  const sortedModels = useMemo(
+    () => [...models].sort((a, b) => b.spend - a.spend),
+    [models]
+  );
+
+  const sortedProviders = useMemo(
+    () => [...providers].sort((a, b) => b.spend - a.spend),
+    [providers]
+  );
+
+  const providerChartData = sortedProviders.map((p) => ({
+    name: p.provider,
+    value: p.spend,
   }));
 
-  // Calculate percentages for model list
-  const totalModelSpend = models.reduce((sum, m) => sum + m.spend, 0);
-  const modelPercentages = models.map((m) => ({
-    ...m,
-    percentage: totalModelSpend > 0 ? (m.spend / totalModelSpend) * 100 : 0,
+  const totalProviderSpend = sortedProviders.reduce((sum, p) => sum + p.spend, 0);
+  const providerPercentages = sortedProviders.map((p) => ({
+    ...p,
+    percentage: totalProviderSpend > 0 ? (p.spend / totalProviderSpend) * 100 : 0,
   }));
 
   const handleRefresh = () => {
     refreshStats();
     refreshModels();
+    refreshProviders();
   };
 
   // Error state
@@ -421,12 +438,12 @@ export default function DashboardPage() {
                     ))}
                   </div>
                 </>
-              ) : modelChartData.length > 0 ? (
+              ) : providerChartData.length > 0 ? (
                 <>
                   <ClientOnly fallback={<ChartSkeleton className="h-48" />}>
                     <DonutChart
                       className="h-48"
-                      data={modelChartData}
+                      data={providerChartData}
                       category="value"
                       index="name"
                       colors={["blue", "purple", "green", "orange", "pink"]}
@@ -435,13 +452,13 @@ export default function DashboardPage() {
                     />
                   </ClientOnly>
                   <div className="mt-4 space-y-2">
-                    {modelPercentages.map((model) => (
+                    {providerPercentages.map((provider) => (
                       <div
-                        key={model.model}
+                        key={provider.provider}
                         className="flex items-center justify-between text-sm"
                       >
-                        <span className="text-muted-foreground">{model.model}</span>
-                        <span className="font-medium">{model.percentage.toFixed(1)}%</span>
+                        <span className="text-muted-foreground">{provider.provider}</span>
+                        <span className="font-medium">{provider.percentage.toFixed(1)}%</span>
                       </div>
                     ))}
                   </div>
@@ -480,7 +497,7 @@ export default function DashboardPage() {
                 </div>
               ) : models.length > 0 ? (
                 <div className="space-y-3">
-                  {models.map((model, index) => (
+                  {sortedModels.map((model, index) => (
                     <motion.div
                       key={model.model}
                       className="flex items-center justify-between p-3 rounded-lg hover:bg-secondary/50 transition-colors group"
@@ -531,7 +548,7 @@ export default function DashboardPage() {
                   </div>
                   <div>
                     <p className="text-sm font-medium">{t("dashboard.overview.quickStats.activeModels")}</p>
-                    <p className="text-2xl font-bold">{models.length}</p>
+                    <p className="text-2xl font-bold">{uniqueModels}</p>
                   </div>
                 </div>
 

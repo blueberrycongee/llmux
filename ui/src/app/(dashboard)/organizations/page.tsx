@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,15 +26,12 @@ import {
     MoreVertical,
     Trash2,
     DollarSign,
-    Users,
     Key,
     Shield,
-    ShieldOff,
 } from "lucide-react";
 import { useOrganizations } from "@/hooks";
 import type { Organization, CreateOrganizationRequest } from "@/types/api";
 import { BudgetProgress, PageHeader, EmptyState, ErrorState } from "@/components/shared/common";
-import { CardSkeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n/locale-provider";
 
 // Organization Card Skeleton

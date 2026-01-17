@@ -46,7 +46,7 @@ import {
 import { useUsers } from "@/hooks";
 import type { User, CreateUserRequest, UserRole } from "@/types/api";
 import { StatusBadge, RoleBadge, BudgetProgress, PageHeader, EmptyState, ErrorState } from "@/components/shared/common";
-import { Skeleton, TableRowSkeleton } from "@/components/ui/skeleton";
+import { TableRowSkeleton } from "@/components/ui/skeleton";
 import { useI18n } from "@/i18n/locale-provider";
 
 // User role options
