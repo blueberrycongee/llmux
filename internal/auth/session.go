@@ -39,10 +39,11 @@ type Session struct {
 
 // OIDCState stores temporary state for the OIDC auth code flow.
 type OIDCState struct {
-	State     string    `json:"state"`
-	Nonce     string    `json:"nonce"`
-	Redirect  string    `json:"redirect,omitempty"`
-	ExpiresAt time.Time `json:"expires_at"`
+	State        string    `json:"state"`
+	Nonce        string    `json:"nonce"`
+	CodeVerifier string    `json:"code_verifier,omitempty"`
+	Redirect     string    `json:"redirect,omitempty"`
+	ExpiresAt    time.Time `json:"expires_at"`
 }
 
 // SessionManagerConfig configures the session cookie behavior.

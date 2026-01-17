@@ -4,6 +4,7 @@ package api //nolint:revive // package name is intentional
 import (
 	"context"
 	"crypto/rand"
+	"crypto/sha256"
 	"encoding/base64"
 	"errors"
 	"fmt"
@@ -106,12 +107,19 @@ func (h *AuthHandler) OIDCLogin(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, http.StatusInternalServerError, "failed to generate nonce", "server_error")
 		return
 	}
+	codeVerifier, err := randomToken(32)
+	if err != nil {
+		h.writeError(w, r, http.StatusInternalServerError, "failed to generate code verifier", "server_error")
+		return
+	}
+	codeChallenge := codeChallengeS256(codeVerifier)
 
 	redirect := sanitizeRedirect(r.URL.Query().Get("redirect"))
 	if err := h.sessionManager.SetState(w, &auth.OIDCState{
-		State:    stateToken,
-		Nonce:    nonceToken,
-		Redirect: redirect,
+		State:        stateToken,
+		Nonce:        nonceToken,
+		CodeVerifier: codeVerifier,
+		Redirect:     redirect,
 	}); err != nil {
 		h.writeError(w, r, http.StatusInternalServerError, "failed to persist state", "server_error")
 		return
@@ -123,7 +131,12 @@ func (h *AuthHandler) OIDCLogin(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	authURL := oauthCfg.AuthCodeURL(stateToken, oidc.Nonce(nonceToken))
+	authURL := oauthCfg.AuthCodeURL(
+		stateToken,
+		oidc.Nonce(nonceToken),
+		oauth2.SetAuthURLParam("code_challenge", codeChallenge),
+		oauth2.SetAuthURLParam("code_challenge_method", "S256"),
+	)
 	http.Redirect(w, r, authURL, http.StatusFound)
 }
 
@@ -166,6 +179,11 @@ func (h *AuthHandler) OIDCCallback(w http.ResponseWriter, r *http.Request) {
 		h.writeError(w, r, http.StatusBadRequest, "invalid oidc state", "authentication_error")
 		return
 	}
+	if stored.CodeVerifier == "" {
+		h.sessionManager.ClearState(w)
+		h.writeError(w, r, http.StatusBadRequest, "missing code verifier", "authentication_error")
+		return
+	}
 
 	oauthCfg := h.oauthConfigForRequest(r)
 	if oauthCfg == nil {
@@ -173,7 +191,7 @@ func (h *AuthHandler) OIDCCallback(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	token, err := oauthCfg.Exchange(r.Context(), code)
+	token, err := oauthCfg.Exchange(r.Context(), code, oauth2.SetAuthURLParam("code_verifier", stored.CodeVerifier))
 	if err != nil {
 		h.writeError(w, r, http.StatusUnauthorized, "failed to exchange auth code", "authentication_error")
 		return
@@ -367,4 +385,9 @@ func randomToken(size int) (string, error) {
 		return "", fmt.Errorf("generate random bytes: %w", err)
 	}
 	return base64.RawURLEncoding.EncodeToString(raw), nil
+}
+
+func codeChallengeS256(verifier string) string {
+	sum := sha256.Sum256([]byte(verifier))
+	return base64.RawURLEncoding.EncodeToString(sum[:])
 }
