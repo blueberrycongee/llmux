@@ -150,12 +150,27 @@ type RedisCacheConfig struct {
 
 // AuthConfig contains authentication settings.
 type AuthConfig struct {
-	Enabled                bool          `yaml:"enabled"`
-	SkipPaths              []string      `yaml:"skip_paths"` // Paths to skip authentication
-	LastUsedUpdateInterval time.Duration `yaml:"last_used_update_interval"`
-	BootstrapToken         string        `yaml:"bootstrap_token"` // Optional bootstrap token for management endpoints
-	OIDC                   OIDCConfig    `yaml:"oidc"`            // OIDC configuration
-	Casbin                 CasbinConfig  `yaml:"casbin"`          // Casbin configuration
+	Enabled                bool              `yaml:"enabled"`
+	SkipPaths              []string          `yaml:"skip_paths"` // Paths to skip authentication
+	LastUsedUpdateInterval time.Duration     `yaml:"last_used_update_interval"`
+	BootstrapToken         string            `yaml:"bootstrap_token"` // Optional bootstrap token for management endpoints
+	OIDC                   OIDCConfig        `yaml:"oidc"`            // OIDC configuration
+	Session                AuthSessionConfig `yaml:"session"`         // Session configuration
+	Casbin                 CasbinConfig      `yaml:"casbin"`          // Casbin configuration
+}
+
+// AuthSessionConfig contains browser session settings.
+type AuthSessionConfig struct {
+	Enabled         bool          `yaml:"enabled"`
+	Secret          string        `yaml:"secret"`
+	CookieName      string        `yaml:"cookie_name"`
+	StateCookieName string        `yaml:"state_cookie_name"`
+	CookieDomain    string        `yaml:"cookie_domain"`
+	CookiePath      string        `yaml:"cookie_path"`
+	CookieSecure    bool          `yaml:"cookie_secure"`
+	CookieSameSite  string        `yaml:"cookie_same_site"`
+	TTL             time.Duration `yaml:"ttl"`
+	StateTTL        time.Duration `yaml:"state_ttl"`
 }
 
 // CasbinConfig contains Casbin RBAC settings.
@@ -171,6 +186,7 @@ type OIDCConfig struct {
 	IssuerURL    string       `yaml:"issuer_url"`
 	ClientID     string       `yaml:"client_id"`
 	ClientSecret string       `yaml:"client_secret"`
+	RedirectURL  string       `yaml:"redirect_url"`
 	ClaimMapping ClaimMapping `yaml:"claim_mapping"`
 
 	// User provisioning settings
@@ -432,12 +448,35 @@ func DefaultConfig() *Config {
 				"/invitation/",
 				"/control/",
 				"/metrics",
+				"/auth/",
+				"/api/auth/",
 			},
 		},
 		Auth: AuthConfig{
-			Enabled:                true,
-			SkipPaths:              []string{"/health/live", "/health/ready"},
+			Enabled: true,
+			SkipPaths: []string{
+				"/health/live",
+				"/health/ready",
+				"/auth/oidc/login",
+				"/auth/oidc/callback",
+				"/auth/me",
+				"/auth/logout",
+				"/api/auth/oidc/login",
+				"/api/auth/oidc/callback",
+				"/api/auth/me",
+				"/api/auth/logout",
+			},
 			LastUsedUpdateInterval: time.Minute,
+			Session: AuthSessionConfig{
+				Enabled:         false,
+				CookieName:      "llmux_session",
+				StateCookieName: "llmux_oidc_state",
+				CookiePath:      "/",
+				CookieSecure:    false,
+				CookieSameSite:  "lax",
+				TTL:             12 * time.Hour,
+				StateTTL:        10 * time.Minute,
+			},
 		},
 		Database: DatabaseConfig{
 			Enabled:      false,
@@ -672,6 +711,21 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	if c.Auth.Session.Enabled {
+		if strings.TrimSpace(c.Auth.Session.Secret) == "" {
+			return fmt.Errorf("auth.session.secret is required when auth.session.enabled is true")
+		}
+		if c.Auth.Session.TTL < 0 {
+			return fmt.Errorf("auth.session.ttl cannot be negative")
+		}
+		if c.Auth.Session.StateTTL < 0 {
+			return fmt.Errorf("auth.session.state_ttl cannot be negative")
+		}
+		if !isValidSameSite(c.Auth.Session.CookieSameSite) {
+			return fmt.Errorf("auth.session.cookie_same_site must be one of: lax, strict, none")
+		}
+	}
+
 	return nil
 }
 
@@ -711,4 +765,13 @@ func isValidIPOrCIDR(value string) bool {
 		return err == nil
 	}
 	return net.ParseIP(value) != nil
+}
+
+func isValidSameSite(value string) bool {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case "", "lax", "strict", "none":
+		return true
+	default:
+		return false
+	}
 }

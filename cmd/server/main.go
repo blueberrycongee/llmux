@@ -243,6 +243,11 @@ func run() error {
 		logger.Info("user-team sync enabled", "auto_create_users", syncCfg.AutoCreateUsers)
 	}
 
+	sessionManager, err := buildSessionManager(cfg)
+	if err != nil {
+		return fmt.Errorf("failed to initialize session manager: %w", err)
+	}
+
 	// Initialize MCP Manager
 	var mcpManager mcp.Manager
 	if cfg.MCP.Enabled {
@@ -282,8 +287,13 @@ func run() error {
 	invitationService := auth.NewInvitationService(invitationStore, authStore, logger)
 	invitationHandler := api.NewInvitationHandler(invitationService, invitationStore, logger)
 
+	authHandler, err := api.NewAuthHandler(mapOIDCConfig(cfg.Auth.OIDC), sessionManager, syncer, logger)
+	if err != nil {
+		return fmt.Errorf("failed to initialize auth handler: %w", err)
+	}
+
 	// Setup HTTP routes
-	muxes, err := buildMuxes(cfg, handler, multiRegistrar{mgmtHandler, invitationHandler}, logger, uiAssets)
+	muxes, err := buildMuxes(cfg, handler, multiRegistrar{mgmtHandler, invitationHandler, authHandler}, logger, uiAssets)
 	if err != nil {
 		return fmt.Errorf("failed to build routes: %w", err)
 	}
@@ -314,7 +324,7 @@ func run() error {
 		)
 	}
 
-	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer, enforcer)
+	middleware, err := buildMiddlewareStack(cfg, authStore, logger, syncer, enforcer, sessionManager)
 	if err != nil {
 		return fmt.Errorf("failed to initialize middleware stack: %w", err)
 	}

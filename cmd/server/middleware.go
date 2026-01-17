@@ -14,7 +14,7 @@ import (
 	"github.com/blueberrycongee/llmux/internal/observability"
 )
 
-func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog.Logger, syncer *auth.UserTeamSyncer, enforcer *auth.CasbinEnforcer) (func(http.Handler) http.Handler, error) {
+func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog.Logger, syncer *auth.UserTeamSyncer, enforcer *auth.CasbinEnforcer, sessionManager *auth.SessionManager) (func(http.Handler) http.Handler, error) {
 	if cfg == nil {
 		return nil, errNilConfig
 	}
@@ -34,13 +34,7 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 
 	var oidcMiddleware func(http.Handler) http.Handler
 	if cfg.Auth.Enabled && cfg.Auth.OIDC.IssuerURL != "" {
-		oidcCfg := auth.OIDCConfig{
-			IssuerURL:    cfg.Auth.OIDC.IssuerURL,
-			ClientID:     cfg.Auth.OIDC.ClientID,
-			ClientSecret: cfg.Auth.OIDC.ClientSecret,
-			RoleClaim:    cfg.Auth.OIDC.ClaimMapping.RoleClaim,
-			RolesMap:     cfg.Auth.OIDC.ClaimMapping.Roles,
-		}
+		oidcCfg := mapOIDCConfig(cfg.Auth.OIDC)
 		// Use OIDCMiddlewareWithSync instead of OIDCMiddleware
 		// This injects the syncer to enable automatic user-team sync from JWT claims
 		middleware, err := auth.OIDCMiddlewareWithSync(oidcCfg, syncer)
@@ -64,6 +58,9 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 		}
 		if oidcMiddleware != nil {
 			handler = oidcMiddleware(handler)
+		}
+		if sessionManager != nil {
+			handler = auth.SessionMiddleware(sessionManager)(handler)
 		}
 		handler = metrics.Middleware(handler)
 		handler = observability.RequestIDMiddleware(handler)

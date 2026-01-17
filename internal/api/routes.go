@@ -169,5 +169,11 @@ func GetRoutes() []RouteInfo {
 		{Method: "GET", Path: "/control/providers", Description: "List providers and resilience stats", Category: "control"},
 		{Method: "GET", Path: "/control/config", Description: "Get current config status", Category: "control"},
 		{Method: "POST", Path: "/control/config/reload", Description: "Reload config from disk", Category: "control"},
+
+		// Auth
+		{Method: "GET", Path: "/auth/oidc/login", Description: "Start OIDC login", Category: "auth"},
+		{Method: "GET", Path: "/auth/oidc/callback", Description: "Handle OIDC callback", Category: "auth"},
+		{Method: "GET", Path: "/auth/me", Description: "Get current authenticated identity", Category: "auth"},
+		{Method: "POST", Path: "/auth/logout", Description: "Clear session cookie", Category: "auth"},
 	}
 }
