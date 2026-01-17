@@ -38,7 +38,7 @@ type NewUserRequest struct {
 func (h *ManagementHandler) NewUser(w http.ResponseWriter, r *http.Request) {
 	var req NewUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -82,7 +82,7 @@ func (h *ManagementHandler) NewUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.store.CreateUser(r.Context(), user); err != nil {
 		h.logger.Error("failed to create user", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to create user")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to create user")
 		return
 	}
 
@@ -109,18 +109,18 @@ type UpdateUserRequest struct {
 func (h *ManagementHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 	var req UpdateUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.UserID == "" {
-		h.writeError(w, http.StatusBadRequest, "user_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "user_id is required")
 		return
 	}
 
 	user, err := h.store.GetUser(r.Context(), req.UserID)
 	if err != nil || user == nil {
-		h.writeError(w, http.StatusNotFound, "user not found")
+		h.writeError(w, r, http.StatusNotFound, "user not found")
 		return
 	}
 
@@ -165,7 +165,7 @@ func (h *ManagementHandler) UpdateUser(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.store.UpdateUser(r.Context(), user); err != nil {
 		h.logger.Error("failed to update user", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to update user")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to update user")
 		return
 	}
 
@@ -181,12 +181,12 @@ type DeleteUserRequest struct {
 func (h *ManagementHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	var req DeleteUserRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if len(req.UserIDs) == 0 {
-		h.writeError(w, http.StatusBadRequest, "user_ids is required")
+		h.writeError(w, r, http.StatusBadRequest, "user_ids is required")
 		return
 	}
 
@@ -208,18 +208,18 @@ func (h *ManagementHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 func (h *ManagementHandler) GetUserInfo(w http.ResponseWriter, r *http.Request) {
 	userID := r.URL.Query().Get("user_id")
 	if userID == "" {
-		h.writeError(w, http.StatusBadRequest, "user_id parameter is required")
+		h.writeError(w, r, http.StatusBadRequest, "user_id parameter is required")
 		return
 	}
 
 	user, err := h.store.GetUser(r.Context(), userID)
 	if err != nil {
 		h.logger.Error("failed to get user info", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get user info")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get user info")
 		return
 	}
 	if user == nil {
-		h.writeError(w, http.StatusNotFound, "user not found")
+		h.writeError(w, r, http.StatusNotFound, "user not found")
 		return
 	}
 
@@ -262,7 +262,7 @@ func (h *ManagementHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	users, total, err := h.store.ListUsers(r.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to list users", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to list users")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to list users")
 		return
 	}
 

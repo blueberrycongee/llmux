@@ -87,14 +87,14 @@ type GenerateKeyResponse struct {
 func (h *ManagementHandler) GenerateKey(w http.ResponseWriter, r *http.Request) {
 	var req GenerateKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	// Generate a new API key
 	rawKey, keyHash, err := auth.GenerateAPIKey()
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "failed to generate api key")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to generate api key")
 		return
 	}
 	keyPrefix := auth.ExtractKeyPrefix(rawKey)
@@ -163,7 +163,7 @@ func (h *ManagementHandler) GenerateKey(w http.ResponseWriter, r *http.Request) 
 	// Save to store
 	if err := h.store.CreateAPIKey(r.Context(), key); err != nil {
 		h.logger.Error("failed to create api key", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to create api key")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to create api key")
 		return
 	}
 
@@ -211,19 +211,19 @@ type UpdateKeyRequest struct {
 func (h *ManagementHandler) UpdateKey(w http.ResponseWriter, r *http.Request) {
 	var req UpdateKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.Key == "" {
-		h.writeError(w, http.StatusBadRequest, "key is required")
+		h.writeError(w, r, http.StatusBadRequest, "key is required")
 		return
 	}
 
 	// Get existing key
 	key, err := h.store.GetAPIKeyByID(r.Context(), req.Key)
 	if err != nil || key == nil {
-		h.writeError(w, http.StatusNotFound, "key not found")
+		h.writeError(w, r, http.StatusNotFound, "key not found")
 		return
 	}
 
@@ -283,7 +283,7 @@ func (h *ManagementHandler) UpdateKey(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.store.UpdateAPIKey(r.Context(), key); err != nil {
 		h.logger.Error("failed to update api key", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to update api key")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to update api key")
 		return
 	}
 
@@ -299,12 +299,12 @@ type DeleteKeyRequest struct {
 func (h *ManagementHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
 	var req DeleteKeyRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if len(req.Keys) == 0 {
-		h.writeError(w, http.StatusBadRequest, "keys is required")
+		h.writeError(w, r, http.StatusBadRequest, "keys is required")
 		return
 	}
 
@@ -326,18 +326,18 @@ func (h *ManagementHandler) DeleteKey(w http.ResponseWriter, r *http.Request) {
 func (h *ManagementHandler) GetKeyInfo(w http.ResponseWriter, r *http.Request) {
 	keyID := r.URL.Query().Get("key")
 	if keyID == "" {
-		h.writeError(w, http.StatusBadRequest, "key parameter is required")
+		h.writeError(w, r, http.StatusBadRequest, "key parameter is required")
 		return
 	}
 
 	key, err := h.store.GetAPIKeyByID(r.Context(), keyID)
 	if err != nil {
 		h.logger.Error("failed to get key info", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get key info")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get key info")
 		return
 	}
 	if key == nil {
-		h.writeError(w, http.StatusNotFound, "key not found")
+		h.writeError(w, r, http.StatusNotFound, "key not found")
 		return
 	}
 
@@ -375,7 +375,7 @@ func (h *ManagementHandler) ListKeys(w http.ResponseWriter, r *http.Request) {
 	keys, total, err := h.store.ListAPIKeys(r.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to list keys", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to list keys")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to list keys")
 		return
 	}
 
@@ -391,13 +391,13 @@ func (h *ManagementHandler) BlockKey(w http.ResponseWriter, r *http.Request) {
 		Key string `json:"key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := h.store.BlockAPIKey(r.Context(), req.Key, true); err != nil {
 		h.logger.Error("failed to block key", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to block key")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to block key")
 		return
 	}
 
@@ -410,13 +410,13 @@ func (h *ManagementHandler) UnblockKey(w http.ResponseWriter, r *http.Request) {
 		Key string `json:"key"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := h.store.BlockAPIKey(r.Context(), req.Key, false); err != nil {
 		h.logger.Error("failed to unblock key", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to unblock key")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to unblock key")
 		return
 	}
 
@@ -429,21 +429,21 @@ func (h *ManagementHandler) RegenerateKey(w http.ResponseWriter, r *http.Request
 		Key string `json:"key"` // existing key ID
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	// Get existing key
 	oldKey, err := h.store.GetAPIKeyByID(r.Context(), req.Key)
 	if err != nil || oldKey == nil {
-		h.writeError(w, http.StatusNotFound, "key not found")
+		h.writeError(w, r, http.StatusNotFound, "key not found")
 		return
 	}
 
 	// Generate new key credentials
 	rawKey, keyHash, err := auth.GenerateAPIKey()
 	if err != nil {
-		h.writeError(w, http.StatusInternalServerError, "failed to generate api key")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to generate api key")
 		return
 	}
 	keyPrefix := auth.ExtractKeyPrefix(rawKey)
@@ -479,7 +479,7 @@ func (h *ManagementHandler) RegenerateKey(w http.ResponseWriter, r *http.Request
 
 	if err := h.store.UpdateAPIKey(r.Context(), oldKey); err != nil {
 		h.logger.Error("failed to update key during regenerate", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to regenerate key")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to regenerate key")
 		return
 	}
 
@@ -513,7 +513,8 @@ func (h *ManagementHandler) writeJSON(w http.ResponseWriter, status int, data an
 	}
 }
 
-func (h *ManagementHandler) writeError(w http.ResponseWriter, status int, message string) {
+func (h *ManagementHandler) writeError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	message = localizeManagementMessage(detectLocaleFromRequest(r), message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	if err := json.NewEncoder(w).Encode(map[string]any{

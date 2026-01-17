@@ -45,7 +45,7 @@ type TeamMember struct {
 func (h *ManagementHandler) NewTeam(w http.ResponseWriter, r *http.Request) {
 	var req NewTeamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
@@ -91,7 +91,7 @@ func (h *ManagementHandler) NewTeam(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.store.CreateTeam(r.Context(), team); err != nil {
 		h.logger.Error("failed to create team", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to create team")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to create team")
 		return
 	}
 
@@ -128,18 +128,18 @@ type UpdateTeamRequest struct {
 func (h *ManagementHandler) UpdateTeam(w http.ResponseWriter, r *http.Request) {
 	var req UpdateTeamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.TeamID == "" {
-		h.writeError(w, http.StatusBadRequest, "team_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "team_id is required")
 		return
 	}
 
 	team, err := h.store.GetTeam(r.Context(), req.TeamID)
 	if err != nil || team == nil {
-		h.writeError(w, http.StatusNotFound, "team not found")
+		h.writeError(w, r, http.StatusNotFound, "team not found")
 		return
 	}
 
@@ -180,7 +180,7 @@ func (h *ManagementHandler) UpdateTeam(w http.ResponseWriter, r *http.Request) {
 
 	if err := h.store.UpdateTeam(r.Context(), team); err != nil {
 		h.logger.Error("failed to update team", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to update team")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to update team")
 		return
 	}
 
@@ -196,12 +196,12 @@ type DeleteTeamRequest struct {
 func (h *ManagementHandler) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 	var req DeleteTeamRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if len(req.TeamIDs) == 0 {
-		h.writeError(w, http.StatusBadRequest, "team_ids is required")
+		h.writeError(w, r, http.StatusBadRequest, "team_ids is required")
 		return
 	}
 
@@ -223,18 +223,18 @@ func (h *ManagementHandler) DeleteTeam(w http.ResponseWriter, r *http.Request) {
 func (h *ManagementHandler) GetTeamInfo(w http.ResponseWriter, r *http.Request) {
 	teamID := r.URL.Query().Get("team_id")
 	if teamID == "" {
-		h.writeError(w, http.StatusBadRequest, "team_id parameter is required")
+		h.writeError(w, r, http.StatusBadRequest, "team_id parameter is required")
 		return
 	}
 
 	team, err := h.store.GetTeam(r.Context(), teamID)
 	if err != nil {
 		h.logger.Error("failed to get team info", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get team info")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get team info")
 		return
 	}
 	if team == nil {
-		h.writeError(w, http.StatusNotFound, "team not found")
+		h.writeError(w, r, http.StatusNotFound, "team not found")
 		return
 	}
 
@@ -273,7 +273,7 @@ func (h *ManagementHandler) ListTeams(w http.ResponseWriter, r *http.Request) {
 	teams, total, err := h.store.ListTeams(r.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to list teams", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to list teams")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to list teams")
 		return
 	}
 
@@ -289,13 +289,13 @@ func (h *ManagementHandler) BlockTeam(w http.ResponseWriter, r *http.Request) {
 		TeamID string `json:"team_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := h.store.BlockTeam(r.Context(), req.TeamID, true); err != nil {
 		h.logger.Error("failed to block team", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to block team")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to block team")
 		return
 	}
 
@@ -308,13 +308,13 @@ func (h *ManagementHandler) UnblockTeam(w http.ResponseWriter, r *http.Request) 
 		TeamID string `json:"team_id"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if err := h.store.BlockTeam(r.Context(), req.TeamID, false); err != nil {
 		h.logger.Error("failed to unblock team", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to unblock team")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to unblock team")
 		return
 	}
 
@@ -331,12 +331,12 @@ type TeamMemberAddRequest struct {
 func (h *ManagementHandler) AddTeamMember(w http.ResponseWriter, r *http.Request) {
 	var req TeamMemberAddRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.TeamID == "" {
-		h.writeError(w, http.StatusBadRequest, "team_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "team_id is required")
 		return
 	}
 
@@ -369,12 +369,12 @@ type TeamMemberDeleteRequest struct {
 func (h *ManagementHandler) DeleteTeamMember(w http.ResponseWriter, r *http.Request) {
 	var req TeamMemberDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.TeamID == "" {
-		h.writeError(w, http.StatusBadRequest, "team_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "team_id is required")
 		return
 	}
 

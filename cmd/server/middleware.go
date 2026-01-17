@@ -73,15 +73,51 @@ func buildMiddlewareStack(cfg *config.Config, authStore auth.Store, logger *slog
 	}, nil
 }
 
+func detectLocaleFromRequest(r *http.Request) string {
+	if r == nil {
+		return "i18n"
+	}
+	if v := strings.TrimSpace(r.Header.Get("X-LLMux-Locale")); v != "" {
+		v = strings.ToLower(v)
+		if v == "cn" || strings.HasPrefix(v, "zh") {
+			return "cn"
+		}
+		return "i18n"
+	}
+	// Accept-Language: e.g. "zh-CN,zh;q=0.9,en;q=0.8"
+	al := strings.ToLower(r.Header.Get("Accept-Language"))
+	if strings.Contains(al, "zh") {
+		return "cn"
+	}
+	return "i18n"
+}
+
+func localizeAuthzMessage(locale, message string) string {
+	if locale != "cn" {
+		return message
+	}
+	switch message {
+	case "internal server error":
+		return "服务器内部错误"
+	case "authentication required":
+		return "需要认证"
+	case "management permission required":
+		return "需要管理权限"
+	case "invalid request body":
+		return "请求体无效"
+	case "request body too large":
+		return "请求体过大"
+	}
+	return message
+}
+
 func recoveryMiddleware(logger *slog.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			defer func() {
 				if err := recover(); err != nil {
 					logger.Error("panic recovered", "error", err, "path", r.URL.Path)
-					w.Header().Set("Content-Type", "application/json")
-					w.WriteHeader(http.StatusInternalServerError)
-					_, _ = w.Write([]byte(`{"error":{"message":"internal server error","type":"server_error"}}`))
+					writeAuthzError(w, r, http.StatusInternalServerError, "internal server error", "server_error")
 				}
 			}()
 			next.ServeHTTP(w, r)
@@ -96,7 +132,7 @@ const bootstrapTokenHeader = "X-LLMux-Bootstrap-Token" // #nosec G101 -- header 
 func managementAuthzMiddleware(cfg *config.Config, enforcer *auth.CasbinEnforcer) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if cfg == nil || r == nil || !isManagementPath(r.URL.Path) {
+			if cfg == nil || !cfg.Auth.Enabled || r == nil || !isManagementPath(r.URL.Path) {
 				next.ServeHTTP(w, r)
 				return
 			}
@@ -109,9 +145,9 @@ func managementAuthzMiddleware(cfg *config.Config, enforcer *auth.CasbinEnforcer
 
 			authCtx := auth.GetAuthContext(r.Context())
 			if authCtx == nil {
-				writeAuthzError(w, http.StatusUnauthorized, "authentication required", "authentication_error")
-				return
-			}
+			writeAuthzError(w, r, http.StatusUnauthorized, "authentication required", "authentication_error")
+			return
+		}
 
 			if enforcer != nil {
 				var sub string
@@ -139,7 +175,7 @@ func managementAuthzMiddleware(cfg *config.Config, enforcer *auth.CasbinEnforcer
 					next.ServeHTTP(w, r)
 					return
 				default:
-					writeAuthzError(w, http.StatusForbidden, "management permission required", "permission_error")
+					writeAuthzError(w, r, http.StatusForbidden, "management permission required", "permission_error")
 					return
 				}
 			}
@@ -149,7 +185,7 @@ func managementAuthzMiddleware(cfg *config.Config, enforcer *auth.CasbinEnforcer
 				return
 			}
 
-			writeAuthzError(w, http.StatusForbidden, "management permission required", "permission_error")
+		writeAuthzError(w, r, http.StatusForbidden, "management permission required", "permission_error")
 		})
 	}
 }
@@ -178,7 +214,8 @@ func isManagementPath(path string) bool {
 	return false
 }
 
-func writeAuthzError(w http.ResponseWriter, status int, message, typ string) {
+func writeAuthzError(w http.ResponseWriter, r *http.Request, status int, message, typ string) {
+	message = localizeAuthzMessage(detectLocaleFromRequest(r), message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_, _ = w.Write([]byte(`{"error":{"message":"` + message + `","type":"` + typ + `"}}`))
@@ -194,11 +231,11 @@ func managementBodyLimitMiddleware(next http.Handler) http.Handler {
 		body, err := io.ReadAll(io.LimitReader(r.Body, maxManagementBodyBytes+1))
 		_ = r.Body.Close()
 		if err != nil {
-			writeAuthzError(w, http.StatusBadRequest, "invalid request body", "request_error")
+			writeAuthzError(w, r, http.StatusBadRequest, "invalid request body", "request_error")
 			return
 		}
 		if int64(len(body)) > maxManagementBodyBytes {
-			writeAuthzError(w, http.StatusRequestEntityTooLarge, "request body too large", "request_error")
+			writeAuthzError(w, r, http.StatusRequestEntityTooLarge, "request body too large", "request_error")
 			return
 		}
 

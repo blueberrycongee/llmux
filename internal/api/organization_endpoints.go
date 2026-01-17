@@ -33,12 +33,12 @@ type NewOrganizationRequest struct {
 func (h *ManagementHandler) NewOrganization(w http.ResponseWriter, r *http.Request) {
 	var req NewOrganizationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.OrganizationAlias == "" {
-		h.writeError(w, http.StatusBadRequest, "organization_alias is required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_alias is required")
 		return
 	}
 
@@ -87,7 +87,7 @@ func (h *ManagementHandler) NewOrganization(w http.ResponseWriter, r *http.Reque
 
 		if err := h.store.CreateBudget(r.Context(), budget); err != nil {
 			h.logger.Error("failed to create budget", "error", err)
-			h.writeError(w, http.StatusInternalServerError, "failed to create organization budget")
+			h.writeError(w, r, http.StatusInternalServerError, "failed to create organization budget")
 			return
 		}
 		org.BudgetID = &budget.ID
@@ -95,7 +95,7 @@ func (h *ManagementHandler) NewOrganization(w http.ResponseWriter, r *http.Reque
 
 	if err := h.store.CreateOrganization(r.Context(), org); err != nil {
 		h.logger.Error("failed to create organization", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to create organization")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to create organization")
 		return
 	}
 
@@ -119,18 +119,18 @@ type UpdateOrganizationRequest struct {
 func (h *ManagementHandler) UpdateOrganization(w http.ResponseWriter, r *http.Request) {
 	var req UpdateOrganizationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.OrganizationID == "" {
-		h.writeError(w, http.StatusBadRequest, "organization_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_id is required")
 		return
 	}
 
 	org, err := h.store.GetOrganization(r.Context(), req.OrganizationID)
 	if err != nil || org == nil {
-		h.writeError(w, http.StatusNotFound, "organization not found")
+		h.writeError(w, r, http.StatusNotFound, "organization not found")
 		return
 	}
 
@@ -179,7 +179,7 @@ func (h *ManagementHandler) UpdateOrganization(w http.ResponseWriter, r *http.Re
 
 	if err := h.store.UpdateOrganization(r.Context(), org); err != nil {
 		h.logger.Error("failed to update organization", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to update organization")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to update organization")
 		return
 	}
 
@@ -195,12 +195,12 @@ type DeleteOrganizationRequest struct {
 func (h *ManagementHandler) DeleteOrganization(w http.ResponseWriter, r *http.Request) {
 	var req DeleteOrganizationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if len(req.OrganizationIDs) == 0 {
-		h.writeError(w, http.StatusBadRequest, "organization_ids is required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_ids is required")
 		return
 	}
 
@@ -222,18 +222,18 @@ func (h *ManagementHandler) DeleteOrganization(w http.ResponseWriter, r *http.Re
 func (h *ManagementHandler) GetOrganizationInfo(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("organization_id")
 	if orgID == "" {
-		h.writeError(w, http.StatusBadRequest, "organization_id parameter is required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_id parameter is required")
 		return
 	}
 
 	org, err := h.store.GetOrganization(r.Context(), orgID)
 	if err != nil {
 		h.logger.Error("failed to get organization info", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get organization info")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get organization info")
 		return
 	}
 	if org == nil {
-		h.writeError(w, http.StatusNotFound, "organization not found")
+		h.writeError(w, r, http.StatusNotFound, "organization not found")
 		return
 	}
 
@@ -266,7 +266,7 @@ func (h *ManagementHandler) ListOrganizations(w http.ResponseWriter, r *http.Req
 	orgs, total, err := h.store.ListOrganizations(r.Context(), limit, offset)
 	if err != nil {
 		h.logger.Error("failed to list organizations", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to list organizations")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to list organizations")
 		return
 	}
 
@@ -298,24 +298,24 @@ type OrgMember struct {
 func (h *ManagementHandler) AddOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	var req OrgMemberAddRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.OrganizationID == "" {
-		h.writeError(w, http.StatusBadRequest, "organization_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_id is required")
 		return
 	}
 
 	if len(req.Members) == 0 {
-		h.writeError(w, http.StatusBadRequest, "members is required")
+		h.writeError(w, r, http.StatusBadRequest, "members is required")
 		return
 	}
 
 	// Verify organization exists
 	org, err := h.store.GetOrganization(r.Context(), req.OrganizationID)
 	if err != nil || org == nil {
-		h.writeError(w, http.StatusNotFound, "organization not found")
+		h.writeError(w, r, http.StatusNotFound, "organization not found")
 		return
 	}
 
@@ -388,18 +388,18 @@ type OrgMemberUpdateRequest struct {
 func (h *ManagementHandler) UpdateOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	var req OrgMemberUpdateRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.OrganizationID == "" || req.UserID == "" {
-		h.writeError(w, http.StatusBadRequest, "organization_id and user_id are required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_id and user_id are required")
 		return
 	}
 
 	membership, err := h.store.GetOrganizationMembership(r.Context(), req.UserID, req.OrganizationID)
 	if err != nil || membership == nil {
-		h.writeError(w, http.StatusNotFound, "membership not found")
+		h.writeError(w, r, http.StatusNotFound, "membership not found")
 		return
 	}
 
@@ -422,7 +422,7 @@ func (h *ManagementHandler) UpdateOrganizationMember(w http.ResponseWriter, r *h
 
 	if err := h.store.UpdateOrganizationMembership(r.Context(), membership); err != nil {
 		h.logger.Error("failed to update organization member", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to update member")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to update member")
 		return
 	}
 
@@ -439,12 +439,12 @@ type OrgMemberDeleteRequest struct {
 func (h *ManagementHandler) DeleteOrganizationMember(w http.ResponseWriter, r *http.Request) {
 	var req OrgMemberDeleteRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.OrganizationID == "" || len(req.UserIDs) == 0 {
-		h.writeError(w, http.StatusBadRequest, "organization_id and user_ids are required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_id and user_ids are required")
 		return
 	}
 
@@ -466,14 +466,14 @@ func (h *ManagementHandler) DeleteOrganizationMember(w http.ResponseWriter, r *h
 func (h *ManagementHandler) ListOrganizationMembers(w http.ResponseWriter, r *http.Request) {
 	orgID := r.URL.Query().Get("organization_id")
 	if orgID == "" {
-		h.writeError(w, http.StatusBadRequest, "organization_id parameter is required")
+		h.writeError(w, r, http.StatusBadRequest, "organization_id parameter is required")
 		return
 	}
 
 	members, err := h.store.ListOrganizationMembers(r.Context(), orgID)
 	if err != nil {
 		h.logger.Error("failed to list organization members", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to list members")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to list members")
 		return
 	}
 

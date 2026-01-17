@@ -19,15 +19,16 @@ import {
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { useI18n } from "@/i18n/locale-provider";
 
 const navigation = [
-    { name: "Overview", href: "/", icon: LayoutDashboard },
-    { name: "API Keys", href: "/api-keys", icon: Key },
-    { name: "Teams", href: "/teams", icon: Users },
-    { name: "Organizations", href: "/organizations", icon: Building2 },
-    { name: "Users", href: "/users", icon: Shield },
-    { name: "Audit Logs", href: "/audit-logs", icon: FileText },
-    { name: "Settings", href: "/settings", icon: Settings },
+    { nameKey: "nav.overview", href: "/", icon: LayoutDashboard },
+    { nameKey: "nav.apiKeys", href: "/api-keys", icon: Key },
+    { nameKey: "nav.teams", href: "/teams", icon: Users },
+    { nameKey: "nav.organizations", href: "/organizations", icon: Building2 },
+    { nameKey: "nav.users", href: "/users", icon: Shield },
+    { nameKey: "nav.auditLogs", href: "/audit-logs", icon: FileText },
+    { nameKey: "nav.settings", href: "/settings", icon: Settings },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -35,6 +36,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
     const [mounted, setMounted] = useState(false);
     const pathname = usePathname();
     const { theme, setTheme } = useTheme();
+    const { t } = useI18n();
 
     useEffect(() => {
         setMounted(true);
@@ -92,7 +94,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         const Icon = item.icon;
 
                         return (
-                            <Link key={item.name} href={item.href}>
+                            <Link key={item.nameKey} href={item.href}>
                                 <motion.div
                                     className={`
                     relative flex items-center gap-3 px-3 py-2 rounded-lg
@@ -122,7 +124,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                                                 exit={{ opacity: 0, width: 0 }}
                                                 className="overflow-hidden whitespace-nowrap"
                                             >
-                                                {item.name}
+                                                {t(item.nameKey)}
                                             </motion.span>
                                         )}
                                     </AnimatePresence>
@@ -145,7 +147,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         ) : (
                             <Moon className="w-4 h-4" />
                         )}
-                        {!collapsed && <span className="ml-3">Toggle theme</span>}
+                        {!collapsed && <span className="ml-3">{t("nav.toggleTheme")}</span>}
                     </Button>
                     <Button
                         variant="ghost"
@@ -153,7 +155,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                         className="w-full justify-start text-destructive hover:text-destructive"
                     >
                         <LogOut className="w-4 h-4" />
-                        {!collapsed && <span className="ml-3">Sign out</span>}
+                        {!collapsed && <span className="ml-3">{t("nav.signOut")}</span>}
                     </Button>
                 </div>
             </motion.aside>

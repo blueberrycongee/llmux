@@ -7,11 +7,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { LogIn, ShieldCheck, Sparkles, Zap } from "lucide-react";
+import { useI18n } from "@/i18n/locale-provider";
 
 export default function LoginPage() {
     const [isLoading, setIsLoading] = useState(false);
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
+    const { t } = useI18n();
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -75,7 +77,7 @@ export default function LoginPage() {
                             LLMux
                         </h1>
                         <p className="text-sm text-slate-400">
-                            Enterprise LLM Gateway
+                            {t("login.subtitle")}
                         </p>
                     </div>
 
@@ -83,20 +85,20 @@ export default function LoginPage() {
                     <Card className="glass-card">
                         <CardHeader className="space-y-1">
                             <CardTitle className="text-2xl font-bold tracking-tight">
-                                Welcome back
+                                {t("login.welcomeBack")}
                             </CardTitle>
                             <CardDescription>
-                                Sign in to your account to continue
+                                {t("login.signInToContinue")}
                             </CardDescription>
                         </CardHeader>
                         <CardContent>
                             <form onSubmit={handleLogin} className="space-y-4">
                                 <div className="space-y-2">
-                                    <Label htmlFor="email">Email</Label>
+                                    <Label htmlFor="email">{t("login.email")}</Label>
                                     <Input
                                         id="email"
                                         type="email"
-                                        placeholder="name@company.com"
+                                        placeholder={t("login.emailPlaceholder")}
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         required
@@ -104,7 +106,7 @@ export default function LoginPage() {
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label htmlFor="password">Password</Label>
+                                    <Label htmlFor="password">{t("login.password")}</Label>
                                     <Input
                                         id="password"
                                         type="password"
@@ -132,12 +134,12 @@ export default function LoginPage() {
                                                 animate={{ rotate: 360 }}
                                                 transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                                             />
-                                            Signing in...
+                                            {t("login.signingIn")}
                                         </motion.div>
                                     ) : (
                                         <>
                                             <LogIn className="w-4 h-4 mr-2" />
-                                            Sign in
+                                            {t("login.signIn")}
                                         </>
                                     )}
                                 </Button>
@@ -148,7 +150,7 @@ export default function LoginPage() {
                                     </div>
                                     <div className="relative flex justify-center text-xs uppercase">
                                         <span className="bg-card/50 px-2 text-muted-foreground">
-                                            Or continue with
+                                            {t("login.orContinueWith")}
                                         </span>
                                     </div>
                                 </div>
@@ -161,7 +163,7 @@ export default function LoginPage() {
                                     disabled={isLoading}
                                 >
                                     <ShieldCheck className="w-4 h-4 mr-2 transition-transform group-hover:scale-110" />
-                                    Sign in with SSO
+                                    {t("login.signInWithSSO")}
                                 </Button>
                             </form>
 
@@ -178,7 +180,7 @@ export default function LoginPage() {
                                                 <ShieldCheck className="w-4 h-4 text-blue-400" />
                                             </div>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Secure</p>
+                                        <p className="text-xs text-muted-foreground">{t("login.feature.secure")}</p>
                                     </motion.div>
                                     <motion.div
                                         className="space-y-1"
@@ -190,7 +192,7 @@ export default function LoginPage() {
                                                 <Zap className="w-4 h-4 text-purple-400" />
                                             </div>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Fast</p>
+                                        <p className="text-xs text-muted-foreground">{t("login.feature.fast")}</p>
                                     </motion.div>
                                     <motion.div
                                         className="space-y-1"
@@ -202,7 +204,7 @@ export default function LoginPage() {
                                                 <Sparkles className="w-4 h-4 text-green-400" />
                                             </div>
                                         </div>
-                                        <p className="text-xs text-muted-foreground">Smart</p>
+                                        <p className="text-xs text-muted-foreground">{t("login.feature.smart")}</p>
                                     </motion.div>
                                 </div>
                             </div>
@@ -211,13 +213,13 @@ export default function LoginPage() {
 
                     {/* Footer */}
                     <p className="mt-6 text-center text-xs text-slate-500">
-                        By signing in, you agree to our{" "}
+                        {t("login.footer.prefix")} {" "}
                         <a href="#" className="underline hover:text-slate-400 transition-colors">
-                            Terms of Service
+                            {t("login.footer.terms")}
                         </a>{" "}
-                        and{" "}
+                        {t("login.footer.and")} {" "}
                         <a href="#" className="underline hover:text-slate-400 transition-colors">
-                            Privacy Policy
+                            {t("login.footer.privacy")}
                         </a>
                     </p>
                 </motion.div>

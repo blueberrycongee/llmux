@@ -39,7 +39,7 @@ func (h *ManagementHandler) ListDeployments(w http.ResponseWriter, r *http.Reque
 	client, release := h.acquireClient()
 	defer release()
 	if client == nil {
-		h.writeError(w, http.StatusServiceUnavailable, "client not available")
+		h.writeError(w, r, http.StatusServiceUnavailable, "client not available")
 		return
 	}
 
@@ -71,17 +71,17 @@ func (h *ManagementHandler) UpdateDeploymentCooldown(w http.ResponseWriter, r *h
 	client, release := h.acquireClient()
 	defer release()
 	if client == nil {
-		h.writeError(w, http.StatusServiceUnavailable, "client not available")
+		h.writeError(w, r, http.StatusServiceUnavailable, "client not available")
 		return
 	}
 
 	var req cooldownRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 	if req.DeploymentID == "" {
-		h.writeError(w, http.StatusBadRequest, "deployment_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "deployment_id is required")
 		return
 	}
 	if req.CooldownSeconds < 0 {
@@ -96,7 +96,7 @@ func (h *ManagementHandler) UpdateDeploymentCooldown(w http.ResponseWriter, r *h
 		}
 	}
 	if !exists {
-		h.writeError(w, http.StatusNotFound, "deployment not found")
+		h.writeError(w, r, http.StatusNotFound, "deployment not found")
 		return
 	}
 
@@ -118,7 +118,7 @@ func (h *ManagementHandler) UpdateDeploymentCooldown(w http.ResponseWriter, r *h
 			"cooldown_seconds": req.CooldownSeconds,
 			"action":           action,
 		}, err.Error())
-		h.writeError(w, http.StatusInternalServerError, "failed to update cooldown")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to update cooldown")
 		return
 	}
 
@@ -150,7 +150,7 @@ func (h *ManagementHandler) ListProviders(w http.ResponseWriter, r *http.Request
 	client, release := h.acquireClient()
 	defer release()
 	if client == nil {
-		h.writeError(w, http.StatusServiceUnavailable, "client not available")
+		h.writeError(w, r, http.StatusServiceUnavailable, "client not available")
 		return
 	}
 
@@ -176,7 +176,7 @@ func (h *ManagementHandler) ListProviders(w http.ResponseWriter, r *http.Request
 
 func (h *ManagementHandler) GetConfigStatus(w http.ResponseWriter, r *http.Request) {
 	if h.configManager == nil {
-		h.writeError(w, http.StatusServiceUnavailable, "config manager not available")
+		h.writeError(w, r, http.StatusServiceUnavailable, "config manager not available")
 		return
 	}
 
@@ -185,19 +185,19 @@ func (h *ManagementHandler) GetConfigStatus(w http.ResponseWriter, r *http.Reque
 
 func (h *ManagementHandler) ReloadConfig(w http.ResponseWriter, r *http.Request) {
 	if h.configManager == nil {
-		h.writeError(w, http.StatusServiceUnavailable, "config manager not available")
+		h.writeError(w, r, http.StatusServiceUnavailable, "config manager not available")
 		return
 	}
 
 	var req configReloadRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil && err != io.EOF {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	before := h.configManager.Status()
 	if req.ExpectedChecksum != "" && req.ExpectedChecksum != before.Checksum {
-		h.writeError(w, http.StatusConflict, "config checksum mismatch")
+		h.writeError(w, r, http.StatusConflict, "config checksum mismatch")
 		return
 	}
 
@@ -205,7 +205,7 @@ func (h *ManagementHandler) ReloadConfig(w http.ResponseWriter, r *http.Request)
 		h.auditControlAction(r, auth.AuditActionConfigUpdate, auth.AuditObjectConfig, "gateway", false, nil, nil, map[string]any{
 			"previous_checksum": before.Checksum,
 		}, err.Error())
-		h.writeError(w, http.StatusInternalServerError, "failed to reload config")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to reload config")
 		return
 	}
 

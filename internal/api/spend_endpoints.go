@@ -28,7 +28,7 @@ func (h *ManagementHandler) GetSpendLogs(w http.ResponseWriter, r *http.Request)
 	if startDateStr != "" {
 		startDate, err = time.Parse("2006-01-02", startDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid start_date format, use YYYY-MM-DD")
+			h.writeError(w, r, http.StatusBadRequest, "invalid start_date format, use YYYY-MM-DD")
 			return
 		}
 	} else {
@@ -38,7 +38,7 @@ func (h *ManagementHandler) GetSpendLogs(w http.ResponseWriter, r *http.Request)
 	if endDateStr != "" {
 		endDate, err = time.Parse("2006-01-02", endDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid end_date format, use YYYY-MM-DD")
+			h.writeError(w, r, http.StatusBadRequest, "invalid end_date format, use YYYY-MM-DD")
 			return
 		}
 	} else {
@@ -62,7 +62,7 @@ func (h *ManagementHandler) GetSpendLogs(w http.ResponseWriter, r *http.Request)
 	stats, err := h.store.GetUsageStats(r.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to get spend logs", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get spend logs")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get spend logs")
 		return
 	}
 
@@ -108,7 +108,7 @@ func (h *ManagementHandler) GetSpendByKeys(w http.ResponseWriter, r *http.Reques
 	})
 	if err != nil {
 		h.logger.Error("failed to get keys", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get spend by keys")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get spend by keys")
 		return
 	}
 
@@ -144,7 +144,7 @@ func (h *ManagementHandler) GetSpendByTeams(w http.ResponseWriter, r *http.Reque
 	})
 	if err != nil {
 		h.logger.Error("failed to get teams", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get spend by teams")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get spend by teams")
 		return
 	}
 
@@ -175,7 +175,7 @@ func (h *ManagementHandler) GetSpendByUsers(w http.ResponseWriter, r *http.Reque
 	})
 	if err != nil {
 		h.logger.Error("failed to get users", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get spend by users")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get spend by users")
 		return
 	}
 
@@ -211,7 +211,7 @@ func (h *ManagementHandler) GetGlobalActivity(w http.ResponseWriter, r *http.Req
 	if startDateStr != "" {
 		startDate, err = time.Parse("2006-01-02", startDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid start_date format")
+			h.writeError(w, r, http.StatusBadRequest, "invalid start_date format")
 			return
 		}
 	} else {
@@ -221,7 +221,7 @@ func (h *ManagementHandler) GetGlobalActivity(w http.ResponseWriter, r *http.Req
 	if endDateStr != "" {
 		endDate, err = time.Parse("2006-01-02", endDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid end_date format")
+			h.writeError(w, r, http.StatusBadRequest, "invalid end_date format")
 			return
 		}
 	} else {
@@ -236,7 +236,7 @@ func (h *ManagementHandler) GetGlobalActivity(w http.ResponseWriter, r *http.Req
 	stats, err := h.store.GetUsageStats(r.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to get global activity", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get global activity")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get global activity")
 		return
 	}
 
@@ -290,7 +290,7 @@ func (h *ManagementHandler) GetGlobalSpendByModel(w http.ResponseWriter, r *http
 	if startDateStr != "" {
 		startDate, err = time.Parse("2006-01-02", startDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid start_date format")
+			h.writeError(w, r, http.StatusBadRequest, "invalid start_date format")
 			return
 		}
 	} else {
@@ -299,7 +299,7 @@ func (h *ManagementHandler) GetGlobalSpendByModel(w http.ResponseWriter, r *http
 	if endDateStr != "" {
 		endDate, err = time.Parse("2006-01-02", endDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid end_date format")
+			h.writeError(w, r, http.StatusBadRequest, "invalid end_date format")
 			return
 		}
 	} else {
@@ -315,7 +315,7 @@ func (h *ManagementHandler) GetGlobalSpendByModel(w http.ResponseWriter, r *http
 	dailyUsage, err := h.store.GetDailyUsage(r.Context(), dailyFilter)
 	if err != nil {
 		h.logger.Error("failed to get spend by model", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get spend by model")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get spend by model")
 		return
 	}
 
@@ -355,7 +355,7 @@ func (h *ManagementHandler) GetGlobalSpendByProvider(w http.ResponseWriter, r *h
 	if startDateStr != "" {
 		startDate, err = time.Parse("2006-01-02", startDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid start_date format")
+			h.writeError(w, r, http.StatusBadRequest, "invalid start_date format")
 			return
 		}
 	} else {
@@ -364,7 +364,7 @@ func (h *ManagementHandler) GetGlobalSpendByProvider(w http.ResponseWriter, r *h
 	if endDateStr != "" {
 		endDate, err = time.Parse("2006-01-02", endDateStr)
 		if err != nil {
-			h.writeError(w, http.StatusBadRequest, "invalid end_date format")
+			h.writeError(w, r, http.StatusBadRequest, "invalid end_date format")
 			return
 		}
 	} else {
@@ -380,7 +380,7 @@ func (h *ManagementHandler) GetGlobalSpendByProvider(w http.ResponseWriter, r *h
 	dailyUsage, err := h.store.GetDailyUsage(r.Context(), dailyFilter)
 	if err != nil {
 		h.logger.Error("failed to get spend by provider", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get spend by provider")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get spend by provider")
 		return
 	}
 

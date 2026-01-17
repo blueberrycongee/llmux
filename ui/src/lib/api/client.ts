@@ -1,6 +1,6 @@
 /**
  * LLMux API Client
- * 
+ *
  * 统一的 API 客户端，封装所有后端 API 调用
  * 源码参考: internal/api/routes.go
  */
@@ -32,9 +32,33 @@ import type {
     PaginatedResponse,
 } from '@/types/api';
 
+import { LOCALE_COOKIE, LOCALE_STORAGE_KEY, localeToHtmlLang, normalizeLocale, type AppLocale } from "@/i18n/i18n";
+
 // ===== Configuration =====
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8080';
+
+function readCookie(name: string): string | null {
+    if (typeof document === "undefined") return null;
+    const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${name}=([^;]+)`));
+    return match ? decodeURIComponent(match[1]) : null;
+}
+
+function getPreferredLocale(): AppLocale {
+    // Prefer cookie (SSR-friendly) then localStorage
+    const fromCookie = readCookie(LOCALE_COOKIE);
+    if (fromCookie) return normalizeLocale(fromCookie);
+
+    if (typeof window !== "undefined") {
+        try {
+            const fromStorage = window.localStorage.getItem(LOCALE_STORAGE_KEY);
+            if (fromStorage) return normalizeLocale(fromStorage);
+        } catch {
+            // ignore
+        }
+    }
+    return normalizeLocale(null);
+}
 
 // ===== Error Handling =====
 
@@ -58,8 +82,19 @@ class LLMuxApiClient {
     private baseUrl: string;
     private token: string | null = null;
 
-    constructor(baseUrl: string = API_BASE_URL) {
-        this.baseUrl = baseUrl;
+    constructor(baseUrl?: string) {
+        if (baseUrl) {
+            this.baseUrl = baseUrl;
+        } else if (typeof window !== 'undefined') {
+            // Browser: Use current origin (proxy)
+            this.baseUrl = window.location.origin;
+        } else if (API_BASE_URL) {
+            this.baseUrl = API_BASE_URL;
+        } else {
+            // Server: Default to management port
+            this.baseUrl = 'http://localhost:8081';
+        }
+        console.log('[LLMuxApiClient] Initialized with baseUrl:', this.baseUrl, 'API_BASE_URL:', API_BASE_URL);
     }
 
     /**
@@ -107,6 +142,11 @@ class LLMuxApiClient {
         const headers: HeadersInit = {
             'Content-Type': 'application/json',
         };
+
+        const locale = getPreferredLocale();
+        headers['Accept-Language'] = localeToHtmlLang(locale);
+        headers['X-LLMux-Locale'] = locale;
+
         if (this.token) {
             headers['Authorization'] = `Bearer ${this.token}`;
         }

@@ -79,13 +79,13 @@ type CreateInvitationResponse struct {
 func (h *InvitationHandler) CreateInvitation(w http.ResponseWriter, r *http.Request) {
 	var req CreateInvitationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	// Validate: must have either team_id or organization_id
 	if req.TeamID == nil && req.OrganizationID == nil {
-		h.writeError(w, http.StatusBadRequest, "team_id or organization_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "team_id or organization_id is required")
 		return
 	}
 
@@ -112,7 +112,7 @@ func (h *InvitationHandler) CreateInvitation(w http.ResponseWriter, r *http.Requ
 	link, rawToken, err := h.service.CreateInvitationLink(r.Context(), createReq)
 	if err != nil {
 		h.logger.Error("failed to create invitation link", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to create invitation link")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to create invitation link")
 		return
 	}
 
@@ -143,16 +143,16 @@ type AcceptInvitationRequest struct {
 func (h *InvitationHandler) AcceptInvitation(w http.ResponseWriter, r *http.Request) {
 	var req AcceptInvitationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.Token == "" {
-		h.writeError(w, http.StatusBadRequest, "token is required")
+		h.writeError(w, r, http.StatusBadRequest, "token is required")
 		return
 	}
 	if req.UserID == "" {
-		h.writeError(w, http.StatusBadRequest, "user_id is required")
+		h.writeError(w, r, http.StatusBadRequest, "user_id is required")
 		return
 	}
 
@@ -165,12 +165,12 @@ func (h *InvitationHandler) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 	result, err := h.service.AcceptInvitation(r.Context(), acceptReq)
 	if err != nil {
 		h.logger.Error("failed to accept invitation", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to accept invitation")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to accept invitation")
 		return
 	}
 
 	if !result.Success {
-		h.writeError(w, http.StatusBadRequest, result.Message)
+		h.writeError(w, r, http.StatusBadRequest, result.Message)
 		return
 	}
 
@@ -181,18 +181,18 @@ func (h *InvitationHandler) AcceptInvitation(w http.ResponseWriter, r *http.Requ
 func (h *InvitationHandler) GetInvitationInfo(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
-		h.writeError(w, http.StatusBadRequest, "id parameter is required")
+		h.writeError(w, r, http.StatusBadRequest, "id parameter is required")
 		return
 	}
 
 	link, err := h.store.GetInvitationLink(r.Context(), id)
 	if err != nil {
 		h.logger.Error("failed to get invitation link", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to get invitation link")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to get invitation link")
 		return
 	}
 	if link == nil {
-		h.writeError(w, http.StatusNotFound, "invitation not found")
+		h.writeError(w, r, http.StatusNotFound, "invitation not found")
 		return
 	}
 
@@ -241,7 +241,7 @@ func (h *InvitationHandler) ListInvitations(w http.ResponseWriter, r *http.Reque
 	links, err := h.store.ListInvitationLinks(r.Context(), filter)
 	if err != nil {
 		h.logger.Error("failed to list invitation links", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to list invitation links")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to list invitation links")
 		return
 	}
 
@@ -266,18 +266,18 @@ type DeactivateInvitationRequest struct {
 func (h *InvitationHandler) DeactivateInvitation(w http.ResponseWriter, r *http.Request) {
 	var req DeactivateInvitationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if req.ID == "" {
-		h.writeError(w, http.StatusBadRequest, "id is required")
+		h.writeError(w, r, http.StatusBadRequest, "id is required")
 		return
 	}
 
 	if err := h.service.DeactivateInvitation(r.Context(), req.ID); err != nil {
 		h.logger.Error("failed to deactivate invitation", "error", err)
-		h.writeError(w, http.StatusInternalServerError, "failed to deactivate invitation")
+		h.writeError(w, r, http.StatusInternalServerError, "failed to deactivate invitation")
 		return
 	}
 
@@ -296,12 +296,12 @@ type DeleteInvitationRequest struct {
 func (h *InvitationHandler) DeleteInvitation(w http.ResponseWriter, r *http.Request) {
 	var req DeleteInvitationRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		h.writeError(w, http.StatusBadRequest, "invalid request body")
+		h.writeError(w, r, http.StatusBadRequest, "invalid request body")
 		return
 	}
 
 	if len(req.IDs) == 0 {
-		h.writeError(w, http.StatusBadRequest, "ids is required")
+		h.writeError(w, r, http.StatusBadRequest, "ids is required")
 		return
 	}
 
@@ -330,7 +330,8 @@ func (h *InvitationHandler) writeJSON(w http.ResponseWriter, status int, data an
 	}
 }
 
-func (h *InvitationHandler) writeError(w http.ResponseWriter, status int, message string) {
+func (h *InvitationHandler) writeError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	message = localizeManagementMessage(detectLocaleFromRequest(r), message)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
 	_ = json.NewEncoder(w).Encode(map[string]any{

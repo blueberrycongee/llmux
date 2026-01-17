@@ -4,6 +4,7 @@ import { motion } from "framer-motion";
 import { Shield, ShieldOff, AlertTriangle, Clock, CheckCircle2, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useI18n } from "@/i18n/locale-provider";
 
 interface StatusBadgeProps {
     isActive: boolean;
@@ -13,13 +14,14 @@ interface StatusBadgeProps {
 }
 
 export function StatusBadge({ isActive, blocked = false, className, size = "md" }: StatusBadgeProps) {
+    const { t } = useI18n();
     const iconSize = size === "sm" ? "w-3 h-3" : "w-3.5 h-3.5";
 
     if (blocked) {
         return (
             <Badge variant="error" className={cn("gap-1", className)}>
                 <ShieldOff className={iconSize} />
-                <span>Blocked</span>
+                <span>{t("status.blocked")}</span>
             </Badge>
         );
     }
@@ -28,7 +30,7 @@ export function StatusBadge({ isActive, blocked = false, className, size = "md" 
         return (
             <Badge variant="success" className={cn("gap-1", className)}>
                 <Shield className={iconSize} />
-                <span>Active</span>
+                <span>{t("status.active")}</span>
             </Badge>
         );
     }
@@ -36,7 +38,7 @@ export function StatusBadge({ isActive, blocked = false, className, size = "md" 
     return (
         <Badge variant="secondary" className={cn("gap-1", className)}>
             <Clock className={iconSize} />
-            <span>Inactive</span>
+            <span>{t("status.inactive")}</span>
         </Badge>
     );
 }
@@ -46,22 +48,23 @@ interface RoleBadgeProps {
     className?: string;
 }
 
-const roleConfig: Record<string, { label: string; variant: "default" | "info" | "warning" | "success" }> = {
-    proxy_admin: { label: "Admin", variant: "warning" },
-    proxy_admin_viewer: { label: "Admin Viewer", variant: "info" },
-    org_admin: { label: "Org Admin", variant: "warning" },
-    internal_user: { label: "Internal User", variant: "default" },
-    internal_user_viewer: { label: "Viewer", variant: "info" },
-    team: { label: "Team", variant: "success" },
-    customer: { label: "Customer", variant: "default" },
+const roleConfig: Record<string, { labelKey: string; variant: "default" | "info" | "warning" | "success" }> = {
+    proxy_admin: { labelKey: "role.admin", variant: "warning" },
+    proxy_admin_viewer: { labelKey: "role.adminViewer", variant: "info" },
+    org_admin: { labelKey: "role.orgAdmin", variant: "warning" },
+    internal_user: { labelKey: "role.internalUser", variant: "default" },
+    internal_user_viewer: { labelKey: "role.viewer", variant: "info" },
+    team: { labelKey: "role.team", variant: "success" },
+    customer: { labelKey: "role.customer", variant: "default" },
 };
 
 export function RoleBadge({ role, className }: RoleBadgeProps) {
-    const config = roleConfig[role] || { label: role, variant: "default" as const };
+    const { t } = useI18n();
+    const config = roleConfig[role] || { labelKey: role, variant: "default" as const };
 
     return (
         <Badge variant={config.variant} className={className}>
-            {config.label}
+            {t(config.labelKey)}
         </Badge>
     );
 }
@@ -81,12 +84,13 @@ export function BudgetProgress({
     size = "md",
     className
 }: BudgetProgressProps) {
+    const { t } = useI18n();
     if (!max) {
         return (
             <div className={cn("text-sm", className)}>
-                <span className="text-muted-foreground">Spent: </span>
+                <span className="text-muted-foreground">{t("budget.spent")}: </span>
                 <span className="font-medium">${spent.toFixed(2)}</span>
-                <span className="text-muted-foreground"> / No limit</span>
+                <span className="text-muted-foreground"> / {t("budget.noLimit")}</span>
             </div>
         );
     }
@@ -100,7 +104,7 @@ export function BudgetProgress({
         <div className={cn("space-y-1", className)}>
             {showLabel && (
                 <div className="flex items-center justify-between text-sm">
-                    <span className="text-muted-foreground">Budget</span>
+                    <span className="text-muted-foreground">{t("budget.budget")}</span>
                     <span className={cn(
                         isOverLimit && "text-red-400",
                         isNearLimit && !isOverLimit && "text-yellow-400"
@@ -156,6 +160,7 @@ interface ErrorStateProps {
 }
 
 export function ErrorState({ message, onRetry, className }: ErrorStateProps) {
+    const { t } = useI18n();
     return (
         <motion.div
             initial={{ opacity: 0 }}
@@ -172,7 +177,7 @@ export function ErrorState({ message, onRetry, className }: ErrorStateProps) {
                     onClick={onRetry}
                     className="text-sm text-red-400 hover:text-red-300 underline underline-offset-2"
                 >
-                    Retry
+                    {t("common.retry")}
                 </button>
             )}
         </motion.div>
