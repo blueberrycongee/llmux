@@ -1,0 +1,16 @@
+{"time":"2026-04-10T00:33:14.8283476+08:00","level":"INFO","msg":"starting LLMux gateway","version":"0.1.0"}
+{"time":"2026-04-10T00:33:14.8704894+08:00","level":"INFO","msg":"vault provider disabled"}
+{"time":"2026-04-10T00:33:14.8714886+08:00","level":"INFO","msg":"provider registered","name":"mock-openai","models":["gpt-4o","gpt-4o-mini"]}
+{"time":"2026-04-10T00:33:14.8734886+08:00","level":"INFO","msg":"llmux client initialized","providers":1,"strategy":"simple-shuffle","cache_enabled":false,"ratelimiter_enabled":false}
+{"time":"2026-04-10T00:33:14.8754885+08:00","level":"INFO","msg":"plugin pipeline initialized","plugins":0}
+{"time":"2026-04-10T00:33:14.8774885+08:00","level":"INFO","msg":"using in-memory auth store (for development only)"}
+{"time":"2026-04-10T00:33:14.8785562+08:00","level":"INFO","msg":"found keys needing budget reset","count":0}
+{"time":"2026-04-10T00:33:14.878703+08:00","level":"INFO","msg":"found teams needing budget reset","count":0}
+{"time":"2026-04-10T00:33:14.878703+08:00","level":"INFO","msg":"found users needing budget reset","count":0}
+{"time":"2026-04-10T00:33:14.8792035+08:00","level":"INFO","msg":"management endpoints registered","endpoints":["/key/*","/team/*","/user/*","/organization/*","/spend/*","/audit/*"],"admin_port":8081}
+{"time":"2026-04-10T00:33:14.8792035+08:00","level":"INFO","msg":"server listening","port":8080}
+{"time":"2026-04-10T00:33:14.8792035+08:00","level":"INFO","msg":"admin server listening","port":8081}
+{"time":"2026-04-10T00:33:14.8827039+08:00","level":"INFO","msg":"job runner stopped"}
+{"time":"2026-04-10T00:33:14.8827039+08:00","level":"INFO","msg":"plugin pipeline shutdown complete","plugins":0}
+{"time":"2026-04-10T00:33:14.8831482+08:00","level":"INFO","msg":"llmux client closed"}
+{"time":"2026-04-10T00:33:14.8831482+08:00","level":"ERROR","msg":"server failed","error":"server error: listen tcp :8081: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted."}

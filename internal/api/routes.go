@@ -79,11 +79,43 @@ func (h *ManagementHandler) RegisterRoutes(mux *http.ServeMux) {
 	}
 
 	// ========================================================================
+	// Sandbox Simulation Routes
+	// ========================================================================
+	mux.HandleFunc("POST /sandbox/generate", h.GenerateSandbox)
+	mux.HandleFunc("GET /sandbox/state", h.GetSandboxState)
+	mux.HandleFunc("POST /sandbox/step", h.StepSandbox)
+
+	// ========================================================================
 	// Control Plane Routes
 	// ========================================================================
 	mux.HandleFunc("GET /control/deployments", h.ListDeployments)
 	mux.HandleFunc("POST /control/deployments/cooldown", h.UpdateDeploymentCooldown)
 	mux.HandleFunc("GET /control/providers", h.ListProviders)
+	mux.HandleFunc("GET /control/routing-memory", h.GetRoutingMemory)
+	mux.HandleFunc("GET /control/scheduling/advisor", h.GetSchedulingAdvisor)
+	mux.HandleFunc("GET /control/scheduling/compare", h.GetRoutingOptimizationComparison)
+	mux.HandleFunc("POST /control/simulate-traffic", h.SimulateTraffic)
+	mux.HandleFunc("POST /control/real-run", h.RealTrafficRun)
+	mux.HandleFunc("GET /control/conversation/agents", h.ListConversationAgents)
+	mux.HandleFunc("POST /control/conversation/agents/new", h.CreateConversationAgent)
+	mux.HandleFunc("POST /control/conversation/agents/update", h.UpdateConversationAgent)
+	mux.HandleFunc("POST /control/conversation/agents/delete", h.DeleteConversationAgent)
+	mux.HandleFunc("GET /control/conversation/agent-teams", h.ListAgentTeams)
+	mux.HandleFunc("POST /control/conversation/agent-teams/new", h.CreateAgentTeam)
+	mux.HandleFunc("POST /control/conversation/agent-teams/update", h.UpdateAgentTeam)
+	mux.HandleFunc("POST /control/conversation/agent-teams/delete", h.DeleteAgentTeam)
+	mux.HandleFunc("GET /control/conversation/team-memory", h.ListTeamMemory)
+	mux.HandleFunc("POST /control/conversation/rehearse-team", h.RehearseAgentTeam)
+	mux.HandleFunc("GET /control/conversation/tools", h.ListConversationTools)
+	mux.HandleFunc("GET /control/conversation/tool-marketplace", h.ListToolMarketplace)
+	mux.HandleFunc("GET /control/conversation/tool-presets", h.ListToolPresets)
+	mux.HandleFunc("POST /control/conversation/tool-presets/import", h.ImportToolPreset)
+	mux.HandleFunc("POST /control/conversation/tool-marketplace/new", h.CreateToolMarketplaceItem)
+	mux.HandleFunc("POST /control/conversation/tool-marketplace/update", h.UpdateToolMarketplaceItem)
+	mux.HandleFunc("POST /control/conversation/tool-marketplace/delete", h.DeleteToolMarketplaceItem)
+	mux.HandleFunc("POST /control/conversation/tool-marketplace/import", h.ImportConversationTool)
+	mux.HandleFunc("GET /control/conversation/memory", h.ListConversationMemory)
+	mux.HandleFunc("POST /control/conversation/chat", h.ConversationChat)
 	mux.HandleFunc("GET /control/config", h.GetConfigStatus)
 	mux.HandleFunc("POST /control/config/reload", h.ReloadConfig)
 }
@@ -162,6 +194,11 @@ func GetRoutes() []RouteInfo {
 		{Method: "GET", Path: "/invitation/list", Description: "List invitation links", Category: "invitation"},
 		{Method: "POST", Path: "/invitation/deactivate", Description: "Deactivate an invitation link", Category: "invitation"},
 		{Method: "POST", Path: "/invitation/delete", Description: "Delete invitation links", Category: "invitation"},
+
+		// Sandbox Simulation
+		{Method: "POST", Path: "/sandbox/generate", Description: "Generate a sandbox state", Category: "sandbox"},
+		{Method: "GET", Path: "/sandbox/state", Description: "Get sandbox state", Category: "sandbox"},
+		{Method: "POST", Path: "/sandbox/step", Description: "Advance sandbox timeline", Category: "sandbox"},
 
 		// Control Plane
 		{Method: "GET", Path: "/control/deployments", Description: "List deployments and routing status", Category: "control"},

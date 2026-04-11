@@ -12,6 +12,10 @@ import {
     Shield,
     FileText,
     Settings,
+    GitBranch,
+    Presentation,
+    Network,
+    BrainCircuit,
     ChevronLeft,
     Moon,
     Sun,
@@ -22,13 +26,21 @@ import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/locale-provider";
 
 const navigation = [
-    { nameKey: "nav.overview", href: "/", icon: LayoutDashboard },
-    { nameKey: "nav.apiKeys", href: "/api-keys", icon: Key },
-    { nameKey: "nav.teams", href: "/teams", icon: Users },
-    { nameKey: "nav.organizations", href: "/organizations", icon: Building2 },
-    { nameKey: "nav.users", href: "/users", icon: Shield },
-    { nameKey: "nav.auditLogs", href: "/audit-logs", icon: FileText },
-    { nameKey: "nav.settings", href: "/settings", icon: Settings },
+    { nameKey: "nav.overview", fallback: "Overview", href: "/", icon: LayoutDashboard },
+    { nameKey: "nav.demoCenter", fallback: "Demo Center", href: "/demo-center", icon: Presentation },
+    { nameKey: "nav.gatewayVisualizer", fallback: "Gateway Visualizer", href: "/gateway-visualizer", icon: Network },
+    { nameKey: "nav.agentRouter", fallback: "Agent Router", href: "/agent-router", icon: BrainCircuit },
+    { nameKey: "nav.routeMemory", fallback: "Route Memory", href: "/route-memory", icon: BrainCircuit },
+    { nameKey: "nav.agentManagement", fallback: "Agent Management", href: "/agent-management", icon: Users },
+    { nameKey: "nav.agentTeams", fallback: "Agent Teams", href: "/agent-teams", icon: GitBranch },
+    { nameKey: "nav.toolMarketplace", fallback: "Tool Marketplace", href: "/tool-marketplace", icon: Network },
+    { nameKey: "nav.agentTown", fallback: "Agent Town", href: "/agent-town", icon: GitBranch },
+    { nameKey: "nav.apiKeys", fallback: "API Keys", href: "/api-keys", icon: Key },
+    { nameKey: "nav.teams", fallback: "Teams", href: "/teams", icon: Users },
+    { nameKey: "nav.organizations", fallback: "Organizations", href: "/organizations", icon: Building2 },
+    { nameKey: "nav.users", fallback: "Users", href: "/users", icon: Shield },
+    { nameKey: "nav.auditLogs", fallback: "Audit Logs", href: "/audit-logs", icon: FileText },
+    { nameKey: "nav.settings", fallback: "Settings", href: "/settings", icon: Settings },
 ];
 
 export function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -48,7 +60,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
 
     return (
         <div className="flex h-screen bg-background overflow-hidden">
-            {/* Sidebar */}
             <motion.aside
                 className="glass border-r flex flex-col"
                 initial={false}
@@ -57,7 +68,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 }}
                 transition={{ type: "spring", stiffness: 300, damping: 30 }}
             >
-                {/* Logo */}
                 <div className="h-14 flex items-center justify-between px-4 border-b border-border/50">
                     <AnimatePresence mode="wait">
                         {!collapsed && (
@@ -87,11 +97,11 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     </Button>
                 </div>
 
-                {/* Navigation */}
                 <nav className="flex-1 px-2 py-4 space-y-1 overflow-y-auto">
                     {navigation.map((item) => {
                         const isActive = pathname === item.href;
                         const Icon = item.icon;
+                        const label = t(item.nameKey) === item.nameKey ? item.fallback : t(item.nameKey);
 
                         return (
                             <Link key={item.nameKey} href={item.href}>
@@ -124,7 +134,7 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                                                 exit={{ opacity: 0, width: 0 }}
                                                 className="overflow-hidden whitespace-nowrap"
                                             >
-                                                {t(item.nameKey)}
+                                                {label}
                                             </motion.span>
                                         )}
                                     </AnimatePresence>
@@ -134,7 +144,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                     })}
                 </nav>
 
-                {/* User section */}
                 <div className="p-2 border-t border-border/50 space-y-1">
                     <Button
                         variant="ghost"
@@ -160,7 +169,6 @@ export function DashboardLayout({ children }: { children: React.ReactNode }) {
                 </div>
             </motion.aside>
 
-            {/* Main content */}
             <main className="flex-1 overflow-auto">
                 <motion.div
                     initial={{ opacity: 0, y: 10 }}

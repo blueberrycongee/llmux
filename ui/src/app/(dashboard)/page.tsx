@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { motion } from "framer-motion";
 import {
   Card,
@@ -15,14 +16,21 @@ import {
   DollarSign,
   CheckCircle,
   RefreshCw,
+  BrainCircuit,
+  Network,
+  ShieldAlert,
 } from "lucide-react";
 import dynamic from "next/dynamic";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import { useModelSpend } from "@/hooks/use-model-spend";
 import { useProviderSpend } from "@/hooks/use-provider-spend";
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { ClientOnly } from "@/components/client-only";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useI18n } from "@/i18n/locale-provider";
+import { apiClient } from "@/lib/api/client";
+import type { RoutingMemoryItem, SchedulingAdvisor } from "@/types/api";
 
 const AreaChart = dynamic(
   () => import("@tremor/react").then((mod) => mod.AreaChart),
@@ -141,6 +149,9 @@ function ErrorMessage({ message, onRetry }: { message: string; onRetry: () => vo
 export default function DashboardPage() {
   const { t } = useI18n();
   const [dateRange, setDateRange] = useState<DateRange>("30d");
+  const [advisor, setAdvisor] = useState<SchedulingAdvisor | null>(null);
+  const [routingMemory, setRoutingMemory] = useState<RoutingMemoryItem[]>([]);
+  const [advisorLoading, setAdvisorLoading] = useState(true);
 
   // Use useMemo for stable date calculation (P3 fix: makes render function pure)
   const { startDate, endDate } = useMemo(() => getDateRange(dateRange), [dateRange]);
@@ -171,8 +182,40 @@ export default function DashboardPage() {
     refresh: refreshProviders,
   } = useProviderSpend({ startDate, endDate, limit: 10 });
 
+  useEffect(() => {
+    let active = true;
+    const loadAdvisor = async () => {
+      setAdvisorLoading(true);
+      try {
+        const [advisorData, memoryData] = await Promise.all([
+          apiClient.getSchedulingAdvisor(),
+          apiClient.getRoutingMemory(),
+        ]);
+        if (!active) return;
+        setAdvisor(advisorData);
+        setRoutingMemory(memoryData.data ?? []);
+      } catch {
+        if (!active) return;
+        setAdvisor(null);
+        setRoutingMemory([]);
+      } finally {
+        if (active) setAdvisorLoading(false);
+      }
+    };
+    void loadAdvisor();
+    return () => {
+      active = false;
+    };
+  }, []);
+
   const isLoading = statsLoading || modelsLoading || providersLoading;
   const error = statsError || modelsError || providersError;
+
+  // Calculate unique models count
+  const uniqueModels = useMemo(() => {
+    const uniqueModelNames = new Set(models.map(model => model.model));
+    return uniqueModelNames.size;
+  }, [models]);
 
   // Build stats array from API data
   const stats = [
@@ -377,6 +420,79 @@ export default function DashboardPage() {
       )}
 
       {/* Bento Grid Layout */}
+
+      <motion.div variants={itemVariants} initial="hidden" animate="show">
+        <Card className="glass-card border-cyan-500/20 bg-gradient-to-br from-cyan-500/5 via-transparent to-emerald-500/5">
+          <CardHeader>
+            <CardTitle className="text-xl flex items-center gap-2"><BrainCircuit className="w-5 h-5 text-cyan-400" />LLM-Enhanced Scheduling Advisor</CardTitle>
+            <CardDescription>Prototype layer for predictive traffic scheduling and routing memory interpretation.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {advisorLoading ? (
+              <ChartSkeleton className="h-44" />
+            ) : advisor ? (
+              <div className="grid gap-4 lg:grid-cols-[1.3fr_0.7fr]">
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-xl border border-cyan-500/20 bg-secondary/30 p-4">
+                      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-2">Recommended Strategy</div>
+                      <div className="text-lg font-bold">{advisor.recommended_strategy}</div>
+                    </div>
+                    <div className="rounded-xl border border-cyan-500/20 bg-secondary/30 p-4">
+                      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-2">Recommended Provider</div>
+                      <div className="text-lg font-bold">{advisor.recommended_provider}</div>
+                    </div>
+                    <div className="rounded-xl border border-cyan-500/20 bg-secondary/30 p-4">
+                      <div className="text-xs uppercase tracking-[0.18em] text-muted-foreground mb-2">Confidence</div>
+                      <div className="text-lg font-bold">{Math.round(advisor.confidence * 100)}%</div>
+                    </div>
+                  </div>
+                  <div className="rounded-xl border p-4 bg-secondary/20">
+                    <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><Network className="w-4 h-4 text-cyan-400" />Advisor Summary</div>
+                    <p className="text-sm text-muted-foreground leading-6">{advisor.summary}</p>
+                  </div>
+                  <div className="grid gap-4 md:grid-cols-2">
+                    <div className="rounded-xl border p-4 bg-secondary/20">
+                      <div className="mb-2 text-sm font-semibold">Reasons</div>
+                      <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
+                        {advisor.reasons.map((reason) => <li key={reason}>{reason}</li>)}
+                      </ul>
+                    </div>
+                    <div className="rounded-xl border p-4 bg-secondary/20">
+                      <div className="mb-2 flex items-center gap-2 text-sm font-semibold"><ShieldAlert className="w-4 h-4 text-amber-400" />Risks</div>
+                      <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
+                        {advisor.risks.map((risk) => <li key={risk}>{risk}</li>)}
+                      </ul>
+                    </div>
+                  </div>
+                </div>
+                <div className="space-y-4">
+                  <div className="rounded-xl border p-4 bg-secondary/20">
+                    <div className="mb-2 text-sm font-semibold">Next Actions</div>
+                    <ul className="space-y-2 text-sm text-muted-foreground list-disc pl-5">
+                      {advisor.next_actions.map((action) => <li key={action}>{action}</li>)}
+                    </ul>
+                  </div>
+                  <div className="rounded-xl border p-4 bg-secondary/20">
+                    <div className="mb-3 text-sm font-semibold">Routing Memory Snapshots</div>
+                    <div className="space-y-2">
+                      {(routingMemory.length > 0 ? routingMemory : advisor.memory).slice(0, 3).map((item) => (
+                        <div key={item.id} className="rounded-lg border border-border/60 bg-background/40 p-3">
+                          <div className="text-xs uppercase tracking-[0.16em] text-cyan-300 mb-1">{item.category}</div>
+                          <div className="text-sm font-medium mb-1">{item.decision}</div>
+                          <div className="text-xs text-muted-foreground leading-5">{item.observation}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="text-sm text-muted-foreground">Scheduling advisor is temporarily unavailable.</div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
       <motion.div
         className="grid grid-cols-1 lg:grid-cols-3 gap-4"
         variants={containerVariants}
