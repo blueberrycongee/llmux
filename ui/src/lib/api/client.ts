@@ -42,6 +42,7 @@ import type {
     AgentTeamRehearsalResponse,
     RouteMemoryRecord,
     AgentChatResponse,
+    ConversationLabResponse,
     AgentToolOption,
     ToolMarketplaceItem,
     ToolPreset,
@@ -92,10 +93,12 @@ class LLMuxApiClient {
     constructor(baseUrl?: string) {
         if (baseUrl) {
             this.baseUrl = baseUrl;
+        } else if (API_BASE_URL) {
+            // Prefer the explicit backend origin in development to avoid Next.js
+            // dev-server proxy resets on long/expensive management requests.
+            this.baseUrl = API_BASE_URL;
         } else if (typeof window !== 'undefined') {
             this.baseUrl = window.location.origin;
-        } else if (API_BASE_URL) {
-            this.baseUrl = API_BASE_URL;
         } else {
             this.baseUrl = 'http://localhost:8081';
         }
@@ -189,7 +192,26 @@ class LLMuxApiClient {
     deleteToolMarketplaceItem(id: string): Promise<{ success: boolean }> { return this.request('POST', '/control/conversation/tool-marketplace/delete', { id }); }
     importToolMarketplaceItem(data: Partial<ToolMarketplaceItem> & { source_client_id: string; source_tool_name: string }): Promise<ToolMarketplaceItem> { return this.request('POST', '/control/conversation/tool-marketplace/import', data); }
     getConversationMemory(): Promise<{ data: RouteMemoryRecord[] }> { return this.request('GET', '/control/conversation/memory'); }
-    conversationChat(data: { session_id?: string; messages: { role: string; content: string }[] }): Promise<AgentChatResponse> { return this.request('POST', '/control/conversation/chat', data); }
+    conversationChat(data: {
+        session_id?: string;
+        messages: { role: string; content: string }[];
+        token_optimization?: boolean;
+        cost_optimization?: boolean;
+    }): Promise<AgentChatResponse> { return this.request('POST', '/control/conversation/chat', data); }
+    runConversationLab(data: {
+        scenario?: string;
+        prompt: string;
+        traffic_type?: string;
+        session_id?: string;
+        complexity_hint?: number;
+        require_team?: boolean;
+        required_tools?: string[];
+        required_capabilities?: string[];
+        baseline_provider?: string;
+        baseline_model?: string;
+        token_optimization?: boolean;
+        cost_optimization?: boolean;
+    }): Promise<ConversationLabResponse> { return this.request('POST', '/control/lab/compare', data); }
     generateSandbox(data: { prompt: string }): Promise<SandboxState> { return this.request('POST', '/sandbox/generate', data); }
     getSandboxState(id: string): Promise<SandboxState> { return this.request('GET', '/sandbox/state', undefined, { id }); }
     stepSandbox(id: string): Promise<SandboxState> { return this.request('POST', '/sandbox/step', { id }); }

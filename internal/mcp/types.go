@@ -54,6 +54,9 @@ const (
 
 	// ContextKeyManager stores the MCP manager in request context.
 	ContextKeyManager ContextKey = "mcp-manager"
+
+	// ContextKeyMaxToolIterations overrides the default max tool iteration count.
+	ContextKeyMaxToolIterations ContextKey = "mcp-max-tool-iterations"
 )
 
 // ============================================================================

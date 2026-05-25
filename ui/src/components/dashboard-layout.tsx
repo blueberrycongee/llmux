@@ -16,6 +16,7 @@ import {
     Presentation,
     Network,
     BrainCircuit,
+    FlaskConical,
     ChevronLeft,
     Moon,
     Sun,
@@ -28,6 +29,7 @@ import { useI18n } from "@/i18n/locale-provider";
 const navigation = [
     { nameKey: "nav.overview", fallback: "Overview", href: "/", icon: LayoutDashboard },
     { nameKey: "nav.demoCenter", fallback: "Demo Center", href: "/demo-center", icon: Presentation },
+    { nameKey: "nav.valueLab", fallback: "Value Lab", href: "/value-lab", icon: FlaskConical },
     { nameKey: "nav.gatewayVisualizer", fallback: "Gateway Visualizer", href: "/gateway-visualizer", icon: Network },
     { nameKey: "nav.agentRouter", fallback: "Agent Router", href: "/agent-router", icon: BrainCircuit },
     { nameKey: "nav.routeMemory", fallback: "Route Memory", href: "/route-memory", icon: BrainCircuit },

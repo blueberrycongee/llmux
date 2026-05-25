@@ -119,13 +119,35 @@ Route Memory 的核心思想是将历史 query、路径选择与执行结果沉�
 
 ### 3.3 优化目标
 
-本文不把问题严格建模为单一数值最优化问题，而是从工程可实现性出发，将目标概括为以下四项：
+结合本文异构网关的工程实现与理论抽象，可将核心优化目标形式化为以下四项。
 
-1. 提升团队路由与 Agent 路由的语义匹配合理性；
-2. 提升相似请求在 Team Memory 与 Route Memory 层面的路径复用能力；
-3. 降低候选模型限流碰撞概率；
-4. 提升工具增强 Agent 在复杂任务场景中的实际可执行性；
-5. 提升整体请求成功率、协作稳定性与路由可解释性。
+**目标1：最大化请求执行成功率**
+
+\[
+\max \; SuccessRate = \frac{\sum_{i=1}^{n} I(Res_{q_i}=\text{成功})}{\sum_{i=1}^{n} I(q_i \in Q)}
+\]
+
+其中，分子表示成功完成的请求数，分母表示总请求数。系统通过 Team/Agent 语义匹配、Route Memory 复用、候选模型预测式调度与失败切换机制提升该指标。
+
+**目标2：最小化限流碰撞概率**
+
+\[
+\min \; CollisionRate = \frac{\sum_{i=1}^{n} I(Collision_{q_i}=true)}{\sum_{i=1}^{n} I(q_i \in Q)}
+\]
+
+其中，碰撞表示请求发送时命中候选模型 RPM/TPM 或冷却约束而被拒绝。系统通过运行态 usage 采集、移动平均预测与主动跳过 predicted\_saturated 候选模型降低该指标。
+
+**目标3：最小化平均响应时延**
+
+\[
+\min \; AvgLatency = \frac{1}{n} \sum_{i=1}^{n} Lat_{q_i}
+\]
+
+其中，\(Lat_{q_i}\) 表示从网关接入到结果返回的总时延。系统通过 lead Agent 选择、低延迟候选模型优先与工具注入顺序控制降低总体时延。
+
+**目标4：最大化模型资源利用率**
+
+在满足稳定性约束前提下，系统希望提高候选模型资源利用率，可定义为模型实际用量与限流阈值之比的平均值。同时要求模型调度满足安全约束，即预测后的 RPM/TPM 使用量不超过阈值上界，工程实现中优先将利用率控制在相对安全区间内。
 
 ### 3.4 设计挑战
 
@@ -148,13 +170,58 @@ Route Memory 的核心思想是将历史 query、路径选择与执行结果沉�
 
 系统首先根据 query 的语义复杂度与显式协作信号判断是否需要进入团队级协作路径；对于命中的复杂任务，系统从 Team Registry 中检索候选 Expert Agent Team，并结合历史 Team Memory 识别与当前任务相近且 outcome score 较高的团队级经验，从而完成团队选择。随后，系统在被选中的团队内部，依据当前意图、成员角色能力、历史 Route Memory 与工具绑定情况，选择合适的 lead Agent 承担主执行角色。
 
+在实现上，团队级路由采用“候选筛选—记忆加权—综合评分—Top-1 选择”的过程：
+
+1. **候选团队筛选**：仅保留处于可用状态、且团队成员能力覆盖当前任务意图与关键语义特征的团队；
+2. **记忆辅助筛选**：对 Team Memory 执行相似度检索，若存在高质量历史条目，则按其 outcome score 生成额外记忆权重；
+3. **团队综合评分**：采用团队基础协作评分、能力匹配度与记忆权重进行加权；
+4. **最优团队选择**：按综合得分排序，选择 Top-1 团队。
+
+团队级评分可形式化表示为：
+
+\[
+Score^{team}_{total} = \alpha \cdot Score_{team} + \beta \cdot Match_{team} + \gamma \cdot Weight_{mem}
+\]
+
+其中，\(Score_{team}\) 表示团队协作基准评分，\(Match_{team}\) 表示团队能力覆盖度，\(Weight_{mem}\) 表示 Team Memory 加权项，且 \(\alpha + \beta + \gamma = 1\)。
+
+在团队内部，lead Agent 的选择同样采用加权决策。系统综合考虑 Agent 基础执行能力、语义能力匹配度与时延适配度进行排序。其形式化表达为：
+
+\[
+Score^{agent}_{total} = \alpha \cdot Score_{agent} + \beta \cdot Match_{agent} + \gamma \cdot Fit_{latency}
+\]
+
+其中，\(Score_{agent}\) 表示 Agent 的基础执行评分，\(Match_{agent}\) 表示 Agent 能力与请求语义的匹配度，\(Fit_{latency}\) 表示基于请求时延预算计算得到的适配度。
+
 该过程可同时包含 consulted memory 与 reused memory 两类：在团队层，consulted team memory 表示历史团队协作经验被参考但未直接复用，reused team memory 表示某条高分团队经验被直接复用于当前路径；在 Agent 层，consulted route memory 与 reused route memory 则继续承担单 Agent 路由的经验辅助作用。通过 Team Memory 与 Route Memory 的协同，系统能够在复杂任务中同时保留“团队级经验复用”和“角色级路径复用”两种能力。
 
 ### 4.3 工具增强 Expert Agent 与候选模型池的预测式调度方法
 
 对于已经选中的 lead Expert Agent，系统进一步考虑两类执行增强信息：其一是该 Agent 所绑定的外部工具集合，其二是其候选模型池。首先，系统将平台工具市场中的条目解析为底层 MCP 工具，并按 Agent 的工具绑定关系注入到本轮请求上下文中，使模型能够在生成阶段按需触发真实工具调用。由此，Agent 的执行过程不再局限于语言生成，而是可以借助网页抓取、文件系统、浏览器自动化和仓库操作等能力增强任务完成质量。
 
-在模型选择层，对于已经选中的 Expert Agent，系统进一步在其候选模型池中执行调度。每个候选模型包含 provider、model、weight、rpm_limit 和 tpm_limit 等信息。系统首先估算本轮请求 token 数，再读取候选模型近一分钟内的本地 usage 统计，得到 current_rpm 与 current_tpm。之后结合候选模型权重和预测压力计算 selection score，并据此排序候选模型。
+在模型选择层，对于已经选中的 Expert Agent，系统进一步在其候选模型池中执行调度。每个候选模型包含 provider、model、weight、rpm_limit 和 tpm_limit 等信息。系统首先估算本轮请求 token 数，再读取候选模型近一分钟内的本地 usage 统计，得到 current_rpm 与 current_tpm；进一步基于最近 5 个采集周期的 usage 构造移动平均预测，得到 predicted_rpm 与 predicted_tpm。之后结合候选模型权重、RPM 剩余容量、TPM 剩余容量与时延适配度计算综合得分，并据此排序候选模型。
+
+预测过程可写为：
+
+\[
+Pred_{rpm} = \frac{1}{5} \sum_{k=1}^{5} Used_{rpm,k}, \qquad Pred_{tpm} = \frac{1}{5} \sum_{k=1}^{5} Used_{tpm,k}
+\]
+
+在调度前，候选模型需满足以下约束：
+
+\[
+Pred_{rpm} + \Delta_{rpm} \le RPM_m, \qquad Pred_{tpm} + \Delta_{tpm} \le TPM_m
+\]
+
+同时模型必须处于运行状态，且不在 cooldown 冷却区间内。
+
+候选模型综合评分定义为：
+
+\[
+Score^{model}_{total} = \alpha \cdot Weight_m + \beta \cdot \left(1-\frac{Pred_{rpm}}{RPM_m}\right) + \gamma \cdot \left(1-\frac{Pred_{tpm}}{TPM_m}\right) + \delta \cdot Fit_{latency}
+\]
+
+其中，\(Weight_m\) 为候选模型静态权重，第二项与第三项分别表示 RPM 与 TPM 剩余容量比，\(Fit_{latency}\) 表示候选模型相对于当前请求时延预算的适配度，且 \(\alpha + \beta + \gamma + \delta = 1\)。
 
 若某候选模型在本轮请求执行后预测将超过 RPM 或 TPM 阈值，则直接标记为 predicted_saturated 并跳过；若候选模型处于 cooldown，则标记为 cooling_down 并跳过；否则优先选择 score 更高的候选模型执行。若执行阶段仍发生限流或故障，则进入 failover，切换至下一个候选模型。该方法实现了从“失败后切换”向“发送前规避高风险候选”的演进。
 

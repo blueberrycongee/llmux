@@ -454,6 +454,18 @@ export interface TeamMemoryRecord {
     selected_team_id: string;
     selected_agent_ids: string[];
     summary: string;
+    compressed_summary?: string;
+    distilled_learnings?: string[];
+    representative_queries?: string[];
+    retrieval_hints?: string[];
+    memory_stage?: string;
+    source_count?: number;
+    success_count?: number;
+    consult_count?: number;
+    reuse_count?: number;
+    compression_ratio?: number;
+    first_recorded_at?: string;
+    last_reinforced_at?: string;
     succeeded: boolean;
     outcome_score: number;
     created_at: string;
@@ -469,6 +481,18 @@ export interface RouteMemoryRecord {
     selected_path: string;
     route_source: string;
     answer_preview: string;
+    compressed_summary?: string;
+    distilled_learnings?: string[];
+    representative_queries?: string[];
+    retrieval_hints?: string[];
+    memory_stage?: string;
+    source_count?: number;
+    success_count?: number;
+    consult_count?: number;
+    reuse_count?: number;
+    compression_ratio?: number;
+    first_recorded_at?: string;
+    last_reinforced_at?: string;
     succeeded: boolean;
     outcome_score: number;
     created_at: string;
@@ -478,6 +502,8 @@ export interface AgentChatResponse {
     request_id: string;
     session_id: string;
     intent: string;
+    selected_team?: AgentTeam;
+    team_participants?: ConversationAgent[];
     selected_agent: ConversationAgent;
     selected_candidate?: CandidateModel;
     candidate_failovers?: CandidateFailover[];
@@ -486,12 +512,94 @@ export interface AgentChatResponse {
     memory_influence?: 'none' | 'consulted' | 'reused' | string;
     consulted_memories?: RouteMemoryRecord[];
     memory_hit?: RouteMemoryRecord;
+    team_consulted_memories?: TeamMemoryRecord[];
+    team_memory_hit?: TeamMemoryRecord;
     gateway_request: Record<string, unknown>;
     gateway_response?: Record<string, unknown>;
     assistant_message?: string;
     recorded_memory: RouteMemoryRecord;
     succeeded: boolean;
     error_message?: string;
+    token_optimization_enabled?: boolean;
+    optimization_notes?: string[];
+    generated_at: string;
+}
+
+export interface ConversationLabRun {
+    mode: string;
+    succeeded: boolean;
+    error_message?: string;
+    provider?: string;
+    model?: string;
+    latency_ms: number;
+    prompt_tokens?: number;
+    completion_tokens?: number;
+    total_tokens?: number;
+    estimated_cost?: number;
+    response_chars?: number;
+    response_text?: string;
+    finish_reason?: string;
+    memory_influence?: string;
+    route_source?: string;
+    selected_team_id?: string;
+    selected_agent_id?: string;
+    selected_candidate?: string;
+    used_team?: boolean;
+    used_memory?: boolean;
+    required_tools?: string[];
+    bound_tools?: string[];
+    routing_reasoning?: string[];
+    candidate_failovers?: CandidateFailover[];
+    quality: {
+        label: string;
+        tool_used: boolean;
+        tool_calls: number;
+        tool_names?: string[];
+        groundedness_score: number;
+        hallucination_risk: number;
+        route_depth: number;
+        memory_hit: boolean;
+        team_route: boolean;
+        quality_notes?: string[];
+    };
+    token_optimization_enabled?: boolean;
+    optimization_notes?: string[];
+}
+
+export interface ConversationLabResponse {
+    request_id: string;
+    scenario: string;
+    prompt: string;
+    traffic_type: string;
+    baseline: ConversationLabRun;
+    optimized: ConversationLabRun;
+    latency_delta_ms: number;
+    total_token_delta: number;
+    cost_delta: number;
+    response_chars_delta: number;
+    winning_dimensions: string[];
+    recommended_winner: string;
+    value_summary: string[];
+    generated_at: string;
+}
+
+export interface TeamRehearsalStep {
+    agent_id: string;
+    agent_name: string;
+    selected_candidate?: CandidateModel;
+    output_preview: string;
+    succeeded: boolean;
+    error_message?: string;
+}
+
+export interface AgentTeamRehearsalResponse {
+    request_id: string;
+    session_id: string;
+    selected_team: AgentTeam;
+    participating_agents: ConversationAgent[];
+    steps: TeamRehearsalStep[];
+    recorded_memory: TeamMemoryRecord;
+    succeeded: boolean;
     generated_at: string;
 }
 

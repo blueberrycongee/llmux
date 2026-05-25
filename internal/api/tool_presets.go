@@ -52,7 +52,7 @@ func defaultToolPresets() []ToolPreset {
 			Description: "让 research agent 真正具备网页抓取与 HTTP 获取能力。",
 			Category:    "research",
 			Tags:        []string{"fetch", "http", "research", "web"},
-			Client:      ToolPresetClientTemplate{ID: "fetch", Name: "Fetch MCP", Type: "stdio", Command: "uvx", Args: []string{"mcp-server-fetch"}, ToolsToExecute: []string{"*"}},
+			Client:      ToolPresetClientTemplate{ID: "fetch", Name: "Fetch MCP", Type: "stdio", Command: "go", Args: []string{"run", "./cmd/mcp-fetch"}, ToolsToExecute: []string{"*"}},
 			Tools:       []ToolMarketplaceItem{{ID: "preset-fetch-web", Name: "Fetch Web", Description: "抓取网页与 HTTP 资源", Category: "research", SourceClientID: "fetch", SourceToolName: "fetch", Tags: []string{"http", "web", "research"}, Enabled: true, CreatedAt: now, UpdatedAt: now}},
 		},
 		{

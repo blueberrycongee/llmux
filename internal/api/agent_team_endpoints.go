@@ -10,27 +10,45 @@ import (
 )
 
 type AgentTeam struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Mode        string   `json:"mode"`
-	AgentIDs    []string `json:"agent_ids"`
-	Enabled     bool     `json:"enabled"`
-	CreatedAt   string   `json:"created_at"`
-	UpdatedAt   string   `json:"updated_at"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Mode         string   `json:"mode"`
+	AgentIDs     []string `json:"agent_ids"`
+	TenantScopes []string `json:"tenant_scopes,omitempty"`
+	Enabled      bool     `json:"enabled"`
+	CreatedAt    string   `json:"created_at"`
+	UpdatedAt    string   `json:"updated_at"`
 }
 
 type TeamMemoryRecord struct {
-	ID               string    `json:"id"`
-	SessionID        string    `json:"session_id"`
-	Query            string    `json:"query"`
-	Intent           string    `json:"intent"`
-	SelectedTeamID   string    `json:"selected_team_id"`
-	SelectedAgentIDs []string  `json:"selected_agent_ids"`
-	Summary          string    `json:"summary"`
-	Succeeded        bool      `json:"succeeded"`
-	OutcomeScore     float64   `json:"outcome_score"`
-	CreatedAt        time.Time `json:"created_at"`
+	ID                    string    `json:"id"`
+	SessionID             string    `json:"session_id"`
+	Query                 string    `json:"query"`
+	Intent                string    `json:"intent"`
+	SelectedTeamID        string    `json:"selected_team_id"`
+	SelectedAgentIDs      []string  `json:"selected_agent_ids"`
+	Summary               string    `json:"summary"`
+	CompressedSummary     string    `json:"compressed_summary,omitempty"`
+	DistilledLearnings    []string  `json:"distilled_learnings,omitempty"`
+	RepresentativeQueries []string  `json:"representative_queries,omitempty"`
+	RetrievalHints        []string  `json:"retrieval_hints,omitempty"`
+	MemoryStage           string    `json:"memory_stage,omitempty"`
+	SourceCount           int       `json:"source_count,omitempty"`
+	SuccessCount          int       `json:"success_count,omitempty"`
+	ConsultCount          int       `json:"consult_count,omitempty"`
+	ReuseCount            int       `json:"reuse_count,omitempty"`
+	CompressionRatio      float64   `json:"compression_ratio,omitempty"`
+	FirstRecordedAt       time.Time `json:"first_recorded_at,omitempty"`
+	LastReinforcedAt      time.Time `json:"last_reinforced_at,omitempty"`
+	Succeeded             bool      `json:"succeeded"`
+	OutcomeScore          float64   `json:"outcome_score"`
+	CreatedAt             time.Time `json:"created_at"`
+}
+
+type teamSelectionMetrics struct {
+	CapabilityMatch float64
+	MemoryWeight    float64
 }
 
 type TeamRehearsalStep struct {
@@ -43,12 +61,13 @@ type TeamRehearsalStep struct {
 }
 
 type UpsertAgentTeamRequest struct {
-	ID          string   `json:"id"`
-	Name        string   `json:"name"`
-	Description string   `json:"description"`
-	Mode        string   `json:"mode"`
-	AgentIDs    []string `json:"agent_ids"`
-	Enabled     *bool    `json:"enabled"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Description  string   `json:"description"`
+	Mode         string   `json:"mode"`
+	AgentIDs     []string `json:"agent_ids"`
+	TenantScopes []string `json:"tenant_scopes"`
+	Enabled      *bool    `json:"enabled"`
 }
 
 type DeleteAgentTeamRequest struct {
@@ -78,8 +97,10 @@ var agentTeamStore = struct {
 }{teams: defaultAgentTeams()}
 var teamMemoryStore = struct {
 	sync.RWMutex
-	records []TeamMemoryRecord
-}{records: []TeamMemoryRecord{}}
+	episodes []TeamMemoryRecord
+	records  []TeamMemoryRecord
+	stats    map[string]teamMemoryAccessStats
+}{episodes: []TeamMemoryRecord{}, records: []TeamMemoryRecord{}, stats: map[string]teamMemoryAccessStats{}}
 
 func defaultAgentTeams() []AgentTeam {
 	now := time.Now().Format(time.RFC3339)
@@ -139,10 +160,7 @@ func (h *ManagementHandler) DeleteAgentTeam(w http.ResponseWriter, r *http.Reque
 }
 
 func (h *ManagementHandler) ListTeamMemory(w http.ResponseWriter, _ *http.Request) {
-	teamMemoryStore.RLock()
-	defer teamMemoryStore.RUnlock()
-	items := make([]TeamMemoryRecord, len(teamMemoryStore.records))
-	copy(items, teamMemoryStore.records)
+	items := teamMemorySnapshot()
 	h.writeJSON(w, http.StatusOK, map[string]any{"data": items})
 }
 
@@ -185,7 +203,7 @@ func upsertAgentTeam(req UpsertAgentTeamRequest, mustExist bool) (AgentTeam, err
 		if req.Enabled != nil {
 			enabled = *req.Enabled
 		}
-		updated := AgentTeam{ID: req.ID, Name: req.Name, Description: req.Description, Mode: req.Mode, AgentIDs: req.AgentIDs, Enabled: enabled, CreatedAt: team.CreatedAt, UpdatedAt: now}
+		updated := AgentTeam{ID: req.ID, Name: req.Name, Description: req.Description, Mode: req.Mode, AgentIDs: req.AgentIDs, TenantScopes: cleanStringList(req.TenantScopes), Enabled: enabled, CreatedAt: team.CreatedAt, UpdatedAt: now}
 		agentTeamStore.teams[i] = updated
 		return updated, nil
 	}
@@ -196,7 +214,7 @@ func upsertAgentTeam(req UpsertAgentTeamRequest, mustExist bool) (AgentTeam, err
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
-	created := AgentTeam{ID: req.ID, Name: req.Name, Description: req.Description, Mode: req.Mode, AgentIDs: req.AgentIDs, Enabled: enabled, CreatedAt: now, UpdatedAt: now}
+	created := AgentTeam{ID: req.ID, Name: req.Name, Description: req.Description, Mode: req.Mode, AgentIDs: req.AgentIDs, TenantScopes: cleanStringList(req.TenantScopes), Enabled: enabled, CreatedAt: now, UpdatedAt: now}
 	agentTeamStore.teams = append([]AgentTeam{created}, agentTeamStore.teams...)
 	return created, nil
 }
@@ -223,91 +241,108 @@ func shouldRouteToTeam(query, intent string) bool {
 		(intent == "coding" && containsAny(text, "系统设计", "架构设计", "重构", "演进", "网关", "模块拆解", "技术方案"))
 }
 
-func selectAgentTeam(query, intent string) (*AgentTeam, []TeamMemoryRecord, *TeamMemoryRecord) {
-	consulted := findRelevantTeamMemory(query, intent, 3)
-	if len(consulted) > 0 {
-		if team, ok := findAgentTeam(consulted[0].SelectedTeamID); ok {
-			return &team, consulted, &consulted[0]
-		}
+func selectAgentTeam(profile RoutingProfile) (*AgentTeam, []TeamMemoryRecord, *TeamMemoryRecord) {
+	consulted := findRelevantTeamMemoryForProfile(profile, 3)
+	type teamCandidate struct {
+		team    AgentTeam
+		score   float64
+		metrics teamSelectionMetrics
+		hit     *TeamMemoryRecord
 	}
+	candidates := make([]teamCandidate, 0, len(getAgentTeams()))
 	for _, team := range getAgentTeams() {
-		if !team.Enabled {
+		if !team.Enabled || !scopeMatches(team.TenantScopes, profile.TenantID, profile.OrganizationID) {
 			continue
 		}
-		if team.ID == "thesis-lab-team" && intent == "research" {
-			copied := team
-			return &copied, consulted, nil
+		match := computeTeamCapabilityMatch(team, profile)
+		if match <= 0.15 {
+			continue
 		}
-		if team.ID == "system-design-team" && containsAny(strings.ToLower(query), "系统", "架构", "gateway", "网关", "设计", "代码") {
-			copied := team
-			return &copied, consulted, nil
+		toolCoverage := toolCoverageScore(aggregateTeamTools(team, profile), profile.RequiredTools)
+		if len(profile.RequiredTools) > 0 && toolCoverage < 1 {
+			continue
 		}
+		hit, memoryWeight := bestTeamMemoryForTeam(profile, team.ID, consulted)
+		score := 0.30*teamBaseScore(team) + 0.35*match + 0.20*memoryWeight + 0.15*toolCoverage
+		candidates = append(candidates, teamCandidate{team: team, score: score, metrics: teamSelectionMetrics{CapabilityMatch: match, MemoryWeight: memoryWeight}, hit: hit})
 	}
-	return nil, consulted, nil
+	if len(candidates) == 0 {
+		return nil, consulted, nil
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].score == candidates[j].score {
+			return candidates[i].metrics.CapabilityMatch > candidates[j].metrics.CapabilityMatch
+		}
+		return candidates[i].score > candidates[j].score
+	})
+	best := candidates[0]
+	return &best.team, consulted, best.hit
 }
 
-func chooseLeadAgentFromTeam(team AgentTeam, _ string, intent string) (ConversationAgent, []ConversationAgent) {
+func chooseLeadAgentFromTeam(team AgentTeam, profile RoutingProfile) (ConversationAgent, []ConversationAgent) {
 	participants := resolveTeamAgents(team)
+	if len(participants) == 0 {
+		return ConversationAgent{}, nil
+	}
+	consulted := findRelevantMemoryCandidatesForProfile(profile, 3)
+	type leadCandidate struct {
+		agent ConversationAgent
+		score float64
+	}
+	candidates := make([]leadCandidate, 0, len(participants))
 	for _, agent := range participants {
-		if agent.Category == intent {
-			return agent, participants
+		match := capabilityCoverageScore(agent.Capabilities, profile, agent.Category)
+		latencyFit := agentLatencyFitWithBudget(agent, profile.LatencyBudgetMS)
+		_, memoryWeight := bestConversationMemoryForAgent(profile, agent.ID, consulted)
+		score := 0.25*agentBaseScore(agent, effectiveAgentTools(agent, profile)) + 0.35*match + 0.20*memoryWeight + 0.20*latencyFit
+		candidates = append(candidates, leadCandidate{agent: agent, score: score})
+	}
+	sort.SliceStable(candidates, func(i, j int) bool {
+		if candidates[i].score == candidates[j].score {
+			return candidates[i].agent.ID < candidates[j].agent.ID
 		}
-	}
-	if len(participants) > 0 {
-		return participants[0], participants
-	}
-	return ConversationAgent{}, nil
+		return candidates[i].score > candidates[j].score
+	})
+	return candidates[0].agent, participants
 }
 
 func findRelevantTeamMemory(query, intent string, limit int) []TeamMemoryRecord {
-	queryTokens := tokenizeQuery(query)
-	if len(queryTokens) == 0 || limit <= 0 {
-		return nil
+	profile := RoutingProfile{
+		Query:              query,
+		Intent:             intent,
+		QueryTokens:        tokenizeQuery(query),
+		MemoryReuseEnabled: true,
 	}
-	type candidate struct {
-		record TeamMemoryRecord
-		score  float64
-	}
-	teamMemoryStore.RLock()
-	defer teamMemoryStore.RUnlock()
-	matches := make([]candidate, 0, limit)
-	for _, item := range teamMemoryStore.records {
-		if !item.Succeeded {
-			continue
-		}
-		score := tokenOverlapScore(queryTokens, tokenizeQuery(item.Query))
-		if score < 0.34 {
-			continue
-		}
-		if item.Intent == intent {
-			score += 0.08
-		}
-		matches = append(matches, candidate{record: item, score: score})
-	}
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].score == matches[j].score {
-			return matches[i].record.OutcomeScore > matches[j].record.OutcomeScore
-		}
-		return matches[i].score > matches[j].score
-	})
-	if len(matches) > limit {
-		matches = matches[:limit]
-	}
-	result := make([]TeamMemoryRecord, 0, len(matches))
-	for _, item := range matches {
-		result = append(result, item.record)
-	}
-	return result
+	return findRelevantTeamMemoryForProfile(profile, limit)
 }
 
 func persistTeamMemory(record TeamMemoryRecord) TeamMemoryRecord {
 	teamMemoryStore.Lock()
 	defer teamMemoryStore.Unlock()
-	teamMemoryStore.records = append([]TeamMemoryRecord{record}, teamMemoryStore.records...)
-	if len(teamMemoryStore.records) > 60 {
-		teamMemoryStore.records = teamMemoryStore.records[:60]
+	now := time.Now()
+	episode := normalizeTeamMemoryEpisode(record)
+	teamMemoryStore.episodes = append(teamMemoryStore.episodes, episode)
+	pruneTeamMemoryLocked(now)
+	records := rebuildTeamMemoryRecordsLocked()
+	profile := RoutingProfile{
+		Query:              episode.Query,
+		Intent:             episode.Intent,
+		QueryTokens:        tokenizeQuery(episode.Query),
+		MemoryReuseEnabled: true,
 	}
-	return record
+	best := episode
+	bestScore := 0.0
+	for _, item := range records {
+		if item.SelectedTeamID != episode.SelectedTeamID {
+			continue
+		}
+		score := scoreTeamMemorySimilarity(profile, item)
+		if score >= bestScore {
+			best = item
+			bestScore = score
+		}
+	}
+	return best
 }
 
 func scoreTeamOutcome(steps []TeamRehearsalStep) float64 {
@@ -321,25 +356,151 @@ func scoreTeamOutcome(steps []TeamRehearsalStep) float64 {
 		}
 	}
 	score := 0.45 + float64(success)/float64(len(steps))*0.45
+	if len(steps) >= 3 && success == len(steps) {
+		score += 0.04
+	}
 	if score > 0.98 {
 		return 0.98
 	}
 	return score
 }
 
+func teamBaseScore(team AgentTeam) float64 {
+	switch team.Mode {
+	case "planner-executor-reviewer":
+		return 0.92
+	case "planner-reviewer":
+		return 0.88
+	default:
+		return 0.8
+	}
+}
+
+func computeTeamCapabilityMatch(team AgentTeam, profile RoutingProfile) float64 {
+	participants := resolveTeamAgents(team)
+	if len(participants) == 0 {
+		return 0
+	}
+	capabilities := make([]string, 0, len(participants)*4)
+	for _, agent := range participants {
+		capabilities = append(capabilities, agent.Capabilities...)
+		if agent.Category != "" {
+			capabilities = append(capabilities, agent.Category)
+		}
+	}
+	return capabilityCoverageScore(capabilities, profile, "")
+}
+
+func agentBaseScore(agent ConversationAgent, availableTools []string) float64 {
+	score := 0.76
+	if len(availableTools) > 0 {
+		score += 0.08
+	}
+	if len(agent.CandidateModels) > 1 {
+		score += 0.06
+	}
+	if agent.Category == "research" || agent.Category == "coding" {
+		score += 0.05
+	}
+	return clamp01(score)
+}
+
+func computeAgentCapabilityMatch(agent ConversationAgent, queryTokens []string, intent string) float64 {
+	capabilitySet := map[string]struct{}{}
+	for _, capability := range agent.Capabilities {
+		capabilitySet[strings.ToLower(strings.TrimSpace(capability))] = struct{}{}
+	}
+	capabilitySet[strings.ToLower(agent.Category)] = struct{}{}
+	if intent != "" {
+		if _, ok := capabilitySet[strings.ToLower(intent)]; ok {
+			return 1
+		}
+	}
+	if len(queryTokens) == 0 {
+		return 0.5
+	}
+	matches := 0
+	for _, token := range queryTokens {
+		if _, ok := capabilitySet[token]; ok {
+			matches++
+		}
+	}
+	return clamp01(float64(matches) / float64(len(queryTokens)))
+}
+
+func agentLatencyFit(agent ConversationAgent, intent string) float64 {
+	budget := intentLatencyBudget(intent)
+	return agentLatencyFitWithBudget(agent, budget)
+}
+
+func agentLatencyFitWithBudget(agent ConversationAgent, budget int) float64 {
+	latency := estimateAgentLatency(agent)
+	if budget <= 0 {
+		return 0.5
+	}
+	fit := 1 - float64(latency)/float64(budget)
+	if fit < 0.05 {
+		return 0.05
+	}
+	return clamp01(fit)
+}
+
+func estimateAgentLatency(agent ConversationAgent) int {
+	latency := 850
+	for _, candidate := range cleanCandidateModels(agent) {
+		current := estimateCandidateLatency(candidate)
+		if current < latency {
+			latency = current
+		}
+	}
+	return latency
+}
+
+func intentLatencyBudget(intent string) int {
+	switch intent {
+	case "general", "writing":
+		return 1400
+	case "coding", "research":
+		return 2200
+	default:
+		return 1800
+	}
+}
+
+func clamp01(value float64) float64 {
+	if value < 0 {
+		return 0
+	}
+	if value > 1 {
+		return 1
+	}
+	return value
+}
+
 func teamRouteConversation(query, intent string) (*AgentTeam, []ConversationAgent, ConversationAgent, []string, string, []TeamMemoryRecord, *TeamMemoryRecord, bool) {
-	if !shouldRouteToTeam(query, intent) {
+	profile := buildRoutingProfile(AgentChatRequest{
+		Messages: []ConversationTurn{{Role: "user", Content: query}},
+	}, query, intent, nil)
+	return teamRouteConversationWithProfile(profile)
+}
+
+func teamRouteConversationWithProfile(profile RoutingProfile) (*AgentTeam, []ConversationAgent, ConversationAgent, []string, string, []TeamMemoryRecord, *TeamMemoryRecord, bool) {
+	if !profile.RequireTeam || !profile.TeamRoutingEnabled {
 		return nil, nil, ConversationAgent{}, nil, "", nil, nil, false
 	}
-	team, consulted, hit := selectAgentTeam(query, intent)
+	team, consulted, hit := selectAgentTeam(profile)
 	if team == nil {
 		return nil, nil, ConversationAgent{}, nil, "", consulted, hit, false
 	}
-	lead, participants := chooseLeadAgentFromTeam(*team, query, intent)
+	lead, participants := chooseLeadAgentFromTeam(*team, profile)
 	if lead.ID == "" {
 		return nil, nil, ConversationAgent{}, nil, "", consulted, hit, false
 	}
-	reasons := []string{fmt.Sprintf("检测到复杂任务，先路由到专家团队=%s", team.ID), fmt.Sprintf("团队模式=%s，参与 agent 数量=%d", team.Mode, len(participants)), fmt.Sprintf("根据 intent=%s 选择 lead agent=%s", intent, lead.ID)}
+	noteTeamMemoryConsulted(consulted)
+	if hit != nil {
+		noteTeamMemoryReused(hit)
+	}
+	reasons := []string{fmt.Sprintf("检测到复杂任务，先路由到专家团队=%s", team.ID), fmt.Sprintf("团队模式=%s，参与 agent 数量=%d", team.Mode, len(participants)), fmt.Sprintf("根据能力匹配与延迟适配选择 lead agent=%s", lead.ID)}
 	if hit != nil {
 		reasons = append(reasons, fmt.Sprintf("复用了 team memory，历史 team=%s score=%.2f", hit.SelectedTeamID, hit.OutcomeScore))
 	} else if len(consulted) > 0 {

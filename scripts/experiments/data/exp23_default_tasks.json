@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fs-top-level-roles",
+    "label": "顶层目录识别",
+    "prompt": "你必须先使用文件系统工具查看当前仓库顶层目录，再说明 cmd、internal、ui 这三个目录各自承担什么作用。",
+    "required_tools": ["preset-filesystem-list", "preset-filesystem-read"],
+    "required_capabilities": ["architecture", "coding", "analysis"],
+    "complexity_hint": 2,
+    "expected_keywords": ["cmd", "internal", "ui"]
+  },
+  {
+    "id": "fetch-mcp-location",
+    "label": "Fetch MCP 位置与能力",
+    "prompt": "你必须先使用文件系统工具定位仓库里 cmd/mcp-fetch 的实现文件，再说明它暴露的核心工具名是什么。",
+    "required_tools": ["preset-filesystem-list", "preset-filesystem-read"],
+    "required_capabilities": ["coding", "analysis"],
+    "complexity_hint": 2,
+    "expected_keywords": ["cmd/mcp-fetch", "fetch"]
+  },
+  {
+    "id": "candidate-strategy-options",
+    "label": "候选调度策略识别",
+    "prompt": "你必须先使用文件系统工具查看候选模型调度相关代码，再说明候选调度策略有哪些可选项。",
+    "required_tools": ["preset-filesystem-list", "preset-filesystem-read"],
+    "required_capabilities": ["coding", "analysis"],
+    "complexity_hint": 2,
+    "expected_keywords": ["predictive", "greedy-current", "passive"]
+  },
+  {
+    "id": "experiment-script-discovery",
+    "label": "实验脚本识别",
+    "prompt": "你必须先使用文件系统工具查看 scripts/experiments 目录，再说明当前已经支持跑哪些实验编号。",
+    "required_tools": ["preset-filesystem-list", "preset-filesystem-read"],
+    "required_capabilities": ["coding", "analysis"],
+    "complexity_hint": 2,
+    "expected_keywords": ["run_exp_21_22.py", "exp21", "exp22"]
+  },
+  {
+    "id": "report-file-discovery",
+    "label": "实验报告文件识别",
+    "prompt": "你必须先使用文件系统工具查看 docs 目录，再找出当前已有的真实实验报告和项目理论提炼文档文件名。",
+    "required_tools": ["preset-filesystem-list", "preset-filesystem-read"],
+    "required_capabilities": ["analysis", "coding"],
+    "complexity_hint": 2,
+    "expected_keywords": ["REAL_EXPERIMENT_RESULTS_CN.md", "PROJECT_CORE_THEORY_AND_EXPERIMENTS_CN.md"]
+  }
+]

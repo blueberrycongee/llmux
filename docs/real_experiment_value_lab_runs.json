@@ -1,0 +1,1366 @@
+[
+  {
+    "run": 1,
+    "ok": true,
+    "client_latency_ms": 22384,
+    "response": {
+      "request_id": "lab-1776333736145075000",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 9202,
+        "prompt_tokens": 39,
+        "completion_tokens": 179,
+        "total_tokens": 218,
+        "estimated_cost": 0.00020743,
+        "response_chars": 359,
+        "response_text": "您提到的“gateway”和“value lab”在商业或技术语境中可能有多种含义，我根据常见用法推测如下：\n\n1. **Gateway（网关）**  \n   通常指网络或系统中的入口点，用于连接不同网络、协议或平台，例如 API 网关、支付网关、云服务网关等。\n\n2. **Value Lab（价值实验室）**  \n   可能指企业内专注于价值创造、创新实验或数字化转型的部门或项目，常通过数据分析、原型测试等方式探索新业务模式或优化流程。\n\n如果是在特定企业（如咨询公司、科技公司）的上下文中，这两个词可能组合为某个解决方案、产品名称或内部项目，例如“Gateway Value Lab”可能是一个专注于网关技术价值验证的创新实验室。\n\n如果您能提供更多背景（如行业、公司或具体应用场景），我可以给出更精确的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 22318,
+        "prompt_tokens": 3680,
+        "completion_tokens": 320,
+        "total_tokens": 4000,
+        "estimated_cost": 0.0013456000000000002,
+        "response_chars": 676,
+        "response_text": "根据项目结构和README，我可以回答关于gateway和value lab的问题：\n\n**关于gateway：**\n这是一个名为LLMux的高性能LLM网关项目，用Go语言编写。它是一个统一的多提供商LLM网关，具有以下核心功能：\n\n1. **统一API**：提供OpenAI兼容的API接口（chat completions, responses, embeddings, models）\n2. **多提供商路由**：支持6种路由策略（随机、轮询、最低延迟、最少繁忙、最低TPM/RPM、最低成本）\n3. **治理功能**：多租户认证、预算控制、速率限制、审计日志\n4. **运维友好**：Prometheus指标、OpenTelemetry追踪、健康检查\n5. **可选仪表板**：基于Next.js的管理和分析界面\n\n**关于value lab：**\n从项目结构来看，这似乎是一个完整的LLM网关解决方案，而不是一个简单的\"value lab\"实验项目。它具有以下价值特点：\n\n1. **高性能**：基准测试显示比Python的LiteLLM快约8倍\n2. **企业级功能**：支持分布式部署、PostgreSQL持久化、Redis缓存\n3. **灵活配置**：支持独立、分布式和开发三种部署模式\n4. **多提供商支持**：可以集成OpenAI、Anthropic、Google、Azure等多家LLM提供商\n5. **开源项目**：MIT许可证，社区驱动\n\n项目结构清晰，包含完整的开发、测试、部署文档，是一个生产就绪的LLM网关解决方案。",
+        "finish_reason": "stop",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 2,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.74,
+          "hallucination_risk": 0.30000000000000004,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 2 tool call(s): list_directory, read_file."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 13116,
+      "total_token_delta": 3782,
+      "cost_delta": 0.0011381700000000002,
+      "response_chars_delta": 317,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 2 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.74.",
+        "Hallucination risk dropped from 0.62 to 0.30.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 13116 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 317 additional response characters.",
+        "Token consumption delta: +3782 total tokens.",
+        "Estimated cost delta: +0.001138."
+      ],
+      "generated_at": "2026-04-16T18:02:16+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 13116,
+    "total_token_delta": 3782,
+    "cost_delta": 0.0011381700000000002
+  },
+  {
+    "run": 2,
+    "ok": true,
+    "client_latency_ms": 48646,
+    "response": {
+      "request_id": "lab-1776333784791953800",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 13627,
+        "prompt_tokens": 39,
+        "completion_tokens": 274,
+        "total_tokens": 313,
+        "estimated_cost": 0.00031193000000000003,
+        "response_chars": 583,
+        "response_text": "您提到的“gateway”和“value lab”组合，在商业或技术语境中可能指向以下几种常见含义：\n\n1. **价值实验室（Value Lab）**  \n   通常指企业内设的创新或数据分析团队，负责通过数据挖掘、实验分析来驱动业务价值。如果与“gateway”结合，可能是指**数据或服务的接入平台**，例如“Value Lab Gateway”可能是一个让内部团队或客户访问实验数据、分析工具或创新项目的入口系统。\n\n2. **API 网关（API Gateway）**  \n   在技术架构中，API Gateway 作为统一入口，将请求路由到后端服务（包括数据分析、实验平台等）。如果某公司有一个叫“Value Lab”的分析平台，那么“Gateway”可能是指访问该平台的**API网关或门户**。\n\n3. **企业创新门户**  \n   有些企业设有“Value Lab”作为数字化创新部门，其“Gateway”可能指面向员工或合作伙伴的**创新想法提交、项目协作的入口网站或工具**。\n\n4. **特定公司的产品/项目名称**  \n   也可能是某个公司内部的项目代号或产品名称，例如“Gateway to Value Lab”，代表连接客户与价值实验室服务的平台。\n\n如果您能提供更多上下文（比如行业、技术背景或使用场景），我可以给出更具体的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 48641,
+        "prompt_tokens": 10022,
+        "completion_tokens": 460,
+        "total_tokens": 10482,
+        "estimated_cost": 0.00321194,
+        "response_chars": 1075,
+        "response_text": "基于我对代码的分析，这是一个**LLMux网关**项目。让我总结一下关于网关配置和value lab的相关信息：\n\n## LLMux网关配置总结\n\n### 1. **网关核心功能**\n- **多模型代理网关**：支持OpenAI、Anthropic、Google Gemini等多种LLM提供商\n- **智能路由**：支持多种路由策略（随机、轮询、最低延迟、最低成本等）\n- **负载均衡**：基于并发数、TPM/RPM限制的智能负载均衡\n- **故障转移**：自动故障检测和回退机制\n\n### 2. **Value Lab相关配置**\n\n从配置文件中可以看到几个关键的价值实验室（Value Lab）相关特性：\n\n#### **a. 企业级功能**\n```yaml\ndeployment:\n  mode: standalone  # standalone, distributed, development\n```\n- **分布式模式**：支持PostgreSQL + Redis的分布式部署\n- **开发模式**：允许内存存储，便于测试\n\n#### **b. 认证和授权**\n```yaml\nauth:\n  enabled: true\n  bootstrap_token: ${LLMUX_BOOTSTRAP_TOKEN}\n  oidc:\n    issuer_url: ${OIDC_ISSUER_URL}\n    client_id: ${OIDC_CLIENT_ID}\n```\n- **OIDC集成**：支持企业SSO认证\n- **RBAC权限控制**：基于角色的访问控制\n- **团队管理**：用户-团队同步功能\n\n#### **c. 监控和可观测性**\n```yaml\nobservability:\n  enabled: true\n  open_telemetry:\n    enabled: true\n    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT}\n```\n- **OpenTelemetry集成**：分布式追踪\n- **健康检查**：主动健康探测\n- **审计日志**：完整的API使用审计\n\n#### **d. 缓存和性能**\n```yaml\ncache:\n  enabled: false\n  type: local  # local, redis, dual\n  ttl: 1h\n```\n- **多级缓存**：本地内存 + Redis分布式缓存\n- **响应缓存**：减少重复请求的开",
+        "finish_reason": "length",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 7,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.74,
+          "hallucination_risk": 0.35000000000000003,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 7 tool call(s): list_directory, read_file.",
+            "The answer hit the max-token cap, so the output may be truncated."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 35014,
+      "total_token_delta": 10169,
+      "cost_delta": 0.0029000099999999997,
+      "response_chars_delta": 492,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 7 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.74.",
+        "Hallucination risk dropped from 0.62 to 0.35.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 35014 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 492 additional response characters.",
+        "Token consumption delta: +10169 total tokens.",
+        "Estimated cost delta: +0.002900."
+      ],
+      "generated_at": "2026-04-16T18:03:04+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 35014,
+    "total_token_delta": 10169,
+    "cost_delta": 0.0029000099999999997
+  },
+  {
+    "run": 3,
+    "ok": true,
+    "client_latency_ms": 45254,
+    "response": {
+      "request_id": "lab-1776333830046228900",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 13386,
+        "prompt_tokens": 39,
+        "completion_tokens": 281,
+        "total_tokens": 320,
+        "estimated_cost": 0.00031963000000000006,
+        "response_chars": 574,
+        "response_text": "您提到的“gateway”和“value lab”这两个术语，在商业、技术或咨询领域可能有不同的含义，具体取决于上下文。  \n\n**可能的解释方向：**  \n\n1. **Gateway（网关）**  \n   - 在 **IT/网络** 中，指连接不同网络的设备或软件（如 API Gateway、支付网关）。  \n   - 在 **商业/战略** 中，可能指进入某个市场或生态系统的“门户”或关键入口。  \n\n2. **Value Lab（价值实验室）**  \n   - 通常指企业或咨询公司设立的 **创新实验室、价值共创中心**，用于与客户合作探索新业务模式、数字化解决方案等。  \n   - 例如，一些 IT 服务公司（如 TCS、Infosys）设有 “Value Labs” 部门，专注于产品工程、研发和业务价值实现。  \n\n**如果您的提问是关于某个具体公司的架构**（比如某公司内部有一个 “Gateway” 团队和一个 “Value Lab” 团队，想知道它们的职责区别或协作方式），那么通常可以推测：  \n- **Gateway** 团队可能负责核心平台、接口或入口产品的开发与维护。  \n- **Value Lab** 团队可能负责前沿技术实验、原型验证和业务价值探索。  \n\n如果您能提供更多背景信息，我可以给出更具体的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 45246,
+        "prompt_tokens": 3517,
+        "completion_tokens": 460,
+        "total_tokens": 3977,
+        "estimated_cost": 0.00145559,
+        "response_chars": 883,
+        "response_text": "基于我对项目的分析，这是一个名为 **LLMux** 的高性能 LLM 网关项目。让我总结一下关键信息：\n\n## 项目概述\n\n**LLMux** 是一个用 Go 编写的高性能 LLM 网关，具有以下特点：\n\n### 核心功能\n1. **统一 API**：提供 OpenAI 兼容的 API（聊天、响应、嵌入、模型列表）\n2. **多提供商路由**：支持 6 种路由策略：\n   - 随机（shuffle）\n   - 轮询（round-robin）\n   - 最低延迟（lowest-latency）\n   - 最空闲（least-busy）\n   - 最低 TPM/RPM（lowest-tpm-rpm）\n   - 最低成本（lowest-cost）\n\n3. **治理功能**：\n   - 多租户认证\n   - 预算管理\n   - 速率限制\n   - 审计日志\n\n4. **运维友好**：\n   - Prometheus 指标\n   - OpenTelemetry 追踪\n   - 健康检查\n\n### 部署模式\n1. **库模式**：作为 Go 库直接集成到应用中\n2. **网关模式**：作为独立的 HTTP 代理服务器运行\n\n### 性能优势\n根据基准测试，与 LiteLLM（Python）相比：\n- **吞吐量**：约 8 倍更快（1943.35 vs 246.52 RPS）\n- **平均延迟**：约 8 倍更低（51.29ms vs 403.94ms）\n- **P99 延迟**：更稳定（91.71ms vs 845.37ms）\n\n### 项目结构\n- `cmd/server/`：网关服务器主程序\n- `internal/`：内部包（API、认证、配置等）\n- `pkg/`：公共包\n- `providers/`：LLM 提供商实现\n- `routers/`：路由逻辑\n- `ui/`：Next.js 管理界面\n\n### 配置\n配置文件位于 `config/config.example.yaml`，支持：\n- 多提供商配置\n- 路由策略\n- 认证设置",
+        "finish_reason": "length",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 7,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.88,
+          "hallucination_risk": 0.27,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 7 tool call(s): list_directory, read_file.",
+            "The answer references concrete repository artifacts instead of speaking in generic terms.",
+            "The answer hit the max-token cap, so the output may be truncated."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 31860,
+      "total_token_delta": 3657,
+      "cost_delta": 0.00113596,
+      "response_chars_delta": 309,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 7 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.88.",
+        "Hallucination risk dropped from 0.62 to 0.27.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 31860 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 309 additional response characters.",
+        "Token consumption delta: +3657 total tokens.",
+        "Estimated cost delta: +0.001136."
+      ],
+      "generated_at": "2026-04-16T18:03:50+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 31860,
+    "total_token_delta": 3657,
+    "cost_delta": 0.00113596
+  },
+  {
+    "run": 4,
+    "ok": true,
+    "client_latency_ms": 56780,
+    "response": {
+      "request_id": "lab-1776333886827549200",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 12320,
+        "prompt_tokens": 39,
+        "completion_tokens": 279,
+        "total_tokens": 318,
+        "estimated_cost": 0.00031743000000000006,
+        "response_chars": 577,
+        "response_text": "您提到的“gateway”和“value lab”这两个术语，在商业、技术或咨询领域可能有不同的含义，具体取决于上下文。  \n\n**可能的解释：**  \n\n1. **Gateway（网关）**  \n   - 在 **IT/网络** 中，指连接不同网络的设备或软件（如默认网关）。  \n   - 在 **商业/平台** 中，可能指客户接触点、入口产品或服务（gateway product）。  \n   - 在 **支付** 中，指支付网关（payment gateway）。  \n\n2. **Value Lab（价值实验室）**  \n   - 通常指企业或咨询公司设立的 **创新实验室、价值共创中心**，用于与客户合作探索新业务模式、数字化方案或价值提升方法。  \n   - 例如，一些 IT 服务公司（如 TCS、Infosys）设有 “Value Labs” 部门，专注于研发、原型设计和解决方案孵化。  \n\n**如果是在问两者关系**，可能是指：  \n- 如何通过某个 **gateway**（入口/平台）接入 **value lab** 的服务或合作模式；  \n- 或者 **gateway** 本身是 **value lab** 推出的一个核心产品或实验性项目。  \n\n如果您能提供更多背景（比如行业、句子完整表述），我可以给出更精确的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 56771,
+        "prompt_tokens": 5446,
+        "completion_tokens": 460,
+        "total_tokens": 5906,
+        "estimated_cost": 0.00197642,
+        "response_chars": 1037,
+        "response_text": "基于我对项目的分析，我可以回答关于gateway和value lab的问题：\n\n## 关于LLMux Gateway和Value Lab\n\n根据项目分析，这是一个名为**LLMux**的高性能LLM网关项目，用Go语言编写。以下是关键信息：\n\n### Gateway核心功能：\n1. **统一API接口**：提供OpenAI兼容的API（chat、embeddings、models等）\n2. **多提供商路由**：支持6种路由策略（shuffle、round-robin、最低延迟、最少繁忙、最低TPM/RPM、最低成本）\n3. **治理功能**：多租户认证、预算控制、速率限制、审计日志\n4. **运维友好**：Prometheus指标、OpenTelemetry追踪、健康检查\n5. **可选管理面板**：基于Next.js的仪表板\n\n### 性能优势：\n- **8倍吞吐量**：相比Python的LiteLLM，LLMux达到1943.35 RPS vs 246.52 RPS\n- **8倍低延迟**：平均延迟51.29ms vs 403.94ms\n- **稳定P99延迟**：91.71ms vs 845.37ms\n\n### 项目结构：\n```\nllmux/\n├── cmd/server/           # Gateway入口点\n├── config/              # 配置文件\n├── internal/            # 内部实现\n│   ├── api/            # HTTP处理器\n│   ├── auth/           # 认证授权\n│   ├── router/         # 路由策略\n│   └── ...\n├── providers/          # LLM提供商适配器\n└── ui/                 # Next.js仪表板\n```\n\n### Value Lab相关：\n从项目结构看，这是一个**代码实验室/实验项目**，具有以下特点：\n\n1. **实验性架构**：采用Go + Next.js的现代技术栈\n2. **性能优化**：专注于高性能网关实现\n3. **模块化设计**：清晰的代码组织和职责分离\n4. **生产就绪**：支持分布式部署（Postgres + Redis）\n\n### 配置示例：\n项目提供了多种配置模式：\n- `standalone`：单",
+        "finish_reason": "length",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 9,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.88,
+          "hallucination_risk": 0.27,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 9 tool call(s): list_directory, read_file.",
+            "The answer references concrete repository artifacts instead of speaking in generic terms.",
+            "The answer hit the max-token cap, so the output may be truncated."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 44451,
+      "total_token_delta": 5588,
+      "cost_delta": 0.00165899,
+      "response_chars_delta": 460,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 9 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.88.",
+        "Hallucination risk dropped from 0.62 to 0.27.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 44451 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 460 additional response characters.",
+        "Token consumption delta: +5588 total tokens.",
+        "Estimated cost delta: +0.001659."
+      ],
+      "generated_at": "2026-04-16T18:04:46+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 44451,
+    "total_token_delta": 5588,
+    "cost_delta": 0.00165899
+  },
+  {
+    "run": 5,
+    "ok": true,
+    "client_latency_ms": 39084,
+    "response": {
+      "request_id": "lab-1776333925912490400",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 12074,
+        "prompt_tokens": 39,
+        "completion_tokens": 228,
+        "total_tokens": 267,
+        "estimated_cost": 0.00026133000000000005,
+        "response_chars": 475,
+        "response_text": "您提到的“gateway”和“value lab”在商业或技术语境中可能有多种含义，我根据常见用法解释一下可能的关联：\n\n1. **Gateway（网关）**  \n   在技术架构中，网关是系统的入口，负责请求路由、协议转换、安全认证等。在微服务或API架构中，API Gateway 就是一个常见例子。\n\n2. **Value Lab（价值实验室）**  \n   通常指企业内用于探索新业务模式、新技术应用或数据价值验证的部门或实验环境，目的是通过快速实验创造业务价值。\n\n**可能的关联场景**：  \n如果一家公司设立了“Value Lab”来试验数据驱动的创新项目，那么“Gateway”可能是指：\n- **数据网关**：将内外部数据安全接入 Value Lab 的实验平台。\n- **API 网关**：为 Value Lab 开发的实验性服务提供统一的访问入口和管理。\n- **创新技术网关**：将实验室验证后的成果通过标准化接口接入公司现有业务系统。\n\n如果您指的是某个特定公司或产品中的具体概念，可以提供更多背景，我可以给出更精确的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": false,
+        "error_message": "exceeded maximum tool iterations (10)",
+        "provider": "deepseek-primary",
+        "model": "deepseek-reasoner",
+        "latency_ms": 39078,
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-reasoner",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "failed",
+            "reason": "exceeded maximum tool iterations (10)"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 10,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0,
+          "hallucination_risk": 1,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "The run did not complete successfully, so answer quality cannot be trusted.",
+            "The optimized chain exceeded the maximum tool-iteration budget.",
+            "exceeded maximum tool iterations (10)"
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 27004,
+      "total_token_delta": -267,
+      "cost_delta": -0.00026133000000000005,
+      "response_chars_delta": -475,
+      "winning_dimensions": [
+        "agent-selection",
+        "model-routing",
+        "tool-aware"
+      ],
+      "recommended_winner": "baseline",
+      "value_summary": [
+        "This run still needs inspection before it can be used as a clean value demo.",
+        "The optimized path executed 10 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-reasoner.",
+        "Optimized routing spent 27004 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Token consumption delta: -267 total tokens.",
+        "Estimated cost delta: -0.000261."
+      ],
+      "generated_at": "2026-04-16T18:05:25+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": false,
+    "recommended_winner": "baseline",
+    "winning_dimensions": [
+      "agent-selection",
+      "model-routing",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 27004,
+    "total_token_delta": -267,
+    "cost_delta": -0.00026133000000000005
+  },
+  {
+    "run": 6,
+    "ok": true,
+    "client_latency_ms": 28681,
+    "response": {
+      "request_id": "lab-1776333954594692500",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 10650,
+        "prompt_tokens": 39,
+        "completion_tokens": 205,
+        "total_tokens": 244,
+        "estimated_cost": 0.00023603,
+        "response_chars": 413,
+        "response_text": "您提到的“gateway”和“value lab”在商业或技术语境中可能有不同含义，我根据常见用法解释一下可能的关联：\n\n1. **Gateway（网关）**  \n   通常指网络或系统中的入口点，用于连接不同网络、协议或平台，例如 API 网关、支付网关、物联网网关等。\n\n2. **Value Lab（价值实验室）**  \n   可能指企业内专注于价值创造、创新实验或数字化转型的部门或项目，例如通过数据分析、技术试点、流程优化来探索新价值。\n\n**可能的关联场景**：  \n- 企业可能利用 **Gateway**（如数据网关、API 网关）来整合内外部数据或服务，为 **Value Lab** 提供实验所需的技术基础设施。  \n- **Value Lab** 通过网关快速接入外部数据源、云服务或合作伙伴接口，进行创新验证或价值挖掘。\n\n如果您有更具体的上下文（如行业、技术架构或业务目标），我可以提供更精确的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 28663,
+        "prompt_tokens": 3677,
+        "completion_tokens": 460,
+        "total_tokens": 4137,
+        "estimated_cost": 0.0014987900000000003,
+        "response_chars": 936,
+        "response_text": "基于对项目结构的分析，我可以回答关于gateway和value lab的问题：\n\n## 关于LLMux Gateway\n\n**LLMux是一个高性能的LLM网关**，具有以下核心特性：\n\n### 1. **网关定位**\n- 用Go编写的高性能LLM网关\n- 支持OpenAI兼容的API接口\n- 提供统一的多LLM提供商接入\n\n### 2. **核心功能**\n- **多提供商路由**：支持6种路由策略（随机、轮询、最低延迟、最少繁忙、最低TPM/RPM、最低成本）\n- **治理功能**：多租户认证、预算控制、速率限制、审计日志\n- **运维友好**：Prometheus指标、OpenTelemetry追踪、健康检查\n- **可选仪表板**：基于Next.js的管理和分析界面\n\n### 3. **性能优势**\n- 相比Python的LiteLLM，吞吐量提升约8倍（1943.35 RPS vs 246.52 RPS）\n- 平均延迟降低约8倍（51.29ms vs 403.94ms）\n- P99延迟更稳定（91.71ms vs 845.37ms）\n\n### 4. **部署模式**\n- **Standalone模式**：单节点，内存状态\n- **Distributed模式**：企业级，需要PostgreSQL和Redis\n- **Development模式**：开发测试用\n\n## 关于Value Lab\n\n从项目结构看，**LLMux本身就是一个\"value lab\"**，体现在：\n\n### 1. **技术价值**\n- **性能实验室**：通过基准测试验证Go相比Python的性能优势\n- **架构实验室**：探索分布式LLM网关的最佳实践\n- **路由策略实验室**：实现和测试6种不同的路由算法\n\n### 2. **工程价值**\n- **代码质量实验室**：包含完整的测试套件（client_*.go测试文件）\n- **配置管理实验室**：支持多种配置方式（环境变量、YAML文件）\n- **监控可观测性实验室**：集成Prometheus和OpenTelemetry\n\n### 3. **业务价值**\n- **成本优化实验室**：通过路由策略实现成本",
+        "finish_reason": "length",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 2,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.74,
+          "hallucination_risk": 0.35000000000000003,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 2 tool call(s): list_directory, read_file.",
+            "The answer hit the max-token cap, so the output may be truncated."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 18013,
+      "total_token_delta": 3893,
+      "cost_delta": 0.0012627600000000004,
+      "response_chars_delta": 523,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 2 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.74.",
+        "Hallucination risk dropped from 0.62 to 0.35.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 18013 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 523 additional response characters.",
+        "Token consumption delta: +3893 total tokens.",
+        "Estimated cost delta: +0.001263."
+      ],
+      "generated_at": "2026-04-16T18:05:54+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 18013,
+    "total_token_delta": 3893,
+    "cost_delta": 0.0012627600000000004
+  },
+  {
+    "run": 7,
+    "ok": true,
+    "client_latency_ms": 26456,
+    "response": {
+      "request_id": "lab-1776333981051388500",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 12370,
+        "prompt_tokens": 39,
+        "completion_tokens": 241,
+        "total_tokens": 280,
+        "estimated_cost": 0.00027563,
+        "response_chars": 482,
+        "response_text": "您提到的“gateway”和“value lab”在商业或技术语境中可能有不同含义，我根据常见用法解释一下可能的关联：\n\n1. **Gateway（网关/入口）**  \n   在技术或商业平台中，Gateway 通常指一个入口点，比如 API 网关、支付网关、网络网关等，负责流量转发、协议转换、安全控制等。\n\n2. **Value Lab（价值实验室）**  \n   通常指一个用于探索、验证和交付业务价值的团队或实验环境，可能涉及数据分析、原型开发、流程优化等。\n\n**可能的关联场景**：  \n- 某企业设立 **Value Lab** 团队，负责通过数据实验找到提升客户价值的方案，而 **Gateway** 可能是他们实验中的技术组件（例如：通过 API 网关收集用户行为数据，或在网关上做 A/B 测试）。  \n- 也可能指一个叫 **“Gateway Value Lab”** 的特定项目、部门或产品，专注于通过网关技术创造业务价值（例如：智能路由、个性化体验等）。\n\n如果您能提供更多上下文（比如行业、技术背景或具体问题），我可以给出更精确的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 26451,
+        "prompt_tokens": 3680,
+        "completion_tokens": 385,
+        "total_tokens": 4065,
+        "estimated_cost": 0.0014171000000000001,
+        "response_chars": 788,
+        "response_text": "根据项目结构和README，我可以回答关于gateway和value lab的问题：\n\n**关于gateway（网关）：**\n这是一个名为LLMux的高性能LLM网关，用Go语言编写。主要特点：\n1. **统一API**：提供OpenAI兼容的API接口（chat completions、responses、embeddings、models）\n2. **多提供商路由**：支持6种路由策略（随机、轮询、最低延迟、最少繁忙、最低TPM/RPM、最低成本）\n3. **治理功能**：多租户认证、预算控制、速率限制、审计日志\n4. **运维友好**：Prometheus指标、OpenTelemetry追踪、健康检查\n5. **可选仪表板**：基于Next.js的管理和分析界面\n\n**关于value lab（价值实验室）：**\n从项目结构看，这似乎是一个AI/LLM相关的网关项目，其核心价值体现在：\n\n1. **性能优势**：相比Python的LiteLLM，LLMux吞吐量高8倍（1943.35 vs 246.52 RPS），延迟低8倍\n2. **企业级特性**：支持分布式部署，需要PostgreSQL（用于认证/使用跟踪）和Redis（用于分布式路由+速率限制）\n3. **部署模式**：\n   - `standalone`：单实例运行，内存状态\n   - `distributed`：分布式部署，需要PostgreSQL和Redis\n   - `development`：开发模式，允许多实例测试\n\n4. **路由策略**：支持6种智能路由算法，可根据延迟、负载、成本等指标优化提供商选择\n5. **成本控制**：支持预算管理和成本优化路由\n\n**项目定位**：这是一个为企业级LLM应用设计的网关，旨在解决多LLM提供商管理、成本控制、性能优化和运维监控的问题。",
+        "finish_reason": "stop",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 2,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.74,
+          "hallucination_risk": 0.30000000000000004,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 2 tool call(s): list_directory, read_file."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 14081,
+      "total_token_delta": 3785,
+      "cost_delta": 0.0011414700000000001,
+      "response_chars_delta": 306,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 2 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.74.",
+        "Hallucination risk dropped from 0.62 to 0.30.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 14081 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 306 additional response characters.",
+        "Token consumption delta: +3785 total tokens.",
+        "Estimated cost delta: +0.001141."
+      ],
+      "generated_at": "2026-04-16T18:06:21+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 14081,
+    "total_token_delta": 3785,
+    "cost_delta": 0.0011414700000000001
+  },
+  {
+    "run": 8,
+    "ok": true,
+    "client_latency_ms": 49752,
+    "response": {
+      "request_id": "lab-1776334030803988300",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 14573,
+        "prompt_tokens": 39,
+        "completion_tokens": 269,
+        "total_tokens": 308,
+        "estimated_cost": 0.00030643000000000006,
+        "response_chars": 558,
+        "response_text": "您提到的“gateway”和“value lab”在商业或技术语境中可能有不同含义，我根据常见用法解释一下可能的关联：\n\n1. **Gateway（网关/入口）**  \n   在技术中常指系统入口、API 网关、网络网关等；在商业中可指进入市场或生态的“门户”。\n\n2. **Value Lab（价值实验室）**  \n   通常指企业内专注于价值创造、创新实验、流程优化或数字化转型的团队或空间。\n\n---\n\n**可能的关联场景**：\n\n- **数字化转型项目**：  \n  企业可能通过一个 **Gateway**（如统一数字平台）作为前端入口，连接后端的 **Value Lab**（进行数据分析、流程优化、创新试点），从而将创新成果快速推向业务端。\n\n- **创新与孵化架构**：  \n  Gateway 作为客户/内部用户的接触点，收集需求与数据，传递给 Value Lab 进行价值挖掘与方案实验，形成闭环。\n\n- **技术平台架构**：  \n  在微服务或中台架构中，Gateway 是统一的访问层，Value Lab 可能是背后快速试错、迭代新服务的团队或环境。\n\n---\n\n如果您指的是某个特定公司、产品或案例中的“Gateway”和“Value Lab”，可以提供更多背景，我可以给出更具体的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 49742,
+        "prompt_tokens": 4562,
+        "completion_tokens": 461,
+        "total_tokens": 5023,
+        "estimated_cost": 0.0017388400000000002,
+        "response_chars": 1019,
+        "response_text": "基于我对代码的分析，我来回答关于gateway和value lab的问题：\n\n## Gateway 配置分析\n\n**LLMux Gateway 是一个高性能的 LLM 网关**，具有以下关键特性：\n\n### 1. **核心配置** (`config/config.example.yaml`)\n- **端口**: 主端口 8080，可选管理端口\n- **部署模式**: standalone（单机）、distributed（分布式，需要 PostgreSQL + Redis）\n- **超时设置**: 读30秒，写120秒，空闲60秒\n\n### 2. **Provider 配置**\n支持多种 LLM 提供商：\n- **OpenAI**: GPT-4o, GPT-4o-mini, GPT-4-turbo 等\n- **Anthropic**: Claude 3.5 Sonnet, Haiku, Opus\n- **Google Gemini**: Gemini 1.5 Pro, Flash\n- **Azure OpenAI**（可选）\n\n### 3. **路由策略**\n- **默认策略**: simple-shuffle\n- **其他策略**: lowest-latency（最低延迟）、least-busy（最少负载）\n- **重试机制**: 3次重试，指数退避\n- **分布式路由**: 支持 Redis 存储统计信息\n\n### 4. **治理功能**\n- **多租户认证**: 支持\n- **预算管理**: 支持\n- **速率限制**: 可配置\n- **审计日志**: 可启用\n\n## Value Lab 相关分析\n\n**Value Lab 指的是定价和价值计算系统**，位于 `internal/pricing/calculator.go`：\n\n### 1. **定价模型**\n- **ModelPricing 结构**: 定义每个模型的输入/输出 token 价格（美元/1000 tokens）\n- **通配符支持**: 如 \"gpt-4*\" 匹配所有 GPT-4 模型\n\n### 2. **默认定价表**（2024年价格）\n```go\n// OpenAI\ngpt-4o: 输入 $0.005, 输出 $0.015\ngpt-4o-mini: 输入 $0.00015, 输出 $0.0006\n\n// Anthropic\ncl",
+        "finish_reason": "length",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 7,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.88,
+          "hallucination_risk": 0.27,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 7 tool call(s): list_directory, read_file.",
+            "The answer references concrete repository artifacts instead of speaking in generic terms.",
+            "The answer hit the max-token cap, so the output may be truncated."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 35169,
+      "total_token_delta": 4715,
+      "cost_delta": 0.00143241,
+      "response_chars_delta": 461,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 7 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.88.",
+        "Hallucination risk dropped from 0.62 to 0.27.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 35169 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 461 additional response characters.",
+        "Token consumption delta: +4715 total tokens.",
+        "Estimated cost delta: +0.001432."
+      ],
+      "generated_at": "2026-04-16T18:07:10+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 35169,
+    "total_token_delta": 4715,
+    "cost_delta": 0.00143241
+  },
+  {
+    "run": 9,
+    "ok": true,
+    "client_latency_ms": 43682,
+    "response": {
+      "request_id": "lab-1776334074486570700",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 11322,
+        "prompt_tokens": 39,
+        "completion_tokens": 211,
+        "total_tokens": 250,
+        "estimated_cost": 0.00024263,
+        "response_chars": 438,
+        "response_text": "您提到的“gateway”和“value lab”在商业或技术语境中可能有不同含义，我根据常见用法解释一下可能的关联：\n\n1. **Gateway（网关/入口）**  \n   通常指系统、网络或服务的接入点，比如 API Gateway、支付网关、物联网网关等，负责协议转换、路由、安全控制等。\n\n2. **Value Lab（价值实验室）**  \n   可能指企业内部或咨询公司设立的创新或数字化转型部门，专注于通过数据、技术、设计思维等方法探索和创造新业务价值。\n\n**可能的关联场景**：  \n- 企业用 **Value Lab** 进行创新实验，设计新的数字化服务，而 **Gateway** 可能是该服务对外提供能力的统一技术入口。  \n- 在物联网或数据分析方案中，**Gateway** 负责采集设备数据，**Value Lab** 则利用这些数据做分析建模，挖掘业务价值。  \n\n如果您有更具体的上下文（比如行业、技术架构或企业案例），我可以给出更精确的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": false,
+        "error_message": "exceeded maximum tool iterations (10)",
+        "provider": "deepseek-primary",
+        "model": "deepseek-reasoner",
+        "latency_ms": 43677,
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-reasoner",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "failed",
+            "reason": "exceeded maximum tool iterations (10)"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 10,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0,
+          "hallucination_risk": 1,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "The run did not complete successfully, so answer quality cannot be trusted.",
+            "The optimized chain exceeded the maximum tool-iteration budget.",
+            "exceeded maximum tool iterations (10)"
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 32355,
+      "total_token_delta": -250,
+      "cost_delta": -0.00024263,
+      "response_chars_delta": -438,
+      "winning_dimensions": [
+        "agent-selection",
+        "model-routing",
+        "tool-aware"
+      ],
+      "recommended_winner": "baseline",
+      "value_summary": [
+        "This run still needs inspection before it can be used as a clean value demo.",
+        "The optimized path executed 10 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-reasoner.",
+        "Optimized routing spent 32355 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Token consumption delta: -250 total tokens.",
+        "Estimated cost delta: -0.000243."
+      ],
+      "generated_at": "2026-04-16T18:07:54+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": false,
+    "recommended_winner": "baseline",
+    "winning_dimensions": [
+      "agent-selection",
+      "model-routing",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 32355,
+    "total_token_delta": -250,
+    "cost_delta": -0.00024263
+  },
+  {
+    "run": 10,
+    "ok": true,
+    "client_latency_ms": 30134,
+    "response": {
+      "request_id": "lab-1776334104619625100",
+      "scenario": "grounded-repo-qa",
+      "prompt": "????? gateway ?????????????? value lab ??????????????????",
+      "traffic_type": "value-lab",
+      "baseline": {
+        "mode": "baseline",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 12309,
+        "prompt_tokens": 39,
+        "completion_tokens": 221,
+        "total_tokens": 260,
+        "estimated_cost": 0.00025363,
+        "response_chars": 459,
+        "response_text": "您提到的“gateway”和“value lab”组合，在商业或技术语境中可能指向以下几种常见含义：\n\n1. **价值实验室（Value Lab）**  \n   一些咨询公司或企业内部设有“Value Lab”或“价值实验室”，通常是一个协作创新空间，利用数据分析、可视化工具帮助客户探索业务洞察、设计解决方案。如果与“gateway”结合，可能指进入该实验室的**门户平台或接入点**（例如一个数字网关或登录入口）。\n\n2. **技术/数据网关（Gateway）**  \n   在IT架构中，Gateway 是连接不同系统、协议或网络的枢纽。如果与“Value Lab”搭配，可能指**为价值实验室提供数据接入、API 服务或外部系统连接**的技术网关。\n\n3. **特定公司的产品或部门名称**  \n   某些企业可能有名为“Gateway Value Lab”的专项服务或研究团队，例如在数字化转型咨询、金融科技或零售分析领域。\n\n如果您能提供更多上下文（比如行业、句子原文或使用场景），我可以给出更精确的解释。",
+        "finish_reason": "stop",
+        "quality": {
+          "label": "Ungrounded direct answer",
+          "tool_used": false,
+          "tool_calls": 0,
+          "groundedness_score": 0.34,
+          "hallucination_risk": 0.62,
+          "route_depth": 1,
+          "memory_hit": false,
+          "team_route": false
+        }
+      },
+      "optimized": {
+        "mode": "optimized",
+        "succeeded": true,
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "latency_ms": 30122,
+        "prompt_tokens": 3687,
+        "completion_tokens": 460,
+        "total_tokens": 4147,
+        "estimated_cost": 0.0015014900000000003,
+        "response_chars": 1008,
+        "response_text": "基于对README.md的分析，我可以回答关于gateway和value lab的问题：\n\n## Gateway 相关信息\n\n**LLMux 是一个高性能的 LLM gateway**，具有以下特点：\n\n1. **技术栈**：使用 Go 语言编写，支持 Next.js 仪表板\n2. **核心功能**：\n   - 统一的 OpenAI 兼容 API（chat、responses、embeddings、models）\n   - 多提供商路由，支持6种策略：\n     - simple-shuffle（随机选择）\n     - round-robin（轮询）\n     - lowest-latency（最低延迟）\n     - least-busy（最少繁忙）\n     - lowest-tpm-rpm（最低TPM/RPM使用率）\n     - lowest-cost（最低成本）\n   - 治理功能：多租户认证、预算控制、速率限制、审计日志\n   - 运维友好：Prometheus 指标、OpenTelemetry 追踪、健康检查\n\n3. **部署模式**：\n   - `standalone`：单节点，内存状态\n   - `distributed`：分布式，需要 PostgreSQL 和 Redis\n   - `development`：开发模式\n\n4. **性能优势**：相比 LiteLLM（Python），LLMux 吞吐量高8倍，延迟低8倍\n\n## Value Lab 相关信息\n\n从项目结构中，我没有看到直接的 \"value lab\" 相关代码或配置。但是，基于项目性质，我可以推断：\n\n1. **价值实验室可能指的是**：\n   - 测试和基准测试环境（`bench/` 目录包含基准测试工具）\n   - 配置实验环境\n   - 路由策略测试和优化\n\n2. **相关目录**：\n   - `bench/`：基准测试工具\n   - `tests/`：集成测试\n   - `config/`：配置文件，可用于实验不同配置\n\n3. **实验能力**：\n   - 可以测试不同路由策略的性能\n   - 可以实验不同提供商的组合\n   - 可以测试速率限制和预算控制策略\n   - 可以进行性能基准测试\n\n如果您需要更具体的关于 \"value lab\" 的信息，请提供更多上下文，或者我可以查看特定目录",
+        "finish_reason": "length",
+        "memory_influence": "none",
+        "route_source": "score-router",
+        "selected_agent_id": "code-specialist",
+        "selected_candidate": "deepseek-primary/deepseek-chat",
+        "required_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read"
+        ],
+        "bound_tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "routing_reasoning": [
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.43 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型"
+        ],
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "quality": {
+          "label": "Optimized routed answer",
+          "tool_used": true,
+          "tool_calls": 2,
+          "tool_names": [
+            "list_directory",
+            "read_file"
+          ],
+          "groundedness_score": 0.88,
+          "hallucination_risk": 0.27,
+          "route_depth": 5,
+          "memory_hit": false,
+          "team_route": false,
+          "quality_notes": [
+            "Observed 2 tool call(s): list_directory, read_file.",
+            "The answer references concrete repository artifacts instead of speaking in generic terms.",
+            "The answer hit the max-token cap, so the output may be truncated."
+          ]
+        },
+        "token_optimization_enabled": true,
+        "optimization_notes": [
+          "token optimization enabled: capped response budget at 220 tokens",
+          "token optimization enabled: compact tool inventory enabled",
+          "token optimization enabled: pruned tool scope to required tools only (2 active)",
+          "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+        ]
+      },
+      "latency_delta_ms": 17813,
+      "total_token_delta": 3887,
+      "cost_delta": 0.0012478600000000004,
+      "response_chars_delta": 549,
+      "winning_dimensions": [
+        "agent-selection",
+        "groundedness",
+        "hallucination-control",
+        "tool-aware"
+      ],
+      "recommended_winner": "optimized",
+      "value_summary": [
+        "Both paths completed, so the lab can compare speed, grounding, routing depth, and answer quality instead of just success/failure.",
+        "The optimized path executed 2 real tool call(s), while the baseline answer remained an ungrounded direct response.",
+        "Groundedness improved from 0.34 to 0.88.",
+        "Hallucination risk dropped from 0.62 to 0.27.",
+        "The optimized path explicitly selected agent=code-specialist and candidate=deepseek-primary/deepseek-chat.",
+        "Optimized routing spent 17813 extra ms to buy better routing depth, tools, or memory behavior.",
+        "Optimized routing produced a richer answer with 549 additional response characters.",
+        "Token consumption delta: +3887 total tokens.",
+        "Estimated cost delta: +0.001248."
+      ],
+      "generated_at": "2026-04-16T18:08:24+08:00"
+    },
+    "baseline_succeeded": true,
+    "optimized_succeeded": true,
+    "recommended_winner": "optimized",
+    "winning_dimensions": [
+      "agent-selection",
+      "groundedness",
+      "hallucination-control",
+      "tool-aware"
+    ],
+    "latency_delta_ms": 17813,
+    "total_token_delta": 3887,
+    "cost_delta": 0.0012478600000000004
+  }
+]

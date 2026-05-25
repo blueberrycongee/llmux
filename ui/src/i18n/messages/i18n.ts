@@ -3,6 +3,11 @@ import type { Messages } from "@/i18n/types";
 export const messages: Messages = {
   // Navigation
   "nav.overview": "Overview",
+  "nav.demoCenter": "Demo Center",
+  "nav.gatewayVisualizer": "Gateway Visualizer",
+  "nav.agentRouter": "Agent Router",
+  "nav.routeMemory": "Route Memory",
+  "nav.valueLab": "Value Lab",
   "nav.apiKeys": "API Keys",
   "nav.teams": "Teams",
   "nav.organizations": "Organizations",

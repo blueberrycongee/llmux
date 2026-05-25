@@ -210,9 +210,7 @@ func (h *ManagementHandler) RealTrafficRun(w http.ResponseWriter, r *http.Reques
 	result.Succeeded = true
 	result.ProviderReported = resp.Usage.Provider
 	result.GatewayResponse = resp
-	if len(resp.Choices) > 0 {
-		result.LLMOutputText = string(resp.Choices[0].Message.Content)
-	}
+	result.LLMOutputText = extractAssistantText(resp)
 	if result.ProviderReported == "" {
 		result.ProviderReported = providerName
 	}

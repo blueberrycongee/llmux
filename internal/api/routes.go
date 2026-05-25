@@ -96,6 +96,7 @@ func (h *ManagementHandler) RegisterRoutes(mux *http.ServeMux) {
 	mux.HandleFunc("GET /control/scheduling/compare", h.GetRoutingOptimizationComparison)
 	mux.HandleFunc("POST /control/simulate-traffic", h.SimulateTraffic)
 	mux.HandleFunc("POST /control/real-run", h.RealTrafficRun)
+	mux.HandleFunc("POST /control/lab/compare", h.CompareConversationLab)
 	mux.HandleFunc("GET /control/conversation/agents", h.ListConversationAgents)
 	mux.HandleFunc("POST /control/conversation/agents/new", h.CreateConversationAgent)
 	mux.HandleFunc("POST /control/conversation/agents/update", h.UpdateConversationAgent)
@@ -204,6 +205,7 @@ func GetRoutes() []RouteInfo {
 		{Method: "GET", Path: "/control/deployments", Description: "List deployments and routing status", Category: "control"},
 		{Method: "POST", Path: "/control/deployments/cooldown", Description: "Set or clear deployment cooldown", Category: "control"},
 		{Method: "GET", Path: "/control/providers", Description: "List providers and resilience stats", Category: "control"},
+		{Method: "POST", Path: "/control/lab/compare", Description: "Run baseline vs optimized conversation lab comparison", Category: "control"},
 		{Method: "GET", Path: "/control/config", Description: "Get current config status", Category: "control"},
 		{Method: "POST", Path: "/control/config/reload", Description: "Reload config from disk", Category: "control"},
 

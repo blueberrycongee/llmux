@@ -123,7 +123,24 @@ export default function AgentTeamsPage() {
           <div className="flex flex-wrap items-center gap-2"><Badge variant={item.succeeded ? "success" : "destructive"}>{item.succeeded ? "有效路径" : "失败路径"}</Badge><Badge variant="outline">{item.intent}</Badge><Badge variant="warning">{item.selected_team_id}</Badge></div>
           <div className="mt-3 text-sm font-semibold leading-6">{item.query}</div>
           <div className="mt-2 text-sm text-muted-foreground">{item.summary}</div>
-          <div className="mt-3 text-xs uppercase tracking-[0.18em] text-cyan-400">score {item.outcome_score.toFixed(2)}</div>
+          {item.compressed_summary && item.compressed_summary !== item.summary && <div className="mt-2 rounded-2xl border border-border/50 bg-background/40 px-3 py-2 text-sm text-foreground">{item.compressed_summary}</div>}
+          {item.distilled_learnings?.length ? <div className="mt-3 space-y-2">
+            {item.distilled_learnings.slice(0, 3).map((learning) => <div key={learning} className="rounded-2xl border border-border/50 bg-background/60 px-3 py-2 text-sm text-muted-foreground">{learning}</div>)}
+          </div> : null}
+          {item.representative_queries?.length ? <div className="mt-3 rounded-2xl border border-border/50 bg-background/40 p-3">
+            <div className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-400">Representative Queries</div>
+            <div className="mt-2 space-y-2 text-sm text-muted-foreground">
+              {item.representative_queries.slice(0, 2).map((query) => <div key={query}>{query}</div>)}
+            </div>
+          </div> : null}
+          <div className="mt-3 flex flex-wrap gap-3 text-xs uppercase tracking-[0.18em] text-cyan-400">
+            <span>score {item.outcome_score.toFixed(2)}</span>
+            {item.memory_stage && <span>{item.memory_stage}</span>}
+            {typeof item.source_count === "number" && item.source_count > 0 && <span>{item.source_count} episodes</span>}
+            {typeof item.compression_ratio === "number" && <span>compression {(item.compression_ratio * 100).toFixed(0)}%</span>}
+            {typeof item.consult_count === "number" && <span>consult {item.consult_count}</span>}
+            {typeof item.reuse_count === "number" && <span>reuse {item.reuse_count}</span>}
+          </div>
         </div>) : <div className="rounded-3xl border border-dashed p-4 text-sm text-muted-foreground">还没有 team memory。先跑一次团队演练。</div>}
       </CardContent>
     </Card>

@@ -490,6 +490,14 @@ func WithIncludeTools(ctx context.Context, tools []string) context.Context {
 	return context.WithValue(ctx, ContextKeyIncludeTools, tools)
 }
 
+// WithMaxToolIterations returns a context with a custom max tool iteration count.
+func WithMaxToolIterations(ctx context.Context, maxIterations int) context.Context {
+	if maxIterations <= 0 {
+		return ctx
+	}
+	return context.WithValue(ctx, ContextKeyMaxToolIterations, maxIterations)
+}
+
 // WithManager returns a context with the MCP manager.
 func WithManager(ctx context.Context, m Manager) context.Context {
 	return context.WithValue(ctx, ContextKeyManager, m)
@@ -501,4 +509,15 @@ func GetManager(ctx context.Context) Manager {
 		return m
 	}
 	return nil
+}
+
+// MaxToolIterationsFromContext returns the effective max tool iteration count.
+func MaxToolIterationsFromContext(ctx context.Context) int {
+	if ctx == nil {
+		return MaxToolIterations
+	}
+	if value, ok := ctx.Value(ContextKeyMaxToolIterations).(int); ok && value > 0 {
+		return value
+	}
+	return MaxToolIterations
 }

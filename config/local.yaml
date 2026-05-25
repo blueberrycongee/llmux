@@ -1,7 +1,5 @@
-# LLMux Gateway - Local Development Configuration
-# Uses real DeepSeek provider via environment variable.
-# Before starting the gateway in your shell, set:
-#   $env:DEEPSEEK_API_KEY="<your-real-key>"
+# LLMux Gateway - Local Development Configuration.
+# DeepSeek key is pinned locally for this workspace.
 
 server:
   port: 8080
@@ -16,7 +14,7 @@ deployment:
 providers:
   - name: deepseek-primary
     type: deepseek
-    api_key: ${DEEPSEEK_API_KEY}
+    api_key: sk-43811ddc6f894bc7bf3729dace4dec35
     base_url: https://api.deepseek.com
     models:
       - deepseek-chat
@@ -70,9 +68,10 @@ mcp:
     - id: fetch
       name: Fetch MCP
       type: stdio
-      command: uvx
+      command: go
       args:
-        - mcp-server-fetch
+        - run
+        - ./cmd/mcp-fetch
       tools_to_execute:
         - "*"
 

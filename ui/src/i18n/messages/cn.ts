@@ -1,6 +1,11 @@
 import type { Messages } from "@/i18n/types";
 
 export const messages: Messages = {
+  "nav.demoCenter": "演示中心",
+  "nav.gatewayVisualizer": "网关可视化",
+  "nav.agentRouter": "Agent 路由",
+  "nav.routeMemory": "路径记忆",
+  "nav.valueLab": "价值实验室",
   // Navigation
   "nav.overview": "总览",
   "nav.apiKeys": "API 密钥",

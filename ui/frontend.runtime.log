@@ -1,0 +1,45 @@
+
+> ui@0.1.0 dev
+> next dev
+
+Current NODE_ENV: development
+Is Production: false
+Current NODE_ENV: development
+Is Production: false
+  ▲ Next.js 14.2.35
+  - Local:        http://localhost:3000
+
+ ✓ Starting...
+ ✓ Ready in 7.9s
+ ○ Compiling / ...
+ ✓ Compiled / in 27.1s (4936 modules)
+ GET / 200 in 8209ms
+ ✓ Compiled in 2.1s (2444 modules)
+ GET / 200 in 373ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1775ms (2506 modules)
+ GET /favicon.ico 200 in 1945ms
+ ○ Compiling /agent-management ...
+ ✓ Compiled /agent-management in 3.5s (5124 modules)
+ ✓ Compiled in 1968ms (2530 modules)
+ ○ Compiling /gateway-visualizer ...
+ ✓ Compiled /route-memory in 9.4s (5140 modules)
+ GET /agent-router 200 in 350ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1076ms (2613 modules)
+ GET /favicon.ico 200 in 1228ms
+ ○ Compiling /agent-teams ...
+ ✓ Compiled /agent-teams in 3.7s (5140 modules)
+ ○ Compiling /value-lab ...
+ ✓ Compiled /value-lab in 2.6s (5154 modules)
+ GET /value-lab 200 in 194ms
+ ○ Compiling /favicon.ico ...
+ ✓ Compiled /favicon.ico in 1094ms (2621 modules)
+ GET /favicon.ico 200 in 1306ms
+ ○ Compiling /tool-marketplace ...
+ ✓ Compiled /tool-marketplace in 3.1s (5193 modules)
+ ○ Compiling /api-keys ...
+ ✓ Compiled /api-keys in 5.4s (3497 modules)
+ ✓ Compiled in 2.3s (2585 modules)
+ ○ Compiling /agent-town ...
+ ✓ Compiled /agent-teams in 5.1s (3509 modules)

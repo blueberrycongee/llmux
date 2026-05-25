@@ -1,0 +1,3255 @@
+[
+  {
+    "run": 1,
+    "ok": true,
+    "client_latency_ms": 47317,
+    "response": {
+      "request_id": "conv-1776334151936325800",
+      "session_id": "real-agent-router-1",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 1,
+            "current_tpm": 256,
+            "predicted_rpm": 1,
+            "predicted_tpm": 307,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9857870370370371,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6785896164021163,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 11,
+            "failover_count": 0
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "selected_candidate": {
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "weight": 0.6,
+        "rpm_limit": 24,
+        "tpm_limit": 24000
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "selected"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "preflight-agent-router",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "基于我对代码的分析，这是一个 **LLMux 网关系统**。让我为您详细解释这个网关的设计和架构：\n\n## 网关架构概述\n\nLLMux 是一个高性能的 LL...",
+          "compressed_summary": "For general prompts around ##, **llmux, code-specialist, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=1 episode(s), success=1.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning ##, **llmux, code-specialist, deepseek-chat to code-specialist."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "##",
+            "**llmux",
+            "code-specialist",
+            "deepseek-chat",
+            "gateway",
+            "general",
+            "ll",
+            "llmux"
+          ],
+          "memory_stage": "episode",
+          "source_count": 1,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T17:58:31.5131792+08:00",
+          "succeeded": true,
+          "outcome_score": 0.84,
+          "created_at": "2026-04-16T17:58:31.5131792+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "preflight-agent-router",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "基于我对代码的分析，这是一个 **LLMux 网关系统**。让我为您详细解释这个网关的设计和架构：\n\n## 网关架构概述\n\nLLMux 是一个高性能的 LL...",
+        "compressed_summary": "For general prompts around ##, **llmux, code-specialist, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=1 episode(s), success=1.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning ##, **llmux, code-specialist, deepseek-chat to code-specialist."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "##",
+          "**llmux",
+          "code-specialist",
+          "deepseek-chat",
+          "gateway",
+          "general",
+          "ll",
+          "llmux"
+        ],
+        "memory_stage": "episode",
+        "source_count": 1,
+        "success_count": 1,
+        "compression_ratio": 1,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T17:58:31.5131792+08:00",
+        "succeeded": true,
+        "outcome_score": 0.84,
+        "created_at": "2026-04-16T17:58:31.5131792+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "gateway_response": {
+        "id": "6fd49444-e5c1-4d9d-a56d-3d72927bafe4",
+        "object": "chat.completion",
+        "created": 1776334144,
+        "model": "deepseek-primary/deepseek-chat",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "基于我对代码的分析，这是一个名为 **LLMux** 的 LLM 网关系统。让我为您详细解释这个网关的设计和架构：\n\n## LLMux 网关系统概述\n\nLLMux 是一个高性能的 LLM 网关，支持 **44+ LLM 提供商**，提供统一的 OpenAI 兼容 API。它有两种使用模式：\n\n### 1. **架构设计**\n\n**核心组件：**\n- **网关服务器** (`cmd/server/main.go`)：主入口点，启动 HTTP 服务器\n- **客户端处理器** (`internal/api/client_handler.go`)：处理 OpenAI 兼容的 API 请求\n- **路由系统** (`pkg/router/`)：智能路由请求到不同的 LLM 提供商\n- **提供商适配器** (`providers/`)：支持 44+ LLM 提供商\n\n### 2. **主要特性**\n\n**支持的 API 端点：**\n- `POST /v1/chat/completions` - 聊天补全\n- `POST /v1/completions` - 文本补全"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 11641,
+          "completion_tokens": 220,
+          "total_tokens": 11861
+        },
+        "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+      },
+      "assistant_message": "基于我对代码的分析，这是一个名为 **LLMux** 的 LLM 网关系统。让我为您详细解释这个网关的设计和架构：\n\n## LLMux 网关系统概述\n\nLLMux 是一个高性能的 LLM 网关，支持 **44+ LLM 提供商**，提供统一的 OpenAI 兼容 API。它有两种使用模式：\n\n### 1. **架构设计**\n\n**核心组件：**\n- **网关服务器** (`cmd/server/main.go`)：主入口点，启动 HTTP 服务器\n- **客户端处理器** (`internal/api/client_handler.go`)：处理 OpenAI 兼容的 API 请求\n- **路由系统** (`pkg/router/`)：智能路由请求到不同的 LLM 提供商\n- **提供商适配器** (`providers/`)：支持 44+ LLM 提供商\n\n### 2. **主要特性**\n\n**支持的 API 端点：**\n- `POST /v1/chat/completions` - 聊天补全\n- `POST /v1/completions` - 文本补全",
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-1",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "基于我对代码的分析，这是一个 **LLMux 网关系统**。让我为您详细解释这个网关的设计和架构：\n\n## 网关架构概述\n\nLLMux 是一个高性能的 LL...",
+        "compressed_summary": "For general prompts around ##, deepseek-chat, gateway, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=2 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning ##, deepseek-chat, gateway, llmux to code-specialist."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "##",
+          "deepseek-chat",
+          "gateway",
+          "llmux",
+          "**llmux",
+          "**llmux**",
+          "code-specialist",
+          "general"
+        ],
+        "memory_stage": "summary",
+        "source_count": 2,
+        "success_count": 2,
+        "consult_count": 1,
+        "reuse_count": 1,
+        "compression_ratio": 0.7014925373134329,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:09:11.9363258+08:00",
+        "succeeded": true,
+        "outcome_score": 0.8681249999999999,
+        "created_at": "2026-04-16T18:09:11.9363258+08:00"
+      },
+      "succeeded": true,
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:09:11+08:00"
+    },
+    "succeeded": true,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "deepseek-primary/deepseek-chat",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 486
+  },
+  {
+    "run": 2,
+    "ok": true,
+    "client_latency_ms": 38800,
+    "response": {
+      "request_id": "conv-1776334190737390800",
+      "session_id": "real-agent-router-2",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-reasoner",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 1,
+            "current_tpm": 256,
+            "predicted_rpm": 1,
+            "predicted_tpm": 307,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9857870370370371,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6785896164021163,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 11,
+            "failover_count": 0,
+            "last_error": "exceeded maximum tool iterations (10)"
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "failed",
+          "reason": "exceeded maximum tool iterations (10)"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-1",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "基于我对代码的分析，这是一个 **LLMux 网关系统**。让我为您详细解释这个网关的设计和架构：\n\n## 网关架构概述\n\nLLMux 是一个高性能的 LL...",
+          "compressed_summary": "For general prompts around ##, deepseek-chat, gateway, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=2 episode(s), success=2.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning ##, deepseek-chat, gateway, llmux to code-specialist."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "##",
+            "deepseek-chat",
+            "gateway",
+            "llmux",
+            "**llmux",
+            "**llmux**",
+            "code-specialist",
+            "general"
+          ],
+          "memory_stage": "summary",
+          "source_count": 2,
+          "success_count": 2,
+          "consult_count": 1,
+          "reuse_count": 1,
+          "compression_ratio": 0.7014925373134329,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:09:11.9363258+08:00",
+          "succeeded": true,
+          "outcome_score": 0.8681249999999999,
+          "created_at": "2026-04-16T18:09:11.9363258+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-1",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "基于我对代码的分析，这是一个 **LLMux 网关系统**。让我为您详细解释这个网关的设计和架构：\n\n## 网关架构概述\n\nLLMux 是一个高性能的 LL...",
+        "compressed_summary": "For general prompts around ##, deepseek-chat, gateway, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=2 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning ##, deepseek-chat, gateway, llmux to code-specialist."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "##",
+          "deepseek-chat",
+          "gateway",
+          "llmux",
+          "**llmux",
+          "**llmux**",
+          "code-specialist",
+          "general"
+        ],
+        "memory_stage": "summary",
+        "source_count": 2,
+        "success_count": 2,
+        "consult_count": 1,
+        "reuse_count": 1,
+        "compression_ratio": 0.7014925373134329,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:09:11.9363258+08:00",
+        "succeeded": true,
+        "outcome_score": 0.8681249999999999,
+        "created_at": "2026-04-16T18:09:11.9363258+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-2",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=3 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 3 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "**llmux",
+          "**llmux**",
+          "10",
+          "code-specialist"
+        ],
+        "memory_stage": "summary",
+        "source_count": 3,
+        "success_count": 2,
+        "consult_count": 2,
+        "reuse_count": 2,
+        "compression_ratio": 0.7383512544802867,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:09:50.7373908+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6128571428571428,
+        "created_at": "2026-04-16T18:09:50.7373908+08:00"
+      },
+      "succeeded": false,
+      "error_message": "exceeded maximum tool iterations (10)",
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:09:50+08:00"
+    },
+    "succeeded": false,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "-",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 0
+  },
+  {
+    "run": 3,
+    "ok": true,
+    "client_latency_ms": 38608,
+    "response": {
+      "request_id": "conv-1776334229346105500",
+      "session_id": "real-agent-router-3",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-reasoner",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 307,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9857870370370371,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6785896164021163,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 11,
+            "failover_count": 0,
+            "last_error": "exceeded maximum tool iterations (10)"
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "failed",
+          "reason": "exceeded maximum tool iterations (10)"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-2",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=3 episode(s), success=2.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 3 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "##",
+            "deepseek-chat",
+            "llmux",
+            "**llmux",
+            "**llmux**",
+            "10",
+            "code-specialist"
+          ],
+          "memory_stage": "summary",
+          "source_count": 3,
+          "success_count": 2,
+          "consult_count": 2,
+          "reuse_count": 2,
+          "compression_ratio": 0.7383512544802867,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:09:50.7373908+08:00",
+          "succeeded": true,
+          "outcome_score": 0.6128571428571428,
+          "created_at": "2026-04-16T18:09:50.7373908+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-2",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=3 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 3 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "**llmux",
+          "**llmux**",
+          "10",
+          "code-specialist"
+        ],
+        "memory_stage": "summary",
+        "source_count": 3,
+        "success_count": 2,
+        "consult_count": 2,
+        "reuse_count": 2,
+        "compression_ratio": 0.7383512544802867,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:09:50.7373908+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6128571428571428,
+        "created_at": "2026-04-16T18:09:50.7373908+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-3",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, 10, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=4 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, 10, deepseek-chat to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 4 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "10",
+          "deepseek-chat",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations",
+          "llmux"
+        ],
+        "memory_stage": "insight",
+        "source_count": 4,
+        "success_count": 2,
+        "consult_count": 3,
+        "reuse_count": 3,
+        "compression_ratio": 0.6275115919629057,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:10:29.3461055+08:00",
+        "succeeded": true,
+        "outcome_score": 0.4885227272727273,
+        "created_at": "2026-04-16T18:10:29.3461055+08:00"
+      },
+      "succeeded": false,
+      "error_message": "exceeded maximum tool iterations (10)",
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:10:29+08:00"
+    },
+    "succeeded": false,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "-",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 0
+  },
+  {
+    "run": 4,
+    "ok": true,
+    "client_latency_ms": 39492,
+    "response": {
+      "request_id": "conv-1776334268830347000",
+      "session_id": "real-agent-router-4",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-reasoner",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 307,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9857870370370371,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6785896164021163,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 11,
+            "failover_count": 0,
+            "last_error": "exceeded maximum tool iterations (10)"
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "failed",
+          "reason": "exceeded maximum tool iterations (10)"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-3",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, ##, 10, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=4 episode(s), success=2.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, ##, 10, deepseek-chat to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 4 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "##",
+            "10",
+            "deepseek-chat",
+            "deepseek-reasoner",
+            "exceeded",
+            "iterations",
+            "llmux"
+          ],
+          "memory_stage": "insight",
+          "source_count": 4,
+          "success_count": 2,
+          "consult_count": 3,
+          "reuse_count": 3,
+          "compression_ratio": 0.6275115919629057,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:10:29.3461055+08:00",
+          "succeeded": true,
+          "outcome_score": 0.4885227272727273,
+          "created_at": "2026-04-16T18:10:29.3461055+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-3",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, 10, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=4 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, 10, deepseek-chat to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 4 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "10",
+          "deepseek-chat",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations",
+          "llmux"
+        ],
+        "memory_stage": "insight",
+        "source_count": 4,
+        "success_count": 2,
+        "consult_count": 3,
+        "reuse_count": 3,
+        "compression_ratio": 0.6275115919629057,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:10:29.3461055+08:00",
+        "succeeded": true,
+        "outcome_score": 0.4885227272727273,
+        "created_at": "2026-04-16T18:10:29.3461055+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-4",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-reasoner",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-reasoner",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, 10, deepseek-reasoner, exceeded, prefer agent=code-specialist model=deepseek-reasoner via score-router. Evidence=5 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-reasoner and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, 10, deepseek-reasoner, exceeded to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 5 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "10",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations",
+          "maximum",
+          "tool",
+          "##"
+        ],
+        "memory_stage": "insight",
+        "source_count": 5,
+        "success_count": 2,
+        "consult_count": 4,
+        "reuse_count": 4,
+        "compression_ratio": 0.5896739130434783,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:11:08.830347+08:00",
+        "succeeded": true,
+        "outcome_score": 0.41953125,
+        "created_at": "2026-04-16T18:11:08.830347+08:00"
+      },
+      "succeeded": false,
+      "error_message": "exceeded maximum tool iterations (10)",
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:11:08+08:00"
+    },
+    "succeeded": false,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "-",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 0
+  },
+  {
+    "run": 5,
+    "ok": true,
+    "client_latency_ms": 44663,
+    "response": {
+      "request_id": "conv-1776334313500192300",
+      "session_id": "real-agent-router-5",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 1,
+            "current_tpm": 256,
+            "predicted_rpm": 1,
+            "predicted_tpm": 358,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9834259259259259,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6779993386243386,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 12,
+            "failover_count": 0
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "selected_candidate": {
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "weight": 0.6,
+        "rpm_limit": 24,
+        "tpm_limit": 24000
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "selected"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-4",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-reasoner",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-reasoner",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, 10, deepseek-reasoner, exceeded, prefer agent=code-specialist model=deepseek-reasoner via score-router. Evidence=5 episode(s), success=2.",
+          "distilled_learnings": [
+            "Prefer model deepseek-reasoner and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, 10, deepseek-reasoner, exceeded to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 5 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "10",
+            "deepseek-reasoner",
+            "exceeded",
+            "iterations",
+            "maximum",
+            "tool",
+            "##"
+          ],
+          "memory_stage": "insight",
+          "source_count": 5,
+          "success_count": 2,
+          "consult_count": 4,
+          "reuse_count": 4,
+          "compression_ratio": 0.5896739130434783,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:11:08.830347+08:00",
+          "succeeded": true,
+          "outcome_score": 0.41953125,
+          "created_at": "2026-04-16T18:11:08.830347+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-4",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-reasoner",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-reasoner",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, 10, deepseek-reasoner, exceeded, prefer agent=code-specialist model=deepseek-reasoner via score-router. Evidence=5 episode(s), success=2.",
+        "distilled_learnings": [
+          "Prefer model deepseek-reasoner and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, 10, deepseek-reasoner, exceeded to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 5 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "10",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations",
+          "maximum",
+          "tool",
+          "##"
+        ],
+        "memory_stage": "insight",
+        "source_count": 5,
+        "success_count": 2,
+        "consult_count": 4,
+        "reuse_count": 4,
+        "compression_ratio": 0.5896739130434783,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:11:08.830347+08:00",
+        "succeeded": true,
+        "outcome_score": 0.41953125,
+        "created_at": "2026-04-16T18:11:08.830347+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "gateway_response": {
+        "id": "7f0f9a9e-c69f-4833-a3df-8453f4ec13d5",
+        "object": "chat.completion",
+        "created": 1776334306,
+        "model": "deepseek-primary/deepseek-chat",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "基于我对代码的分析，这是一个 **LLMux Gateway** 项目，它是一个 LLM API 网关。以下是关于这个 gateway 的关键信息：\n\n## 项目概述\nLLMux 是一个 LLM API 网关，支持多个 AI 提供商（OpenAI、Anthropic、Google Gemini 等）的统一接口。\n\n## 主要功能\n\n### 1. **API 路由**\n- 提供 OpenAI 兼容的 API 端点\n- 支持多个 LLM 提供商的路由和负载均衡\n- 多种路由策略：simple-shuffle、lowest-latency、least-busy\n\n### 2. **支持的端点**\n- `/v1/chat/completions` - 聊天补全\n- `/v1/completions` - 文本补全  \n- `/v1/embeddings` - 嵌入\n- `/v1/audio/*` - 音频处理\n- `/v1/batches` - 批量处理\n- `/v1/models` - 模型列表\n\n### 3. **核心"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 4815,
+          "completion_tokens": 220,
+          "total_tokens": 5035
+        },
+        "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+      },
+      "assistant_message": "基于我对代码的分析，这是一个 **LLMux Gateway** 项目，它是一个 LLM API 网关。以下是关于这个 gateway 的关键信息：\n\n## 项目概述\nLLMux 是一个 LLM API 网关，支持多个 AI 提供商（OpenAI、Anthropic、Google Gemini 等）的统一接口。\n\n## 主要功能\n\n### 1. **API 路由**\n- 提供 OpenAI 兼容的 API 端点\n- 支持多个 LLM 提供商的路由和负载均衡\n- 多种路由策略：simple-shuffle、lowest-latency、least-busy\n\n### 2. **支持的端点**\n- `/v1/chat/completions` - 聊天补全\n- `/v1/completions` - 文本补全  \n- `/v1/embeddings` - 嵌入\n- `/v1/audio/*` - 音频处理\n- `/v1/batches` - 批量处理\n- `/v1/models` - 模型列表\n\n### 3. **核心",
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-5",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, 10, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=6 episode(s), success=3.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, 10, deepseek-chat to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 6 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "10",
+          "deepseek-chat",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations",
+          "llmux"
+        ],
+        "memory_stage": "insight",
+        "source_count": 6,
+        "success_count": 3,
+        "consult_count": 5,
+        "reuse_count": 5,
+        "compression_ratio": 0.4181256436663234,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:11:53.5001923+08:00",
+        "succeeded": true,
+        "outcome_score": 0.54575,
+        "created_at": "2026-04-16T18:11:53.5001923+08:00"
+      },
+      "succeeded": true,
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:11:53+08:00"
+    },
+    "succeeded": true,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "deepseek-primary/deepseek-chat",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 464
+  },
+  {
+    "run": 6,
+    "ok": true,
+    "client_latency_ms": 37818,
+    "response": {
+      "request_id": "conv-1776334351319674300",
+      "session_id": "real-agent-router-6",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 2,
+            "current_tpm": 512,
+            "predicted_rpm": 1,
+            "predicted_tpm": 409,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9810648148148148,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6774090608465608,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 13,
+            "failover_count": 0
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "selected_candidate": {
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "weight": 0.6,
+        "rpm_limit": 24,
+        "tpm_limit": 24000
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "selected"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-5",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, ##, 10, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=6 episode(s), success=3.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, ##, 10, deepseek-chat to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 6 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "##",
+            "10",
+            "deepseek-chat",
+            "deepseek-reasoner",
+            "exceeded",
+            "iterations",
+            "llmux"
+          ],
+          "memory_stage": "insight",
+          "source_count": 6,
+          "success_count": 3,
+          "consult_count": 5,
+          "reuse_count": 5,
+          "compression_ratio": 0.4181256436663234,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:11:53.5001923+08:00",
+          "succeeded": true,
+          "outcome_score": 0.54575,
+          "created_at": "2026-04-16T18:11:53.5001923+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-5",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, 10, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=6 episode(s), success=3.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, 10, deepseek-chat to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 6 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "10",
+          "deepseek-chat",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations",
+          "llmux"
+        ],
+        "memory_stage": "insight",
+        "source_count": 6,
+        "success_count": 3,
+        "consult_count": 5,
+        "reuse_count": 5,
+        "compression_ratio": 0.4181256436663234,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:11:53.5001923+08:00",
+        "succeeded": true,
+        "outcome_score": 0.54575,
+        "created_at": "2026-04-16T18:11:53.5001923+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "gateway_response": {
+        "id": "645590ce-ae88-4757-9221-38222113c6c4",
+        "object": "chat.completion",
+        "created": 1776334342,
+        "model": "deepseek-primary/deepseek-chat",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "基于我对代码的分析，我可以看到这是一个名为 **LLMux** 的 LLM 网关项目。让我总结一下关于这个 gateway 的信息：\n\n## LLMux Gateway 概述\n\n**LLMux** 是一个用 Go 编写的高性能 LLM 网关，具有以下特点：\n\n### 核心功能\n1. **统一 API 兼容性**：提供 OpenAI 兼容的 API（chat、responses、embeddings、models）\n2. **多提供商路由**：支持 6 种路由策略：\n   - 随机（shuffle）\n   - 轮询（round-robin）\n   - 最低延迟（lowest-latency）\n   - 最少繁忙（least-busy）\n   - 最低 TPM/RPM（lowest-tpm-rpm）\n   - 最低成本（lowest-cost）\n\n### 架构特点\n1. **高性能**：相比 LiteLLM（Python）有 8 倍的吞吐量提升和 8 倍的延迟降低\n2. **治理功能**：\n   -"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3926,
+          "completion_tokens": 220,
+          "total_tokens": 4146
+        },
+        "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+      },
+      "assistant_message": "基于我对代码的分析，我可以看到这是一个名为 **LLMux** 的 LLM 网关项目。让我总结一下关于这个 gateway 的信息：\n\n## LLMux Gateway 概述\n\n**LLMux** 是一个用 Go 编写的高性能 LLM 网关，具有以下特点：\n\n### 核心功能\n1. **统一 API 兼容性**：提供 OpenAI 兼容的 API（chat、responses、embeddings、models）\n2. **多提供商路由**：支持 6 种路由策略：\n   - 随机（shuffle）\n   - 轮询（round-robin）\n   - 最低延迟（lowest-latency）\n   - 最少繁忙（least-busy）\n   - 最低 TPM/RPM（lowest-tpm-rpm）\n   - 最低成本（lowest-cost）\n\n### 架构特点\n1. **高性能**：相比 LiteLLM（Python）有 8 倍的吞吐量提升和 8 倍的延迟降低\n2. **治理功能**：\n   -",
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-6",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=7 episode(s), success=4.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 7 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations"
+        ],
+        "memory_stage": "insight",
+        "source_count": 7,
+        "success_count": 4,
+        "consult_count": 6,
+        "reuse_count": 6,
+        "compression_ratio": 0.3416252072968491,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:12:31.3196743+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6245357142857142,
+        "created_at": "2026-04-16T18:12:31.3196743+08:00"
+      },
+      "succeeded": true,
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:12:31+08:00"
+    },
+    "succeeded": true,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "deepseek-primary/deepseek-chat",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 454
+  },
+  {
+    "run": 7,
+    "ok": true,
+    "client_latency_ms": 48219,
+    "response": {
+      "request_id": "conv-1776334399536946000",
+      "session_id": "real-agent-router-7",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 2,
+            "current_tpm": 512,
+            "predicted_rpm": 1,
+            "predicted_tpm": 460,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9787037037037037,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6768187830687831,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 14,
+            "failover_count": 0
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "selected_candidate": {
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "weight": 0.6,
+        "rpm_limit": 24,
+        "tpm_limit": 24000
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "selected"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-6",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=7 episode(s), success=4.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 7 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "##",
+            "deepseek-chat",
+            "llmux",
+            "10",
+            "deepseek-reasoner",
+            "exceeded",
+            "iterations"
+          ],
+          "memory_stage": "insight",
+          "source_count": 7,
+          "success_count": 4,
+          "consult_count": 6,
+          "reuse_count": 6,
+          "compression_ratio": 0.3416252072968491,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:12:31.3196743+08:00",
+          "succeeded": true,
+          "outcome_score": 0.6245357142857142,
+          "created_at": "2026-04-16T18:12:31.3196743+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-6",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=7 episode(s), success=4.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 7 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations"
+        ],
+        "memory_stage": "insight",
+        "source_count": 7,
+        "success_count": 4,
+        "consult_count": 6,
+        "reuse_count": 6,
+        "compression_ratio": 0.3416252072968491,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:12:31.3196743+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6245357142857142,
+        "created_at": "2026-04-16T18:12:31.3196743+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "gateway_response": {
+        "id": "7b3c9861-8e2c-4def-a75f-194d5e46c75b",
+        "object": "chat.completion",
+        "created": 1776334390,
+        "model": "deepseek-primary/deepseek-chat",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "基于我对代码的分析，这是一个 **LLMux Gateway** 项目，它是一个多模型网关系统。以下是关于这个网关的关键信息：\n\n## 项目概述\nLLMux 是一个开源的 LLM 网关，支持：\n- 统一接入多个 AI 提供商（OpenAI、Anthropic、Google Gemini 等）\n- 智能路由和负载均衡\n- 故障转移和重试机制\n- 速率限制和并发控制\n- 监控和指标收集\n\n## 网关架构\n\n### 1. **核心功能**\n- **OpenAI 兼容 API**：提供 `/v1/chat/completions`、`/v1/completions`、`/v1/embeddings` 等标准端点\n- **多提供商支持**：可同时配置多个 AI 服务提供商\n- **智能路由**：支持多种路由策略（shuffle、最低延迟、最少负载等）\n- **流式响应恢复**：支持流式响应中断后的恢复机制\n\n### 2. **配置结构**\n配置文件位于"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 4832,
+          "completion_tokens": 220,
+          "total_tokens": 5052
+        },
+        "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+      },
+      "assistant_message": "基于我对代码的分析，这是一个 **LLMux Gateway** 项目，它是一个多模型网关系统。以下是关于这个网关的关键信息：\n\n## 项目概述\nLLMux 是一个开源的 LLM 网关，支持：\n- 统一接入多个 AI 提供商（OpenAI、Anthropic、Google Gemini 等）\n- 智能路由和负载均衡\n- 故障转移和重试机制\n- 速率限制和并发控制\n- 监控和指标收集\n\n## 网关架构\n\n### 1. **核心功能**\n- **OpenAI 兼容 API**：提供 `/v1/chat/completions`、`/v1/completions`、`/v1/embeddings` 等标准端点\n- **多提供商支持**：可同时配置多个 AI 服务提供商\n- **智能路由**：支持多种路由策略（shuffle、最低延迟、最少负载等）\n- **流式响应恢复**：支持流式响应中断后的恢复机制\n\n### 2. **配置结构**\n配置文件位于",
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-7",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=8 episode(s), success=5.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 8 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "**llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded"
+        ],
+        "memory_stage": "insight",
+        "source_count": 8,
+        "success_count": 5,
+        "consult_count": 7,
+        "reuse_count": 7,
+        "compression_ratio": 0.28591256072172105,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:13:19.536946+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6774228896103895,
+        "created_at": "2026-04-16T18:13:19.536946+08:00"
+      },
+      "succeeded": true,
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:13:19+08:00"
+    },
+    "succeeded": true,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "deepseek-primary/deepseek-chat",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 427
+  },
+  {
+    "run": 8,
+    "ok": true,
+    "client_latency_ms": 42894,
+    "response": {
+      "request_id": "conv-1776334442432145700",
+      "session_id": "real-agent-router-8",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-reasoner",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 1,
+            "current_tpm": 256,
+            "predicted_rpm": 1,
+            "predicted_tpm": 460,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9787037037037037,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6768187830687831,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 14,
+            "failover_count": 0,
+            "last_error": "exceeded maximum tool iterations (10)"
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "failed",
+          "reason": "exceeded maximum tool iterations (10)"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-7",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=8 episode(s), success=5.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 8 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "##",
+            "deepseek-chat",
+            "llmux",
+            "**llmux",
+            "10",
+            "deepseek-reasoner",
+            "exceeded"
+          ],
+          "memory_stage": "insight",
+          "source_count": 8,
+          "success_count": 5,
+          "consult_count": 7,
+          "reuse_count": 7,
+          "compression_ratio": 0.28591256072172105,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:13:19.536946+08:00",
+          "succeeded": true,
+          "outcome_score": 0.6774228896103895,
+          "created_at": "2026-04-16T18:13:19.536946+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-7",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=8 episode(s), success=5.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 8 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "**llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded"
+        ],
+        "memory_stage": "insight",
+        "source_count": 8,
+        "success_count": 5,
+        "consult_count": 7,
+        "reuse_count": 7,
+        "compression_ratio": 0.28591256072172105,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:13:19.536946+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6774228896103895,
+        "created_at": "2026-04-16T18:13:19.536946+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-8",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=9 episode(s), success=5.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 9 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations"
+        ],
+        "memory_stage": "insight",
+        "source_count": 9,
+        "success_count": 5,
+        "consult_count": 8,
+        "reuse_count": 8,
+        "compression_ratio": 0.269281045751634,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:14:02.4321457+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6014736842105262,
+        "created_at": "2026-04-16T18:14:02.4321457+08:00"
+      },
+      "succeeded": false,
+      "error_message": "exceeded maximum tool iterations (10)",
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:14:02+08:00"
+    },
+    "succeeded": false,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "-",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 0
+  },
+  {
+    "run": 9,
+    "ok": true,
+    "client_latency_ms": 37121,
+    "response": {
+      "request_id": "conv-1776334479548905900",
+      "session_id": "real-agent-router-9",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 1,
+            "current_tpm": 256,
+            "predicted_rpm": 1,
+            "predicted_tpm": 460,
+            "rpm_capacity_left": 0.9523809523809523,
+            "tpm_capacity_left": 0.9787037037037037,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6768187830687831,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 15,
+            "failover_count": 0
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "selected_candidate": {
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "weight": 0.6,
+        "rpm_limit": 24,
+        "tpm_limit": 24000
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "selected"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-8",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=9 episode(s), success=5.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 9 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "##",
+            "deepseek-chat",
+            "llmux",
+            "10",
+            "deepseek-reasoner",
+            "exceeded",
+            "iterations"
+          ],
+          "memory_stage": "insight",
+          "source_count": 9,
+          "success_count": 5,
+          "consult_count": 8,
+          "reuse_count": 8,
+          "compression_ratio": 0.269281045751634,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:14:02.4321457+08:00",
+          "succeeded": true,
+          "outcome_score": 0.6014736842105262,
+          "created_at": "2026-04-16T18:14:02.4321457+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-8",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=9 episode(s), success=5.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 9 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded",
+          "iterations"
+        ],
+        "memory_stage": "insight",
+        "source_count": 9,
+        "success_count": 5,
+        "consult_count": 8,
+        "reuse_count": 8,
+        "compression_ratio": 0.269281045751634,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:14:02.4321457+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6014736842105262,
+        "created_at": "2026-04-16T18:14:02.4321457+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "gateway_response": {
+        "id": "9460fd12-daff-4519-baaa-23b503e55b16",
+        "object": "chat.completion",
+        "created": 1776334470,
+        "model": "deepseek-primary/deepseek-chat",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "基于我对代码的分析，这是一个 **LLMux Gateway** 项目，一个多模型LLM网关系统。让我为您详细解释这个网关的设计和功能：\n\n## 网关架构概述\n\n### 1. **核心功能**\n- **多模型代理网关**：支持 OpenAI、Anthropic、Google Gemini、Azure OpenAI 等多种LLM提供商\n- **智能路由**：支持多种路由策略（随机、最低延迟、最少繁忙、最低成本等）\n- **故障转移和重试**：自动故障转移和重试机制\n- **流式恢复**：支持流式响应的恢复模式\n\n### 2. **主要组件**\n\n#### **a. 路由系统** (`routers/`)\n- 多种路由策略实现\n- 分布式路由支持（使用Redis）\n- 健康检查和冷却期管理\n\n#### **b. 客户端管理** (`internal/api/`)\n- `ClientHandler`：处理所有LLM请求\n- `ClientSwapper`：支持热重载配置\n- 统一的API接口，兼容Open"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 10266,
+          "completion_tokens": 220,
+          "total_tokens": 10486
+        },
+        "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+      },
+      "assistant_message": "基于我对代码的分析，这是一个 **LLMux Gateway** 项目，一个多模型LLM网关系统。让我为您详细解释这个网关的设计和功能：\n\n## 网关架构概述\n\n### 1. **核心功能**\n- **多模型代理网关**：支持 OpenAI、Anthropic、Google Gemini、Azure OpenAI 等多种LLM提供商\n- **智能路由**：支持多种路由策略（随机、最低延迟、最少繁忙、最低成本等）\n- **故障转移和重试**：自动故障转移和重试机制\n- **流式恢复**：支持流式响应的恢复模式\n\n### 2. **主要组件**\n\n#### **a. 路由系统** (`routers/`)\n- 多种路由策略实现\n- 分布式路由支持（使用Redis）\n- 健康检查和冷却期管理\n\n#### **b. 客户端管理** (`internal/api/`)\n- `ClientHandler`：处理所有LLM请求\n- `ClientSwapper`：支持热重载配置\n- 统一的API接口，兼容Open",
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-9",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=10 episode(s), success=6.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 10 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "**llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded"
+        ],
+        "memory_stage": "insight",
+        "source_count": 10,
+        "success_count": 6,
+        "consult_count": 9,
+        "reuse_count": 9,
+        "compression_ratio": 0.23456090651558073,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:14:39.5489059+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6487499999999999,
+        "created_at": "2026-04-16T18:14:39.5489059+08:00"
+      },
+      "succeeded": true,
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:14:39+08:00"
+    },
+    "succeeded": true,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "deepseek-primary/deepseek-chat",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 456
+  },
+  {
+    "run": 10,
+    "ok": true,
+    "client_latency_ms": 42272,
+    "response": {
+      "request_id": "conv-1776334521740150500",
+      "session_id": "real-agent-router-10",
+      "intent": "general",
+      "selected_agent": {
+        "id": "code-specialist",
+        "name": "Code Specialist",
+        "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+        "category": "coding",
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "candidate_models": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000
+          }
+        ],
+        "candidate_states": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-reasoner",
+            "weight": 1,
+            "rpm_limit": 12,
+            "tpm_limit": 12000,
+            "safe_rpm_limit": 10,
+            "safe_tpm_limit": 10800,
+            "current_rpm": 0,
+            "current_tpm": 0,
+            "predicted_rpm": 1,
+            "predicted_tpm": 256,
+            "rpm_capacity_left": 0.9,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 1750,
+            "latency_fit": 0.05,
+            "selection_score": 0.6490740740740741,
+            "authorized": true,
+            "decision_reason": "estimated latency=1750 exceeds budget=1400",
+            "status": "latency_exceeded",
+            "selected_count": 0,
+            "failover_count": 0
+          },
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "weight": 0.6,
+            "rpm_limit": 24,
+            "tpm_limit": 24000,
+            "safe_rpm_limit": 21,
+            "safe_tpm_limit": 21600,
+            "current_rpm": 2,
+            "current_tpm": 512,
+            "predicted_rpm": 2,
+            "predicted_tpm": 512,
+            "rpm_capacity_left": 0.9047619047619048,
+            "tpm_capacity_left": 0.9762962962962963,
+            "latency_ms": 900,
+            "latency_fit": 0.3571428571428571,
+            "selection_score": 0.6619312169312169,
+            "authorized": true,
+            "decision_reason": "candidate is ready within current safety constraints",
+            "status": "ready",
+            "selected_count": 16,
+            "failover_count": 0
+          }
+        ],
+        "strategy": "least-busy",
+        "capabilities": [
+          "coding",
+          "debugging",
+          "architecture",
+          "go",
+          "sql"
+        ],
+        "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+        "accent": "emerald",
+        "tools": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "enabled": true,
+        "created_at": "2026-04-16T15:13:04+08:00",
+        "updated_at": "2026-04-16T15:13:04+08:00"
+      },
+      "selected_candidate": {
+        "provider": "deepseek-primary",
+        "model": "deepseek-chat",
+        "weight": 0.6,
+        "rpm_limit": 24,
+        "tpm_limit": 24000
+      },
+      "candidate_failovers": [
+        {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "outcome": "selected"
+        }
+      ],
+      "route_source": "score-router",
+      "routing_reasoning": [
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "constraint-aware score router selected the agent",
+        "routing_profile complexity=2 latency_budget_ms=1400",
+        "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+        "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+        "consulted_route_memory=1",
+        "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+        "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+        "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+      ],
+      "memory_influence": "reused",
+      "consulted_memories": [
+        {
+          "id": "route-1776333511513179200",
+          "session_id": "real-agent-router-9",
+          "query": "?????????????? gateway ???????????????????????????",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (10)",
+          "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=10 episode(s), success=6.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+            "Trust this record more than a one-off route because it aggregates 10 related turns."
+          ],
+          "representative_queries": [
+            "?????????????? gateway ???????????????????????????"
+          ],
+          "retrieval_hints": [
+            "gateway",
+            "##",
+            "deepseek-chat",
+            "llmux",
+            "**llmux",
+            "10",
+            "deepseek-reasoner",
+            "exceeded"
+          ],
+          "memory_stage": "insight",
+          "source_count": 10,
+          "success_count": 6,
+          "consult_count": 9,
+          "reuse_count": 9,
+          "compression_ratio": 0.23456090651558073,
+          "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+          "last_reinforced_at": "2026-04-16T18:14:39.5489059+08:00",
+          "succeeded": true,
+          "outcome_score": 0.6487499999999999,
+          "created_at": "2026-04-16T18:14:39.5489059+08:00"
+        }
+      ],
+      "memory_hit": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-9",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=10 episode(s), success=6.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 10 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "**llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded"
+        ],
+        "memory_stage": "insight",
+        "source_count": 10,
+        "success_count": 6,
+        "consult_count": 9,
+        "reuse_count": 9,
+        "compression_ratio": 0.23456090651558073,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:14:39.5489059+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6487499999999999,
+        "created_at": "2026-04-16T18:14:39.5489059+08:00"
+      },
+      "gateway_request": {
+        "messages": [
+          {
+            "role": "user",
+            "content": "?????????????? gateway ???????????????????????????"
+          }
+        ],
+        "model": "deepseek-reasoner",
+        "resolved_mcp_tools": [
+          "filesystem/list_directory",
+          "filesystem/read_file"
+        ],
+        "routing_profile": {
+          "complexity": 2,
+          "latency_budget_ms": 1400,
+          "organization_id": "",
+          "require_team": false,
+          "required_capabilities": [
+            "analysis",
+            "architecture",
+            "coding",
+            "general"
+          ],
+          "required_tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read"
+          ],
+          "tenant_id": ""
+        },
+        "tags": [
+          "conversation-router",
+          "code-specialist",
+          "coding",
+          "least-busy",
+          "token-optimized"
+        ],
+        "tool_marketplace_ids": [
+          "preset-filesystem-list",
+          "preset-filesystem-read",
+          "preset-github-repo",
+          "preset-sqlite-query"
+        ],
+        "user": "conversation-router"
+      },
+      "gateway_response": {
+        "id": "dedb02f7-bb81-49e2-828f-c9650207e3df",
+        "object": "chat.completion",
+        "created": 1776334512,
+        "model": "deepseek-primary/deepseek-chat",
+        "choices": [
+          {
+            "index": 0,
+            "message": {
+              "role": "assistant",
+              "content": "基于我对代码的分析，我可以看到这是一个名为 **LLMux** 的 LLM 网关项目。让我总结一下关于这个 gateway 的信息：\n\n## LLMux Gateway 概述\n\n**LLMux** 是一个用 Go 编写的高性能 LLM 网关，具有以下特点：\n\n### 核心功能\n1. **统一 API 兼容性**：提供 OpenAI 兼容的 API（chat、responses、embeddings、models）\n2. **多提供商路由**：支持 6 种路由策略：\n   - 随机（shuffle）\n   - 轮询（round-robin）\n   - 最低延迟（lowest-latency）\n   - 最少繁忙（least-busy）\n   - 最低 TPM/RPM（lowest-tpm-rpm）\n   - 最低成本（lowest-cost）\n\n### 架构特点\n1. **高性能**：相比 LiteLLM（Python），吞吐量高 8 倍，延迟低 8 倍\n2. **治理功能**：多租户"
+            },
+            "finish_reason": "length"
+          }
+        ],
+        "usage": {
+          "prompt_tokens": 3926,
+          "completion_tokens": 220,
+          "total_tokens": 4146
+        },
+        "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+      },
+      "assistant_message": "基于我对代码的分析，我可以看到这是一个名为 **LLMux** 的 LLM 网关项目。让我总结一下关于这个 gateway 的信息：\n\n## LLMux Gateway 概述\n\n**LLMux** 是一个用 Go 编写的高性能 LLM 网关，具有以下特点：\n\n### 核心功能\n1. **统一 API 兼容性**：提供 OpenAI 兼容的 API（chat、responses、embeddings、models）\n2. **多提供商路由**：支持 6 种路由策略：\n   - 随机（shuffle）\n   - 轮询（round-robin）\n   - 最低延迟（lowest-latency）\n   - 最少繁忙（least-busy）\n   - 最低 TPM/RPM（lowest-tpm-rpm）\n   - 最低成本（lowest-cost）\n\n### 架构特点\n1. **高性能**：相比 LiteLLM（Python），吞吐量高 8 倍，延迟低 8 倍\n2. **治理功能**：多租户",
+      "recorded_memory": {
+        "id": "route-1776333511513179200",
+        "session_id": "real-agent-router-10",
+        "query": "?????????????? gateway ???????????????????????????",
+        "intent": "general",
+        "selected_agent_id": "code-specialist",
+        "selected_model": "deepseek-chat",
+        "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+        "route_source": "score-router",
+        "answer_preview": "exceeded maximum tool iterations (10)",
+        "compressed_summary": "For general prompts around gateway, ##, deepseek-chat, llmux, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=11 episode(s), success=7.",
+        "distilled_learnings": [
+          "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+          "Route general prompts mentioning gateway, ##, deepseek-chat, llmux to code-specialist.",
+          "Trust this record more than a one-off route because it aggregates 11 related turns."
+        ],
+        "representative_queries": [
+          "?????????????? gateway ???????????????????????????"
+        ],
+        "retrieval_hints": [
+          "gateway",
+          "##",
+          "deepseek-chat",
+          "llmux",
+          "**llmux",
+          "10",
+          "deepseek-reasoner",
+          "exceeded"
+        ],
+        "memory_stage": "insight",
+        "source_count": 11,
+        "success_count": 7,
+        "consult_count": 10,
+        "reuse_count": 10,
+        "compression_ratio": 0.207,
+        "first_recorded_at": "2026-04-16T17:58:31.5131792+08:00",
+        "last_reinforced_at": "2026-04-16T18:15:21.7401505+08:00",
+        "succeeded": true,
+        "outcome_score": 0.6844865925441465,
+        "created_at": "2026-04-16T18:15:21.7401505+08:00"
+      },
+      "succeeded": true,
+      "token_optimization_enabled": true,
+      "optimization_notes": [
+        "token optimization enabled: capped response budget at 220 tokens",
+        "token optimization enabled: compact tool inventory enabled",
+        "token optimization enabled: pruned tool scope to required tools only (2 active)",
+        "token optimization enabled: reordered candidate models to prefer lower-cost paths, starting with deepseek-primary/deepseek-chat"
+      ],
+      "generated_at": "2026-04-16T18:15:21+08:00"
+    },
+    "succeeded": true,
+    "selected_agent_id": "code-specialist",
+    "selected_team_id": null,
+    "selected_candidate_key": "deepseek-primary/deepseek-chat",
+    "route_source": "score-router",
+    "memory_influence": "reused",
+    "candidate_failover_count": 1,
+    "assistant_chars": 448
+  }
+]

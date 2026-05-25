@@ -36,15 +36,19 @@ func NewAgentExecutor(manager Manager, maxIterations int, logger *slog.Logger) *
 
 // Execute runs the agentic loop, executing tools until completion or max iterations.
 func (e *AgentExecutor) Execute(ctx context.Context, req *types.ChatRequest, sendFn SendFunc) (*types.ChatResponse, error) {
+	maxIterations := e.maxIterations
+	if override := MaxToolIterationsFromContext(ctx); override > 0 {
+		maxIterations = override
+	}
 	// Inject MCP tools into the request
 	if injector, ok := e.manager.(ToolInjector); ok {
 		injector.InjectTools(ctx, req)
 	}
 
-	for iteration := 0; iteration < e.maxIterations; iteration++ {
+	for iteration := 0; iteration < maxIterations; iteration++ {
 		e.logger.Debug(MCPLogPrefix+" agentic loop iteration",
 			"iteration", iteration+1,
-			"max", e.maxIterations,
+			"max", maxIterations,
 		)
 
 		// Send request to LLM
@@ -74,7 +78,7 @@ func (e *AgentExecutor) Execute(ctx context.Context, req *types.ChatRequest, sen
 		AppendToolResults(req, resp.Choices[0].Message, results)
 	}
 
-	return nil, fmt.Errorf("exceeded maximum tool iterations (%d)", e.maxIterations)
+	return nil, fmt.Errorf("exceeded maximum tool iterations (%d)", maxIterations)
 }
 
 // ExecuteOnce executes a single round of tool calls without looping.

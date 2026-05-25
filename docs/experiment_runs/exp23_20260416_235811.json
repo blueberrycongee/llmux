@@ -1,0 +1,2572 @@
+{
+  "experiment": "Exp 2.3 工具增强机制贡献实验",
+  "tasks": [
+    {
+      "id": "fs-top-level-roles",
+      "label": "顶层目录识别",
+      "prompt": "请查看当前仓库顶层目录，并说明 cmd、internal、ui 这三个目录各自承担什么作用。",
+      "required_tools": [
+        "preset-filesystem-list",
+        "preset-filesystem-read"
+      ],
+      "required_capabilities": [
+        "architecture",
+        "coding",
+        "analysis"
+      ],
+      "complexity_hint": 2,
+      "expected_keywords": [
+        "cmd",
+        "internal",
+        "ui"
+      ]
+    },
+    {
+      "id": "fetch-mcp-location",
+      "label": "Fetch MCP 位置与能力",
+      "prompt": "请定位仓库里 Fetch MCP server 的实现位置，并说明它暴露的核心工具名是什么。",
+      "required_tools": [
+        "preset-filesystem-list",
+        "preset-filesystem-read"
+      ],
+      "required_capabilities": [
+        "coding",
+        "analysis"
+      ],
+      "complexity_hint": 2,
+      "expected_keywords": [
+        "cmd/mcp-fetch",
+        "fetch"
+      ]
+    },
+    {
+      "id": "candidate-strategy-options",
+      "label": "候选调度策略识别",
+      "prompt": "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。",
+      "required_tools": [
+        "preset-filesystem-list",
+        "preset-filesystem-read"
+      ],
+      "required_capabilities": [
+        "coding",
+        "analysis"
+      ],
+      "complexity_hint": 2,
+      "expected_keywords": [
+        "predictive",
+        "greedy-current",
+        "passive"
+      ]
+    },
+    {
+      "id": "experiment-script-discovery",
+      "label": "实验脚本识别",
+      "prompt": "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。",
+      "required_tools": [
+        "preset-filesystem-list",
+        "preset-filesystem-read"
+      ],
+      "required_capabilities": [
+        "coding",
+        "analysis"
+      ],
+      "complexity_hint": 2,
+      "expected_keywords": [
+        "run_exp_21_22.py",
+        "exp21",
+        "exp22"
+      ]
+    },
+    {
+      "id": "report-file-discovery",
+      "label": "实验报告文件识别",
+      "prompt": "请找出 docs 目录里当前已有的真实实验报告和项目理论提炼文档文件名。",
+      "required_tools": [
+        "preset-filesystem-list",
+        "preset-filesystem-read"
+      ],
+      "required_capabilities": [
+        "analysis",
+        "coding"
+      ],
+      "complexity_hint": 2,
+      "expected_keywords": [
+        "REAL_EXPERIMENT_RESULTS_CN.md",
+        "PROJECT_CORE_THEORY_AND_EXPERIMENTS_CN.md"
+      ]
+    }
+  ],
+  "baseline_summary": {
+    "name": "baseline-no-tools",
+    "run_count": 5,
+    "api_success_rate": 1.0,
+    "semantic_success_rate": 0.2,
+    "keyword_coverage_mean": 0.3,
+    "latency_mean_ms": 17450.8,
+    "latency_stdev_ms": 2664.8537858576783,
+    "tool_calls_mean": 0,
+    "tool_usage_rate": 0.0,
+    "max_iterations_hit_count": 0,
+    "assistant_chars_mean": 876.6,
+    "selected_agent_distribution": {
+      "code-specialist": 3,
+      "research-strategist": 2
+    }
+  },
+  "enhanced_summary": {
+    "name": "our-tool-augmented",
+    "run_count": 5,
+    "api_success_rate": 0.4,
+    "semantic_success_rate": 0.4,
+    "keyword_coverage_mean": 0.4,
+    "latency_mean_ms": 26684.2,
+    "latency_stdev_ms": 8511.963357533912,
+    "tool_calls_mean": 0,
+    "tool_usage_rate": 0.0,
+    "max_iterations_hit_count": 0,
+    "assistant_chars_mean": 422,
+    "selected_agent_distribution": {
+      "code-specialist": 2,
+      "research-strategist": 3
+    }
+  },
+  "baseline_results": [
+    {
+      "task_id": "fs-top-level-roles",
+      "label": "顶层目录识别",
+      "client_latency_ms": 20441,
+      "api_success": true,
+      "semantic_success": true,
+      "keyword_coverage": 1.0,
+      "matched_keywords": [
+        "cmd",
+        "internal",
+        "ui"
+      ],
+      "selected_agent_id": "code-specialist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 1095,
+      "error_message": null,
+      "response": {
+        "request_id": "conv-1776354891039449000",
+        "session_id": "baseline-fs-top-level-roles",
+        "intent": "general",
+        "selected_agent": {
+          "id": "code-specialist",
+          "name": "Code Specialist",
+          "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+          "category": "coding",
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.05,
+              "selection_score": 0.6490740740740741,
+              "authorized": true,
+              "decision_reason": "estimated latency=1750 exceeds budget=1400",
+              "status": "latency_exceeded",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 1,
+              "current_tpm": 256,
+              "predicted_rpm": 1,
+              "predicted_tpm": 307,
+              "rpm_capacity_left": 0.9523809523809523,
+              "tpm_capacity_left": 0.9857870370370371,
+              "latency_ms": 900,
+              "latency_fit": 0.3571428571428571,
+              "selection_score": 0.6785896164021163,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 2,
+              "failover_count": 0
+            }
+          ],
+          "strategy": "least-busy",
+          "capabilities": [
+            "coding",
+            "debugging",
+            "architecture",
+            "go",
+            "sql"
+          ],
+          "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+          "accent": "emerald",
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "selected_candidate": {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "weight": 0.6,
+          "rpm_limit": 24,
+          "tpm_limit": 24000
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=0.00",
+          "no agent satisfied all required tools; used best partial-coverage fallback",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "no-tools-agent",
+            "experiment_group": "baseline",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请查看当前仓库顶层目录，并说明 cmd、internal、ui 这三个目录各自承担什么作用。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": null,
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 1400,
+            "max_tool_iterations": 2,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "architecture",
+              "coding",
+              "general"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": false,
+            "tool_scope_pruning_enabled": false
+          },
+          "tags": [
+            "conversation-router",
+            "code-specialist",
+            "coding",
+            "least-busy"
+          ],
+          "tool_marketplace_ids": null,
+          "user": "conversation-router"
+        },
+        "gateway_response": {
+          "id": "999c7405-885a-4dd0-a6c9-4b050e905cbf",
+          "object": "chat.completion",
+          "created": 1776354872,
+          "model": "deepseek-primary/deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "我目前**没有文件系统访问工具**，无法直接查看仓库目录结构或读取文件内容。我的能力仅限于基于您提供的代码片段或描述进行分析推理。\n\n不过，我可以根据常见的 Go 项目布局惯例，为您解释 `cmd`、`internal`、`ui` 这三个目录的典型作用：\n\n## 1. **`cmd/` 目录**\n- **作用**：存放应用程序的**入口点**（main 包）。\n- **典型结构**：\n  ```\n  cmd/\n    ├── myapp/          # 一个可执行程序\n    │   └── main.go     # 主函数入口\n    └── another-app/    # 另一个可执行程序\n        └── main.go\n  ```\n- **设计原则**：\n  - 每个子目录对应一个独立的可执行程序\n  - `main.go` 应尽可能简洁，主要负责配置加载、依赖注入和启动逻辑\n  - 业务逻辑不应放在这里，而应放在 `internal/` 或 `pkg/`\n\n## 2. **`internal/` 目录**\n- **作用**：存放**私有应用程序代码**，这些代码**不能被外部项目导入**。\n- **设计原则**：\n  - Go 编译器会强制阻止其他项目导入 `internal/` 下的包\n  - 适合放置业务逻辑、领域模型、数据访问层等核心代码\n  - 通常按功能或领域组织子包：\n    ```\n    internal/\n      ├── user/         # 用户相关逻辑\n      ├── order/        # 订单相关逻辑\n      ├── database/     # 数据库操作\n      └── config/       # 配置管理\n    ```\n\n## 3. **`ui/` 目录**\n- **作用**：存放**用户界面相关资源**，具体含义取决于项目类型：\n  - **Web 应用**：前端静态文件（HTML、CSS、JS、图片等）\n  - **桌面应用**：GUI 资源文件\n  - **命令行工具**：可能存放模板文件、帮助文档等\n- **典型结构**：\n  ```\n  ui/\n    ├── static/         # 静态资源\n    │   ├── css/\n    │   ├── js/\n    │   └── images/\n    ├── templates/      # 模板文件\n    └── dist/           # 构建后的前端文件（"
+              },
+              "finish_reason": "length"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 231,
+            "completion_tokens": 512,
+            "total_tokens": 743
+          },
+          "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+        },
+        "assistant_message": "我目前**没有文件系统访问工具**，无法直接查看仓库目录结构或读取文件内容。我的能力仅限于基于您提供的代码片段或描述进行分析推理。\n\n不过，我可以根据常见的 Go 项目布局惯例，为您解释 `cmd`、`internal`、`ui` 这三个目录的典型作用：\n\n## 1. **`cmd/` 目录**\n- **作用**：存放应用程序的**入口点**（main 包）。\n- **典型结构**：\n  ```\n  cmd/\n    ├── myapp/          # 一个可执行程序\n    │   └── main.go     # 主函数入口\n    └── another-app/    # 另一个可执行程序\n        └── main.go\n  ```\n- **设计原则**：\n  - 每个子目录对应一个独立的可执行程序\n  - `main.go` 应尽可能简洁，主要负责配置加载、依赖注入和启动逻辑\n  - 业务逻辑不应放在这里，而应放在 `internal/` 或 `pkg/`\n\n## 2. **`internal/` 目录**\n- **作用**：存放**私有应用程序代码**，这些代码**不能被外部项目导入**。\n- **设计原则**：\n  - Go 编译器会强制阻止其他项目导入 `internal/` 下的包\n  - 适合放置业务逻辑、领域模型、数据访问层等核心代码\n  - 通常按功能或领域组织子包：\n    ```\n    internal/\n      ├── user/         # 用户相关逻辑\n      ├── order/        # 订单相关逻辑\n      ├── database/     # 数据库操作\n      └── config/       # 配置管理\n    ```\n\n## 3. **`ui/` 目录**\n- **作用**：存放**用户界面相关资源**，具体含义取决于项目类型：\n  - **Web 应用**：前端静态文件（HTML、CSS、JS、图片等）\n  - **桌面应用**：GUI 资源文件\n  - **命令行工具**：可能存放模板文件、帮助文档等\n- **典型结构**：\n  ```\n  ui/\n    ├── static/         # 静态资源\n    │   ├── css/\n    │   ├── js/\n    │   └── images/\n    ├── templates/      # 模板文件\n    └── dist/           # 构建后的前端文件（",
+        "recorded_memory": {
+          "id": "route-1776354891039449000",
+          "session_id": "baseline-fs-top-level-roles",
+          "query": "请查看当前仓库顶层目录，并说明 cmd、internal、ui 这三个目录各自承担什么作用。",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "我目前**没有文件系统访问工具**，无法直接查看仓库目录结构或读取文件内容。我的能力仅限于基于您提供的代码片段或描述进行分析��...",
+          "compressed_summary": "For general prompts around cmd、internal、ui, code-specialist, deepseek-chat, general, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=1 episode(s), success=1.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning cmd、internal、ui, code-specialist, deepseek-chat, general to code-specialist."
+          ],
+          "representative_queries": [
+            "请查看当前仓库顶层目录，并说明 cmd、internal、ui 这三个目录各自承担什么作用。"
+          ],
+          "retrieval_hints": [
+            "cmd、internal、ui",
+            "code-specialist",
+            "deepseek-chat",
+            "general",
+            "我目前**没有文件系统访问工具**，无法直接查看仓库目录结构或读取文件内容。我的能力仅限于基于您提供的代码片段或描述进行分析��",
+            "请查看当前仓库顶层目录，并说明",
+            "这三个目录各自承担什么作用。"
+          ],
+          "memory_stage": "episode",
+          "source_count": 1,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:54:51.039449+08:00",
+          "last_reinforced_at": "2026-04-16T23:54:51.039449+08:00",
+          "succeeded": true,
+          "outcome_score": 0.84,
+          "created_at": "2026-04-16T23:54:51.039449+08:00"
+        },
+        "succeeded": true,
+        "generated_at": "2026-04-16T23:54:51+08:00"
+      }
+    },
+    {
+      "task_id": "fetch-mcp-location",
+      "label": "Fetch MCP 位置与能力",
+      "client_latency_ms": 19118,
+      "api_success": true,
+      "semantic_success": false,
+      "keyword_coverage": 0.5,
+      "matched_keywords": [
+        "fetch"
+      ],
+      "selected_agent_id": "code-specialist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 923,
+      "error_message": null,
+      "response": {
+        "request_id": "conv-1776354910160273600",
+        "session_id": "baseline-fetch-mcp-location",
+        "intent": "general",
+        "selected_agent": {
+          "id": "code-specialist",
+          "name": "Code Specialist",
+          "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+          "category": "coding",
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.05,
+              "selection_score": 0.6490740740740741,
+              "authorized": true,
+              "decision_reason": "estimated latency=1750 exceeds budget=1400",
+              "status": "latency_exceeded",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 2,
+              "current_tpm": 512,
+              "predicted_rpm": 1,
+              "predicted_tpm": 358,
+              "rpm_capacity_left": 0.9523809523809523,
+              "tpm_capacity_left": 0.9834259259259259,
+              "latency_ms": 900,
+              "latency_fit": 0.3571428571428571,
+              "selection_score": 0.6779993386243386,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 3,
+              "failover_count": 0
+            }
+          ],
+          "strategy": "least-busy",
+          "capabilities": [
+            "coding",
+            "debugging",
+            "architecture",
+            "go",
+            "sql"
+          ],
+          "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+          "accent": "emerald",
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "selected_candidate": {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "weight": 0.6,
+          "rpm_limit": 24,
+          "tpm_limit": 24000
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.22 latency_fit=0.39",
+          "required_tools=preset-fetch-web,preset-filesystem-list,preset-filesystem-read tool_coverage=0.00",
+          "no agent satisfied all required tools; used best partial-coverage fallback",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-fetch-web,preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "no-tools-agent",
+            "experiment_group": "baseline",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请定位仓库里 Fetch MCP server 的实现位置，并说明它暴露的核心工具名是什么。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": null,
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 1400,
+            "max_tool_iterations": 2,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding",
+              "general"
+            ],
+            "required_tools": [
+              "preset-fetch-web",
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": false,
+            "tool_scope_pruning_enabled": false
+          },
+          "tags": [
+            "conversation-router",
+            "code-specialist",
+            "coding",
+            "least-busy"
+          ],
+          "tool_marketplace_ids": null,
+          "user": "conversation-router"
+        },
+        "gateway_response": {
+          "id": "1d731430-bcc3-4a91-86f8-97b1092a1149",
+          "object": "chat.completion",
+          "created": 1776354893,
+          "model": "deepseek-primary/deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "我目前没有访问文件系统、代码仓库或浏览器的工具能力，因此无法直接定位您提到的“Fetch MCP server”的具体实现位置或分析其代码结构。\n\n不过，我可以基于一般知识为您提供一些指导思路：\n\n## 如何手动定位实现位置\n\n1. **检查项目结构**\n   - 在仓库根目录查找 `package.json`，查看 `main`、`bin` 或相关脚本入口\n   - 搜索包含 \"fetch\"、\"mcp\"、\"server\" 等关键词的目录和文件\n   - 常见的 MCP 服务器实现通常放在 `src/`、`lib/` 或 `servers/` 目录下\n\n2. **使用代码搜索工具**\n   - 在命令行使用 `grep -r \"FetchMCP\"` 或类似命令搜索类名\n   - 查找 `@modelcontextprotocol/sdk` 的导入和使用位置\n   - 搜索 `new Server()` 或 `createServer` 的实例化代码\n\n3. **检查工具定义**\n   - MCP 服务器的核心工具通常在 `tools` 配置中定义\n   - 查找 `getTools()` 方法或类似工具注册逻辑\n   - 工具名通常以 `fetch_`、`http_` 或 `request_` 等前缀开头\n\n## Fetch MCP 服务器的典型工具\n\n基于常见的 Fetch MCP 服务器实现，它可能暴露的工具包括：\n\n- **`fetch_url`** 或 **`fetch_request`** - 执行 HTTP 请求\n- **`fetch_get`** - 执行 GET 请求\n- **`fetch_post`** - 执行 POST 请求\n- **`fetch_headers`** - 获取或设置 HTTP 头信息\n\n## 建议的具体步骤\n\n如果您能提供：\n1. 仓库的 GitHub URL 或本地路径\n2. 项目的主要技术栈（Node.js、Python 等）\n3. 您已经尝试过的搜索方法\n\n我可以为您提供更具体的代码分析建议和搜索策略。您也可以考虑使用代码编辑器的全局搜索功能或命令行工具来定位相关实现。"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 230,
+            "completion_tokens": 451,
+            "total_tokens": 681
+          },
+          "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+        },
+        "assistant_message": "我目前没有访问文件系统、代码仓库或浏览器的工具能力，因此无法直接定位您提到的“Fetch MCP server”的具体实现位置或分析其代码结构。\n\n不过，我可以基于一般知识为您提供一些指导思路：\n\n## 如何手动定位实现位置\n\n1. **检查项目结构**\n   - 在仓库根目录查找 `package.json`，查看 `main`、`bin` 或相关脚本入口\n   - 搜索包含 \"fetch\"、\"mcp\"、\"server\" 等关键词的目录和文件\n   - 常见的 MCP 服务器实现通常放在 `src/`、`lib/` 或 `servers/` 目录下\n\n2. **使用代码搜索工具**\n   - 在命令行使用 `grep -r \"FetchMCP\"` 或类似命令搜索类名\n   - 查找 `@modelcontextprotocol/sdk` 的导入和使用位置\n   - 搜索 `new Server()` 或 `createServer` 的实例化代码\n\n3. **检查工具定义**\n   - MCP 服务器的核心工具通常在 `tools` 配置中定义\n   - 查找 `getTools()` 方法或类似工具注册逻辑\n   - 工具名通常以 `fetch_`、`http_` 或 `request_` 等前缀开头\n\n## Fetch MCP 服务器的典型工具\n\n基于常见的 Fetch MCP 服务器实现，它可能暴露的工具包括：\n\n- **`fetch_url`** 或 **`fetch_request`** - 执行 HTTP 请求\n- **`fetch_get`** - 执行 GET 请求\n- **`fetch_post`** - 执行 POST 请求\n- **`fetch_headers`** - 获取或设置 HTTP 头信息\n\n## 建议的具体步骤\n\n如果您能提供：\n1. 仓库的 GitHub URL 或本地路径\n2. 项目的主要技术栈（Node.js、Python 等）\n3. 您已经尝试过的搜索方法\n\n我可以为您提供更具体的代码分析建议和搜索策略。您也可以考虑使用代码编辑器的全局搜索功能或命令行工具来定位相关实现。",
+        "recorded_memory": {
+          "id": "route-1776354910160273600",
+          "session_id": "baseline-fetch-mcp-location",
+          "query": "请定位仓库里 Fetch MCP server 的实现位置，并说明它暴露的核心工具名是什么。",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "我目前没有访问文件系统、代码仓库或浏览器的工具能力，因此无法直接定位您提到的“Fetch MCP server”的具体实现位置或分析其代码结��...",
+          "compressed_summary": "For general prompts around mcp, code-specialist, deepseek-chat, fetch, prefer agent=code-specialist model=deepseek-chat via score-router. Evidence=1 episode(s), success=1.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning mcp, code-specialist, deepseek-chat, fetch to code-specialist."
+          ],
+          "representative_queries": [
+            "请定位仓库里 Fetch MCP server 的实现位置，并说明它暴露的核心工具名是什么。"
+          ],
+          "retrieval_hints": [
+            "mcp",
+            "code-specialist",
+            "deepseek-chat",
+            "fetch",
+            "general",
+            "server",
+            "server”的具体实现位置或分析其代码结��",
+            "我目前没有访问文件系统、代码仓库或浏览器的工具能力，因此无法直接定位您提到的“fetch"
+          ],
+          "memory_stage": "episode",
+          "source_count": 1,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:55:10.1602736+08:00",
+          "last_reinforced_at": "2026-04-16T23:55:10.1602736+08:00",
+          "succeeded": true,
+          "outcome_score": 0.84,
+          "created_at": "2026-04-16T23:55:10.1602736+08:00"
+        },
+        "succeeded": true,
+        "generated_at": "2026-04-16T23:55:10+08:00"
+      }
+    },
+    {
+      "task_id": "candidate-strategy-options",
+      "label": "候选调度策略识别",
+      "client_latency_ms": 15638,
+      "api_success": true,
+      "semantic_success": false,
+      "keyword_coverage": 0.0,
+      "matched_keywords": [],
+      "selected_agent_id": "code-specialist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 883,
+      "error_message": null,
+      "response": {
+        "request_id": "conv-1776354925805273000",
+        "session_id": "baseline-candidate-strategy-options",
+        "intent": "coding",
+        "selected_agent": {
+          "id": "code-specialist",
+          "name": "Code Specialist",
+          "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+          "category": "coding",
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.20454545454545459,
+              "selection_score": 0.679983164983165,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 3,
+              "current_tpm": 768,
+              "predicted_rpm": 1,
+              "predicted_tpm": 409,
+              "rpm_capacity_left": 0.9523809523809523,
+              "tpm_capacity_left": 0.9810648148148148,
+              "latency_ms": 900,
+              "latency_fit": 0.5909090909090908,
+              "selection_score": 0.7241623075998076,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 4,
+              "failover_count": 0
+            }
+          ],
+          "strategy": "least-busy",
+          "capabilities": [
+            "coding",
+            "debugging",
+            "architecture",
+            "go",
+            "sql"
+          ],
+          "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+          "accent": "emerald",
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "selected_candidate": {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "weight": 0.6,
+          "rpm_limit": 24,
+          "tpm_limit": 24000
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.61",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=0.00",
+          "no agent satisfied all required tools; used best partial-coverage fallback",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "no-tools-agent",
+            "experiment_group": "baseline",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": null,
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 2200,
+            "max_tool_iterations": 2,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": false,
+            "tool_scope_pruning_enabled": false
+          },
+          "tags": [
+            "conversation-router",
+            "code-specialist",
+            "coding",
+            "least-busy"
+          ],
+          "tool_marketplace_ids": null,
+          "user": "conversation-router"
+        },
+        "gateway_response": {
+          "id": "b5b7506b-09bd-4ddd-83dd-b500de02b703",
+          "object": "chat.completion",
+          "created": 1776354912,
+          "model": "deepseek-primary/deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "我目前无法直接访问您的仓库代码或文件系统，因为我的工具清单中没有代码仓库浏览、文件读取或代码搜索相关的工具。\n\n要找出候选模型调度策略的可选项和策略名称，您可以考虑以下方法：\n\n## 手动查找建议：\n\n1. **搜索配置文件**\n   - 查找包含 \"scheduler\"、\"dispatch\"、\"strategy\"、\"policy\" 等关键词的配置文件\n   - 常见文件：`config.yaml`、`settings.py`、`config.json`、`scheduler_config.py`\n\n2. **检查调度器相关代码**\n   - 搜索调度器类定义，通常包含策略枚举或配置选项\n   - 查找策略模式实现或工厂类\n\n3. **常见模型调度策略名称**（供参考）：\n   - **轮询调度** (Round Robin)\n   - **最少连接** (Least Connections)\n   - **加权轮询** (Weighted Round Robin)\n   - **随机调度** (Random)\n   - **基于响应时间** (Response Time Based)\n   - **基于资源利用率** (Resource Utilization)\n   - **优先级调度** (Priority Scheduling)\n   - **亲和性调度** (Affinity Scheduling)\n\n4. **具体查找命令示例**（如果您有终端访问权限）：\n   ```bash\n   # 在代码库中搜索相关关键词\n   grep -r \"schedul\" --include=\"*.py\" --include=\"*.yaml\" --include=\"*.json\" .\n   grep -r \"strategy\" --include=\"*.py\" .\n   grep -r \"policy\" --include=\"*.py\" .\n   ```\n\n如果您能提供具体的代码片段或配置文件内容，我可以帮您分析其中的调度策略选项和配置方式。"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 227,
+            "completion_tokens": 361,
+            "total_tokens": 588
+          },
+          "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+        },
+        "assistant_message": "我目前无法直接访问您的仓库代码或文件系统，因为我的工具清单中没有代码仓库浏览、文件读取或代码搜索相关的工具。\n\n要找出候选模型调度策略的可选项和策略名称，您可以考虑以下方法：\n\n## 手动查找建议：\n\n1. **搜索配置文件**\n   - 查找包含 \"scheduler\"、\"dispatch\"、\"strategy\"、\"policy\" 等关键词的配置文件\n   - 常见文件：`config.yaml`、`settings.py`、`config.json`、`scheduler_config.py`\n\n2. **检查调度器相关代码**\n   - 搜索调度器类定义，通常包含策略枚举或配置选项\n   - 查找策略模式实现或工厂类\n\n3. **常见模型调度策略名称**（供参考）：\n   - **轮询调度** (Round Robin)\n   - **最少连接** (Least Connections)\n   - **加权轮询** (Weighted Round Robin)\n   - **随机调度** (Random)\n   - **基于响应时间** (Response Time Based)\n   - **基于资源利用率** (Resource Utilization)\n   - **优先级调度** (Priority Scheduling)\n   - **亲和性调度** (Affinity Scheduling)\n\n4. **具体查找命令示例**（如果您有终端访问权限）：\n   ```bash\n   # 在代码库中搜索相关关键词\n   grep -r \"schedul\" --include=\"*.py\" --include=\"*.yaml\" --include=\"*.json\" .\n   grep -r \"strategy\" --include=\"*.py\" .\n   grep -r \"policy\" --include=\"*.py\" .\n   ```\n\n如果您能提供具体的代码片段或配置文件内容，我可以帮您分析其中的调度策略选项和配置方式。",
+        "recorded_memory": {
+          "id": "route-1776354925805273000",
+          "session_id": "baseline-candidate-strategy-options",
+          "query": "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。",
+          "intent": "coding",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "我目前无法直接访问您的仓库代码或文件系统，因为我的工具清单中没有代码仓库浏览、文件读取或代码搜索相关的工具。\n\n要找出候选�...",
+          "compressed_summary": "For coding prompts around code-specialist, coding, deepseek-chat, 我目前无法直接访问您的仓库代码或文件系统，因为我的工具清单中没有代码仓库浏览、文件读取或代码搜索相关的�...",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route coding prompts mentioning code-specialist, coding, deepseek-chat, 我目前无法直接访问您的仓库代码或文件系统，因为我的工具清单中没有代码仓库浏览、文件读取或代码搜索相关的工具。 to code-specialist."
+          ],
+          "representative_queries": [
+            "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。"
+          ],
+          "retrieval_hints": [
+            "code-specialist",
+            "coding",
+            "deepseek-chat",
+            "我目前无法直接访问您的仓库代码或文件系统，因为我的工具清单中没有代码仓库浏览、文件读取或代码搜索相关的工具。",
+            "要找出候选�",
+            "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。"
+          ],
+          "memory_stage": "episode",
+          "source_count": 1,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:55:25.805273+08:00",
+          "last_reinforced_at": "2026-04-16T23:55:25.805273+08:00",
+          "succeeded": true,
+          "outcome_score": 0.87,
+          "created_at": "2026-04-16T23:55:25.805273+08:00"
+        },
+        "succeeded": true,
+        "generated_at": "2026-04-16T23:55:25+08:00"
+      }
+    },
+    {
+      "task_id": "experiment-script-discovery",
+      "label": "实验脚本识别",
+      "client_latency_ms": 18191,
+      "api_success": true,
+      "semantic_success": false,
+      "keyword_coverage": 0.0,
+      "matched_keywords": [],
+      "selected_agent_id": "research-strategist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 814,
+      "error_message": null,
+      "response": {
+        "request_id": "conv-1776354943989887200",
+        "session_id": "baseline-experiment-script-discovery",
+        "intent": "research",
+        "selected_agent": {
+          "id": "research-strategist",
+          "name": "Research Strategist",
+          "description": "处理论文结构、研究问题、方案比较、路线设计和深度分析。",
+          "category": "research",
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.20454545454545459,
+              "selection_score": 0.679983164983165,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 4,
+              "current_tpm": 1024,
+              "predicted_rpm": 1,
+              "predicted_tpm": 460,
+              "rpm_capacity_left": 0.9523809523809523,
+              "tpm_capacity_left": 0.9787037037037037,
+              "latency_ms": 900,
+              "latency_fit": 0.5909090909090908,
+              "selection_score": 0.7423220298220298,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 5,
+              "failover_count": 0
+            }
+          ],
+          "strategy": "lowest-latency",
+          "capabilities": [
+            "research",
+            "planning",
+            "analysis",
+            "thesis",
+            "strategy"
+          ],
+          "system_prompt": "你是研究与规划 Agent。请优先给出结构化分析、选项比较、方案拆解和明确下一步建议。",
+          "accent": "amber",
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "selected_candidate": {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "weight": 0.75,
+          "rpm_limit": 24,
+          "tpm_limit": 24000
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "agent score-router selected research-strategist with capability_match=0.43 latency_fit=0.61",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=0.00",
+          "no agent satisfied all required tools; used best partial-coverage fallback",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "no-tools-agent",
+            "experiment_group": "baseline",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": null,
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 2200,
+            "max_tool_iterations": 2,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding",
+              "research"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": false,
+            "tool_scope_pruning_enabled": false
+          },
+          "tags": [
+            "conversation-router",
+            "research-strategist",
+            "research",
+            "lowest-latency"
+          ],
+          "tool_marketplace_ids": null,
+          "user": "conversation-router"
+        },
+        "gateway_response": {
+          "id": "936d368e-ca0a-4987-ae80-149c3eafb7d6",
+          "object": "chat.completion",
+          "created": 1776354927,
+          "model": "deepseek-primary/deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "我理解您想了解仓库中已有的实验脚本和当前支持运行的实验编号。不过，根据当前的 **TOOL INVENTORY**，我作为 Research Strategist 没有直接访问文件系统、代码仓库或执行搜索的工具。\n\n要准确回答您的问题，我需要以下能力之一：\n- 文件系统浏览工具\n- 代码仓库扫描工具\n- 命令行执行工具\n- 文本搜索工具\n\n但这些工具在当前配置中均不可用。\n\n## 建议的替代方案\n\n### 1. **手动检查方法**\n您可以：\n- 查看仓库的 `experiments/` 或 `scripts/` 目录\n- 搜索包含 \"experiment\"、\"exp\"、\"run\" 等关键词的文件\n- 检查 `README.md` 或 `docs/` 中的实验说明文档\n\n### 2. **常见实验脚本模式**\n实验脚本通常有以下特征：\n- 文件名：`run_exp.py`、`experiment_*.sh`、`train_*.py`\n- 包含实验编号参数：`--exp_id`、`-e`、`exp_num`\n- 有配置目录：`configs/exp_*.yaml`\n\n### 3. **下一步建议**\n如果您能：\n1. **提供目录结构** - 我可以帮您分析可能的实验组织方式\n2. **分享部分脚本内容** - 我可以帮您解析实验编号逻辑\n3. **描述项目类型** - 我可以提供通用的实验管理建议\n\n## 结构化分析框架\n当您获得相关信息后，我可以协助：\n\n| 分析维度 | 关键问题 |\n|---------|---------|\n| **脚本组织** | 按编号/类型/日期分类？ |\n| **参数系统** | 如何指定实验编号？ |\n| **依赖关系** | 实验间的共享组件？ |\n| **扩展性** | 添加新实验的流程？ |\n\n请提供更多上下文信息，我将基于现有能力为您提供最佳的分析和规划建议。"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 222,
+            "completion_tokens": 413,
+            "total_tokens": 635
+          },
+          "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+        },
+        "assistant_message": "我理解您想了解仓库中已有的实验脚本和当前支持运行的实验编号。不过，根据当前的 **TOOL INVENTORY**，我作为 Research Strategist 没有直接访问文件系统、代码仓库或执行搜索的工具。\n\n要准确回答您的问题，我需要以下能力之一：\n- 文件系统浏览工具\n- 代码仓库扫描工具\n- 命令行执行工具\n- 文本搜索工具\n\n但这些工具在当前配置中均不可用。\n\n## 建议的替代方案\n\n### 1. **手动检查方法**\n您可以：\n- 查看仓库的 `experiments/` 或 `scripts/` 目录\n- 搜索包含 \"experiment\"、\"exp\"、\"run\" 等关键词的文件\n- 检查 `README.md` 或 `docs/` 中的实验说明文档\n\n### 2. **常见实验脚本模式**\n实验脚本通常有以下特征：\n- 文件名：`run_exp.py`、`experiment_*.sh`、`train_*.py`\n- 包含实验编号参数：`--exp_id`、`-e`、`exp_num`\n- 有配置目录：`configs/exp_*.yaml`\n\n### 3. **下一步建议**\n如果您能：\n1. **提供目录结构** - 我可以帮您分析可能的实验组织方式\n2. **分享部分脚本内容** - 我可以帮您解析实验编号逻辑\n3. **描述项目类型** - 我可以提供通用的实验管理建议\n\n## 结构化分析框架\n当您获得相关信息后，我可以协助：\n\n| 分析维度 | 关键问题 |\n|---------|---------|\n| **脚本组织** | 按编号/类型/日期分类？ |\n| **参数系统** | 如何指定实验编号？ |\n| **依赖关系** | 实验间的共享组件？ |\n| **扩展性** | 添加新实验的流程？ |\n\n请提供更多上下文信息，我将基于现有能力为您提供最佳的分析和规划建议。",
+        "recorded_memory": {
+          "id": "route-1776354943989887200",
+          "session_id": "baseline-experiment-script-discovery",
+          "query": "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。",
+          "intent": "research",
+          "selected_agent_id": "research-strategist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "research-strategist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "我理解您想了解仓库中已有的实验脚本和当前支持运行的实验编号。不过，根据当前的 **TOOL INVENTORY**，我作为 Research Strategist 没有直接��...",
+          "compressed_summary": "For research prompts around research, **tool, deepseek-chat, inventory**，我作为, prefer agent=research-strategist model=deepseek-chat via score-router. Evidence=1 episode(s), success=1.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route research prompts mentioning research, **tool, deepseek-chat, inventory**，我作为 to research-strategist."
+          ],
+          "representative_queries": [
+            "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。"
+          ],
+          "retrieval_hints": [
+            "research",
+            "**tool",
+            "deepseek-chat",
+            "inventory**，我作为",
+            "research-strategist",
+            "strategist",
+            "我理解您想了解仓库中已有的实验脚本和当前支持运行的实验编号。不过，根据当前的",
+            "没有直接��"
+          ],
+          "memory_stage": "episode",
+          "source_count": 1,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:55:43.9898872+08:00",
+          "last_reinforced_at": "2026-04-16T23:55:43.9898872+08:00",
+          "succeeded": true,
+          "outcome_score": 0.87,
+          "created_at": "2026-04-16T23:55:43.9898872+08:00"
+        },
+        "succeeded": true,
+        "generated_at": "2026-04-16T23:55:43+08:00"
+      }
+    },
+    {
+      "task_id": "report-file-discovery",
+      "label": "实验报告文件识别",
+      "client_latency_ms": 13866,
+      "api_success": true,
+      "semantic_success": false,
+      "keyword_coverage": 0.0,
+      "matched_keywords": [],
+      "selected_agent_id": "research-strategist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 668,
+      "error_message": null,
+      "response": {
+        "request_id": "conv-1776354957864390900",
+        "session_id": "baseline-report-file-discovery",
+        "intent": "research",
+        "selected_agent": {
+          "id": "research-strategist",
+          "name": "Research Strategist",
+          "description": "处理论文结构、研究问题、方案比较、路线设计和深度分析。",
+          "category": "research",
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.20454545454545459,
+              "selection_score": 0.679983164983165,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 4,
+              "current_tpm": 1024,
+              "predicted_rpm": 2,
+              "predicted_tpm": 512,
+              "rpm_capacity_left": 0.9047619047619048,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 900,
+              "latency_fit": 0.5909090909090908,
+              "selection_score": 0.7274344636844636,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 6,
+              "failover_count": 0
+            }
+          ],
+          "strategy": "lowest-latency",
+          "capabilities": [
+            "research",
+            "planning",
+            "analysis",
+            "thesis",
+            "strategy"
+          ],
+          "system_prompt": "你是研究与规划 Agent。请优先给出结构化分析、选项比较、方案拆解和明确下一步建议。",
+          "accent": "amber",
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "selected_candidate": {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "weight": 0.75,
+          "rpm_limit": 24,
+          "tpm_limit": 24000
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "agent score-router selected research-strategist with capability_match=0.43 latency_fit=0.61",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=0.00",
+          "no agent satisfied all required tools; used best partial-coverage fallback",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "no-tools-agent",
+            "experiment_group": "baseline",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请找出 docs 目录里当前已有的真实实验报告和项目理论提炼文档文件名。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": null,
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 2200,
+            "max_tool_iterations": 2,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding",
+              "research"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": false,
+            "tool_scope_pruning_enabled": false
+          },
+          "tags": [
+            "conversation-router",
+            "research-strategist",
+            "research",
+            "lowest-latency"
+          ],
+          "tool_marketplace_ids": null,
+          "user": "conversation-router"
+        },
+        "gateway_response": {
+          "id": "a835e231-42fa-4fb1-98e6-a826e54af33d",
+          "object": "chat.completion",
+          "created": 1776354946,
+          "model": "deepseek-primary/deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "我理解您想查找 `docs` 目录中的实验报告和理论提炼文档，但目前我无法直接访问您的文件系统或执行目录扫描操作。\n\n根据当前的 **TOOL INVENTORY**，我没有可用的文件系统工具、浏览器、代码执行器或搜索工具来读取本地目录内容。\n\n---\n\n## 建议的替代方案\n\n您可以考虑以下手动或技术方案来获取所需信息：\n\n### 1. **命令行操作（推荐）**\n如果您在终端环境中，可以运行：\n```bash\n# 列出 docs 目录下所有文件\nls -la docs/\n\n# 或使用 find 命令筛选特定类型文件\nfind docs/ -name \"*.md\" -o -name \"*.pdf\" -o -name \"*.docx\"\n```\n\n### 2. **文件管理器查看**\n直接通过系统的文件资源管理器（如 Finder、Explorer）打开 `docs` 文件夹查看。\n\n### 3. **如果您需要我协助分析文档内容**\n如果您能提供具体的文件名或文档片段，我可以帮您：\n- 进行结构化分析\n- 比较不同实验报告的方法差异\n- 提炼理论框架\n- 规划后续研究步骤\n\n---\n\n## 我的当前能力说明\n作为研究与规划 Agent，我擅长：\n- **结构化分析**：对已有信息进行逻辑拆解\n- **方案比较**：评估不同研究路径的优劣\n- **规划制定**：设计可执行的研究路线图\n- **理论提炼**：从具体案例中抽象出通用框架\n\n**请提供具体的文档名称或内容片段**，我可以立即开始为您进行深度分析和规划建议。"
+              },
+              "finish_reason": "stop"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 221,
+            "completion_tokens": 335,
+            "total_tokens": 556
+          },
+          "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+        },
+        "assistant_message": "我理解您想查找 `docs` 目录中的实验报告和理论提炼文档，但目前我无法直接访问您的文件系统或执行目录扫描操作。\n\n根据当前的 **TOOL INVENTORY**，我没有可用的文件系统工具、浏览器、代码执行器或搜索工具来读取本地目录内容。\n\n---\n\n## 建议的替代方案\n\n您可以考虑以下手动或技术方案来获取所需信息：\n\n### 1. **命令行操作（推荐）**\n如果您在终端环境中，可以运行：\n```bash\n# 列出 docs 目录下所有文件\nls -la docs/\n\n# 或使用 find 命令筛选特定类型文件\nfind docs/ -name \"*.md\" -o -name \"*.pdf\" -o -name \"*.docx\"\n```\n\n### 2. **文件管理器查看**\n直接通过系统的文件资源管理器（如 Finder、Explorer）打开 `docs` 文件夹查看。\n\n### 3. **如果您需要我协助分析文档内容**\n如果您能提供具体的文件名或文档片段，我可以帮您：\n- 进行结构化分析\n- 比较不同实验报告的方法差异\n- 提炼理论框架\n- 规划后续研究步骤\n\n---\n\n## 我的当前能力说明\n作为研究与规划 Agent，我擅长：\n- **结构化分析**：对已有信息进行逻辑拆解\n- **方案比较**：评估不同研究路径的优劣\n- **规划制定**：设计可执行的研究路线图\n- **理论提炼**：从具体案例中抽象出通用框架\n\n**请提供具体的文档名称或内容片段**，我可以立即开始为您进行深度分析和规划建议。",
+        "recorded_memory": {
+          "id": "route-1776354957864390900",
+          "session_id": "baseline-report-file-discovery",
+          "query": "请找出 docs 目录里当前已有的真实实验报告和项目理论提炼文档文件名。",
+          "intent": "research",
+          "selected_agent_id": "research-strategist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "research-strategist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "我理解您想查找 `docs` 目录中的实验报告和理论提炼文档，但目前我无法直接访问您的文件系统或执行目录扫描操作。\n\n根据当前的 **TOOL ...",
+          "compressed_summary": "For research prompts around **tool, `docs`, deepseek-chat, docs, prefer agent=research-strategist model=deepseek-chat via score-router. Evidence=1 episode(s), success=1.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route research prompts mentioning **tool, `docs`, deepseek-chat, docs to research-strategist."
+          ],
+          "representative_queries": [
+            "请找出 docs 目录里当前已有的真实实验报告和项目理论提炼文档文件名。"
+          ],
+          "retrieval_hints": [
+            "**tool",
+            "`docs`",
+            "deepseek-chat",
+            "docs",
+            "research",
+            "research-strategist",
+            "我理解您想查找",
+            "根据当前的"
+          ],
+          "memory_stage": "episode",
+          "source_count": 1,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:55:57.8643909+08:00",
+          "last_reinforced_at": "2026-04-16T23:55:57.8643909+08:00",
+          "succeeded": true,
+          "outcome_score": 0.87,
+          "created_at": "2026-04-16T23:55:57.8643909+08:00"
+        },
+        "succeeded": true,
+        "generated_at": "2026-04-16T23:55:57+08:00"
+      }
+    }
+  ],
+  "enhanced_results": [
+    {
+      "task_id": "fs-top-level-roles",
+      "label": "顶层目录识别",
+      "client_latency_ms": 19888,
+      "api_success": false,
+      "semantic_success": false,
+      "keyword_coverage": 0.0,
+      "matched_keywords": [],
+      "selected_agent_id": "code-specialist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 0,
+      "error_message": "exceeded maximum tool iterations (6)",
+      "response": {
+        "request_id": "conv-1776354977751660500",
+        "session_id": "our-method-fs-top-level-roles",
+        "intent": "general",
+        "selected_agent": {
+          "id": "code-specialist",
+          "name": "Code Specialist",
+          "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+          "category": "coding",
+          "provider": "deepseek-primary",
+          "model": "deepseek-reasoner",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.05,
+              "selection_score": 0.6490740740740741,
+              "authorized": true,
+              "decision_reason": "estimated latency=1750 exceeds budget=1400",
+              "status": "latency_exceeded",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 3,
+              "current_tpm": 768,
+              "predicted_rpm": 2,
+              "predicted_tpm": 512,
+              "rpm_capacity_left": 0.9047619047619048,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 900,
+              "latency_fit": 0.3571428571428571,
+              "selection_score": 0.6619312169312169,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 6,
+              "failover_count": 0,
+              "last_error": "exceeded maximum tool iterations (6)"
+            }
+          ],
+          "strategy": "least-busy",
+          "capabilities": [
+            "coding",
+            "debugging",
+            "architecture",
+            "go",
+            "sql"
+          ],
+          "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+          "accent": "emerald",
+          "tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read",
+            "preset-github-repo",
+            "preset-sqlite-query"
+          ],
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "failed",
+            "reason": "exceeded maximum tool iterations (6)"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.39",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "tool-augmented-agent",
+            "experiment_group": "our-method",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请查看当前仓库顶层目录，并说明 cmd、internal、ui 这三个目录各自承担什么作用。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": [
+            "filesystem/list_directory",
+            "filesystem/read_file",
+            "github/get_file_contents",
+            "sqlite/query"
+          ],
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 1400,
+            "max_tool_iterations": 6,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "architecture",
+              "coding",
+              "general"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": true,
+            "tool_scope_pruning_enabled": true
+          },
+          "tags": [
+            "conversation-router",
+            "code-specialist",
+            "coding",
+            "least-busy"
+          ],
+          "tool_marketplace_ids": [
+            "preset-filesystem-list",
+            "preset-filesystem-read",
+            "preset-github-repo",
+            "preset-sqlite-query"
+          ],
+          "user": "conversation-router"
+        },
+        "recorded_memory": {
+          "id": "route-1776354891039449000",
+          "session_id": "our-method-fs-top-level-roles",
+          "query": "请查看当前仓库顶层目录，并说明 cmd、internal、ui 这三个目录各自承担什么作用。",
+          "intent": "general",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (6)",
+          "compressed_summary": "For general prompts around cmd、internal、ui, 请查看当前仓库顶层目录，并说明, 这三个目录各自承担什么作用。, code-specialist, prefer agent=code-specialist model=deepseek-chat via score-route...",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning cmd、internal、ui, 请查看当前仓库顶层目录，并说明, 这三个目录各自承担什么作用。, code-specialist to code-specialist."
+          ],
+          "representative_queries": [
+            "请查看当前仓库顶层目录，并说明 cmd、internal、ui 这三个目录各自承担什么作用。"
+          ],
+          "retrieval_hints": [
+            "cmd、internal、ui",
+            "请查看当前仓库顶层目录，并说明",
+            "这三个目录各自承担什么作用。",
+            "code-specialist",
+            "deepseek-chat",
+            "deepseek-reasoner",
+            "exceeded",
+            "general"
+          ],
+          "memory_stage": "summary",
+          "source_count": 2,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:54:51.039449+08:00",
+          "last_reinforced_at": "2026-04-16T23:56:17.7516605+08:00",
+          "succeeded": true,
+          "outcome_score": 0.5094642857142857,
+          "created_at": "2026-04-16T23:56:17.7516605+08:00"
+        },
+        "succeeded": false,
+        "error_message": "exceeded maximum tool iterations (6)",
+        "generated_at": "2026-04-16T23:56:17+08:00"
+      }
+    },
+    {
+      "task_id": "fetch-mcp-location",
+      "label": "Fetch MCP 位置与能力",
+      "client_latency_ms": 37040,
+      "api_success": true,
+      "semantic_success": true,
+      "keyword_coverage": 1.0,
+      "matched_keywords": [
+        "cmd/mcp-fetch",
+        "fetch"
+      ],
+      "selected_agent_id": "research-strategist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 1021,
+      "error_message": null,
+      "response": {
+        "request_id": "conv-1776355014783862800",
+        "session_id": "our-method-fetch-mcp-location",
+        "intent": "general",
+        "selected_agent": {
+          "id": "research-strategist",
+          "name": "Research Strategist",
+          "description": "处理论文结构、研究问题、方案比较、路线设计和深度分析。",
+          "category": "research",
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.05,
+              "selection_score": 0.6490740740740741,
+              "authorized": true,
+              "decision_reason": "estimated latency=1750 exceeds budget=1400",
+              "status": "latency_exceeded",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 2,
+              "current_tpm": 512,
+              "predicted_rpm": 2,
+              "predicted_tpm": 563,
+              "rpm_capacity_left": 0.9047619047619048,
+              "tpm_capacity_left": 0.9739351851851852,
+              "latency_ms": 900,
+              "latency_fit": 0.3571428571428571,
+              "selection_score": 0.6800909391534391,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 7,
+              "failover_count": 0
+            }
+          ],
+          "strategy": "lowest-latency",
+          "capabilities": [
+            "research",
+            "planning",
+            "analysis",
+            "thesis",
+            "strategy"
+          ],
+          "system_prompt": "你是研究与规划 Agent。请优先给出结构化分析、选项比较、方案拆解和明确下一步建议。",
+          "accent": "amber",
+          "tools": [
+            "preset-fetch-web",
+            "preset-browser-open",
+            "preset-filesystem-read",
+            "preset-filesystem-list"
+          ],
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "selected_candidate": {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "weight": 0.75,
+          "rpm_limit": 24,
+          "tpm_limit": 24000
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=1400",
+          "agent score-router selected research-strategist with capability_match=0.22 latency_fit=0.39",
+          "required_tools=preset-fetch-web,preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-fetch-web,preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "tool-augmented-agent",
+            "experiment_group": "our-method",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请定位仓库里 Fetch MCP server 的实现位置，并说明它暴露的核心工具名是什么。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": [
+            "fetch/fetch",
+            "filesystem/list_directory",
+            "filesystem/read_file",
+            "playwright/browser_navigate"
+          ],
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 1400,
+            "max_tool_iterations": 6,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding",
+              "general"
+            ],
+            "required_tools": [
+              "preset-fetch-web",
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": true,
+            "tool_scope_pruning_enabled": true
+          },
+          "tags": [
+            "conversation-router",
+            "research-strategist",
+            "research",
+            "lowest-latency"
+          ],
+          "tool_marketplace_ids": [
+            "preset-fetch-web",
+            "preset-browser-open",
+            "preset-filesystem-read",
+            "preset-filesystem-list"
+          ],
+          "user": "conversation-router"
+        },
+        "gateway_response": {
+          "id": "09432645-5ba9-4be3-8f63-eb197554f123",
+          "object": "chat.completion",
+          "created": 1776354998,
+          "model": "deepseek-primary/deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "基于我的分析，现在我可以为您提供结构化分析：\n\n## 结构化分析\n\n### 1. Fetch MCP Server 实现位置\n**核心路径：** `cmd/mcp-fetch/main.go`\n\n**文件结构：**\n- `cmd/mcp-fetch/main.go` - Fetch MCP server 主实现文件\n- `cmd/mcp-fetch/main_test.go` - 对应的测试文件\n\n### 2. 暴露的核心工具名\n**工具名称：** `fetch`\n\n### 3. 工具功能详细说明\n\n#### 核心参数：\n1. **`url`** (必需) - 要获取的 HTTP/HTTPS URL\n2. **`max_bytes`** (可选) - 响应字节上限，默认 262144，硬上限 2097152\n3. **`raw`** (可选) - 是否返回原始响应文本而非提取可读文本\n\n#### 主要特性：\n- **智能内容提取**：自动从 HTML 中提取可读文本，过滤脚本、样式等非内容元素\n- **内容类型处理**：支持 text/html、application/json、text/plain 等多种内容类型\n- **安全限制**：默认超时 20 秒，最大重定向 8 次\n- **错误处理**：HTTP 错误状态码（≥400）返回工具错误结果\n\n#### 默认配置：\n- 超时时间：20 秒\n- 默认最大字节：256KB\n- 硬性最大字节：2MB\n- User-Agent：`LLMux-MCP-Fetch/1.0`\n\n### 4. 架构设计分析\n\n#### 代码结构：\n```go\nmain() 函数：\n├── 创建 MCP server 实例\n├── 定义 fetch 工具（名称、描述、参数）\n├── 注册工具处理器 fetchHandler\n└── 启动标准输入输出服务\n\nfetchHandler() 函数：\n├── 参数验证和解析\n├── URL 格式和安全检查\n├── 调用 fetchURL() 执行实际获取\n└── 返回格式化结果\n\nfetchURL() 函数：\n├── 创建 HTTP 客户端\n├── 发送请求并读取响应\n├── 内容处理和渲染\n└── 构建最终输出\n```\n\n#### 内容处理流程：\n1. **原始模式** (`raw=true`)：返回原始响应文本\n2. **智能模式** (`"
+              },
+              "finish_reason": "length"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 4374,
+            "completion_tokens": 512,
+            "total_tokens": 4886
+          },
+          "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+        },
+        "assistant_message": "基于我的分析，现在我可以为您提供结构化分析：\n\n## 结构化分析\n\n### 1. Fetch MCP Server 实现位置\n**核心路径：** `cmd/mcp-fetch/main.go`\n\n**文件结构：**\n- `cmd/mcp-fetch/main.go` - Fetch MCP server 主实现文件\n- `cmd/mcp-fetch/main_test.go` - 对应的测试文件\n\n### 2. 暴露的核心工具名\n**工具名称：** `fetch`\n\n### 3. 工具功能详细说明\n\n#### 核心参数：\n1. **`url`** (必需) - 要获取的 HTTP/HTTPS URL\n2. **`max_bytes`** (可选) - 响应字节上限，默认 262144，硬上限 2097152\n3. **`raw`** (可选) - 是否返回原始响应文本而非提取可读文本\n\n#### 主要特性：\n- **智能内容提取**：自动从 HTML 中提取可读文本，过滤脚本、样式等非内容元素\n- **内容类型处理**：支持 text/html、application/json、text/plain 等多种内容类型\n- **安全限制**：默认超时 20 秒，最大重定向 8 次\n- **错误处理**：HTTP 错误状态码（≥400）返回工具错误结果\n\n#### 默认配置：\n- 超时时间：20 秒\n- 默认最大字节：256KB\n- 硬性最大字节：2MB\n- User-Agent：`LLMux-MCP-Fetch/1.0`\n\n### 4. 架构设计分析\n\n#### 代码结构：\n```go\nmain() 函数：\n├── 创建 MCP server 实例\n├── 定义 fetch 工具（名称、描述、参数）\n├── 注册工具处理器 fetchHandler\n└── 启动标准输入输出服务\n\nfetchHandler() 函数：\n├── 参数验证和解析\n├── URL 格式和安全检查\n├── 调用 fetchURL() 执行实际获取\n└── 返回格式化结果\n\nfetchURL() 函数：\n├── 创建 HTTP 客户端\n├── 发送请求并读取响应\n├── 内容处理和渲染\n└── 构建最终输出\n```\n\n#### 内容处理流程：\n1. **原始模式** (`raw=true`)：返回原始响应文本\n2. **智能模式** (`",
+        "recorded_memory": {
+          "id": "route-1776355014783862800",
+          "session_id": "our-method-fetch-mcp-location",
+          "query": "请定位仓库里 Fetch MCP server 的实现位置，并说明它暴露的核心工具名是什么。",
+          "intent": "general",
+          "selected_agent_id": "research-strategist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "research-strategist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "基于我的分析，现在我可以为您提供结构化分析：\n\n## 结构化分析\n\n### 1. Fetch MCP Server 实现位置\n**核心路径：** `cmd/mcp-fetch/main.go`\n\n**文件��...",
+          "compressed_summary": "For general prompts around fetch, mcp, server, ##, prefer agent=research-strategist model=deepseek-chat via score-router. Evidence=1 episode(s), success=1.",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route general prompts mentioning fetch, mcp, server, ## to research-strategist."
+          ],
+          "representative_queries": [
+            "请定位仓库里 Fetch MCP server 的实现位置，并说明它暴露的核心工具名是什么。"
+          ],
+          "retrieval_hints": [
+            "fetch",
+            "mcp",
+            "server",
+            "##",
+            "###",
+            "**文件��",
+            "**核心路径：**",
+            "`cmd/mcp-fetch/main"
+          ],
+          "memory_stage": "episode",
+          "source_count": 1,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:56:54.7838628+08:00",
+          "last_reinforced_at": "2026-04-16T23:56:54.7838628+08:00",
+          "succeeded": true,
+          "outcome_score": 0.84,
+          "created_at": "2026-04-16T23:56:54.7838628+08:00"
+        },
+        "succeeded": true,
+        "generated_at": "2026-04-16T23:56:54+08:00"
+      }
+    },
+    {
+      "task_id": "candidate-strategy-options",
+      "label": "候选调度策略识别",
+      "client_latency_ms": 19502,
+      "api_success": false,
+      "semantic_success": false,
+      "keyword_coverage": 0.0,
+      "matched_keywords": [],
+      "selected_agent_id": "code-specialist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 0,
+      "error_message": "exceeded maximum tool iterations (6)",
+      "response": {
+        "request_id": "conv-1776355034293374300",
+        "session_id": "our-method-candidate-strategy-options",
+        "intent": "coding",
+        "selected_agent": {
+          "id": "code-specialist",
+          "name": "Code Specialist",
+          "description": "处理代码阅读、Bug 分析、系统设计、并发与工程实现问题。",
+          "category": "coding",
+          "provider": "deepseek-primary",
+          "model": "deepseek-reasoner",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.20454545454545459,
+              "selection_score": 0.679983164983165,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.6,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 1,
+              "current_tpm": 256,
+              "predicted_rpm": 2,
+              "predicted_tpm": 563,
+              "rpm_capacity_left": 0.9047619047619048,
+              "tpm_capacity_left": 0.9739351851851852,
+              "latency_ms": 900,
+              "latency_fit": 0.5909090909090908,
+              "selection_score": 0.7080941859066858,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 7,
+              "failover_count": 0,
+              "last_error": "exceeded maximum tool iterations (6)"
+            }
+          ],
+          "strategy": "least-busy",
+          "capabilities": [
+            "coding",
+            "debugging",
+            "architecture",
+            "go",
+            "sql"
+          ],
+          "system_prompt": "你是代码专家 Agent。请对代码、系统设计、调试问题进行严谨推理，回答要具体、可执行，并尽量解释原因。",
+          "accent": "emerald",
+          "tools": [
+            "preset-filesystem-list",
+            "preset-filesystem-read",
+            "preset-github-repo",
+            "preset-sqlite-query"
+          ],
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "failed",
+            "reason": "exceeded maximum tool iterations (6)"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "agent score-router selected code-specialist with capability_match=0.33 latency_fit=0.61",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "tool-augmented-agent",
+            "experiment_group": "our-method",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": [
+            "filesystem/list_directory",
+            "filesystem/read_file",
+            "github/get_file_contents",
+            "sqlite/query"
+          ],
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 2200,
+            "max_tool_iterations": 6,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": true,
+            "tool_scope_pruning_enabled": true
+          },
+          "tags": [
+            "conversation-router",
+            "code-specialist",
+            "coding",
+            "least-busy"
+          ],
+          "tool_marketplace_ids": [
+            "preset-filesystem-list",
+            "preset-filesystem-read",
+            "preset-github-repo",
+            "preset-sqlite-query"
+          ],
+          "user": "conversation-router"
+        },
+        "recorded_memory": {
+          "id": "route-1776354925805273000",
+          "session_id": "our-method-candidate-strategy-options",
+          "query": "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。",
+          "intent": "coding",
+          "selected_agent_id": "code-specialist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "code-specialist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (6)",
+          "compressed_summary": "For coding prompts around 请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。, code-specialist, coding, deepseek-chat, prefer agent=code-specialist model=deepseek-chat via ...",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route coding prompts mentioning 请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。, code-specialist, coding, deepseek-chat to code-specialist."
+          ],
+          "representative_queries": [
+            "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。"
+          ],
+          "retrieval_hints": [
+            "请在仓库代码中找出候选模型调度策略的可选项，并说明有哪些策略名称。",
+            "code-specialist",
+            "coding",
+            "deepseek-chat",
+            "deepseek-reasoner",
+            "exceeded",
+            "iterations",
+            "maximum"
+          ],
+          "memory_stage": "summary",
+          "source_count": 2,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:55:25.805273+08:00",
+          "last_reinforced_at": "2026-04-16T23:57:14.2933743+08:00",
+          "succeeded": true,
+          "outcome_score": 0.5223214285714286,
+          "created_at": "2026-04-16T23:57:14.2933743+08:00"
+        },
+        "succeeded": false,
+        "error_message": "exceeded maximum tool iterations (6)",
+        "generated_at": "2026-04-16T23:57:14+08:00"
+      }
+    },
+    {
+      "task_id": "experiment-script-discovery",
+      "label": "实验脚本识别",
+      "client_latency_ms": 22241,
+      "api_success": false,
+      "semantic_success": false,
+      "keyword_coverage": 0.0,
+      "matched_keywords": [],
+      "selected_agent_id": "research-strategist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 0,
+      "error_message": "exceeded maximum tool iterations (6)",
+      "response": {
+        "request_id": "conv-1776355056527633700",
+        "session_id": "our-method-experiment-script-discovery",
+        "intent": "research",
+        "selected_agent": {
+          "id": "research-strategist",
+          "name": "Research Strategist",
+          "description": "处理论文结构、研究问题、方案比较、路线设计和深度分析。",
+          "category": "research",
+          "provider": "deepseek-primary",
+          "model": "deepseek-reasoner",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.20454545454545459,
+              "selection_score": 0.679983164983165,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 1,
+              "current_tpm": 256,
+              "predicted_rpm": 2,
+              "predicted_tpm": 563,
+              "rpm_capacity_left": 0.9047619047619048,
+              "tpm_capacity_left": 0.9739351851851852,
+              "latency_ms": 900,
+              "latency_fit": 0.5909090909090908,
+              "selection_score": 0.7268441859066859,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 7,
+              "failover_count": 0,
+              "last_error": "exceeded maximum tool iterations (6)"
+            }
+          ],
+          "strategy": "lowest-latency",
+          "capabilities": [
+            "research",
+            "planning",
+            "analysis",
+            "thesis",
+            "strategy"
+          ],
+          "system_prompt": "你是研究与规划 Agent。请优先给出结构化分析、选项比较、方案拆解和明确下一步建议。",
+          "accent": "amber",
+          "tools": [
+            "preset-fetch-web",
+            "preset-browser-open",
+            "preset-filesystem-read",
+            "preset-filesystem-list"
+          ],
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "failed",
+            "reason": "exceeded maximum tool iterations (6)"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "agent score-router selected research-strategist with capability_match=0.43 latency_fit=0.61",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "tool-augmented-agent",
+            "experiment_group": "our-method",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": [
+            "fetch/fetch",
+            "filesystem/list_directory",
+            "filesystem/read_file",
+            "playwright/browser_navigate"
+          ],
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 2200,
+            "max_tool_iterations": 6,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding",
+              "research"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": true,
+            "tool_scope_pruning_enabled": true
+          },
+          "tags": [
+            "conversation-router",
+            "research-strategist",
+            "research",
+            "lowest-latency"
+          ],
+          "tool_marketplace_ids": [
+            "preset-fetch-web",
+            "preset-browser-open",
+            "preset-filesystem-read",
+            "preset-filesystem-list"
+          ],
+          "user": "conversation-router"
+        },
+        "recorded_memory": {
+          "id": "route-1776354943989887200",
+          "session_id": "our-method-experiment-script-discovery",
+          "query": "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。",
+          "intent": "research",
+          "selected_agent_id": "research-strategist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "research-strategist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "exceeded maximum tool iterations (6)",
+          "compressed_summary": "For research prompts around research, 请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。, **tool, deepseek-chat, prefer agent=research-strategist model=deepseek-chat via s...",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route research prompts mentioning research, 请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。, **tool, deepseek-chat to research-strategist."
+          ],
+          "representative_queries": [
+            "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。"
+          ],
+          "retrieval_hints": [
+            "research",
+            "请找出仓库里已经存在的实验脚本，并说明当前已经支持跑哪些实验编号。",
+            "**tool",
+            "deepseek-chat",
+            "deepseek-reasoner",
+            "exceeded",
+            "inventory**，我作为",
+            "iterations"
+          ],
+          "memory_stage": "summary",
+          "source_count": 2,
+          "success_count": 1,
+          "compression_ratio": 1,
+          "first_recorded_at": "2026-04-16T23:55:43.9898872+08:00",
+          "last_reinforced_at": "2026-04-16T23:57:36.5276337+08:00",
+          "succeeded": true,
+          "outcome_score": 0.5223214285714286,
+          "created_at": "2026-04-16T23:57:36.5276337+08:00"
+        },
+        "succeeded": false,
+        "error_message": "exceeded maximum tool iterations (6)",
+        "generated_at": "2026-04-16T23:57:36+08:00"
+      }
+    },
+    {
+      "task_id": "report-file-discovery",
+      "label": "实验报告文件识别",
+      "client_latency_ms": 34750,
+      "api_success": true,
+      "semantic_success": true,
+      "keyword_coverage": 1.0,
+      "matched_keywords": [
+        "REAL_EXPERIMENT_RESULTS_CN.md",
+        "PROJECT_CORE_THEORY_AND_EXPERIMENTS_CN.md"
+      ],
+      "selected_agent_id": "research-strategist",
+      "route_source": "score-router",
+      "memory_influence": "none",
+      "tool_calls": 0,
+      "tool_names": [],
+      "iterations": 0,
+      "max_iterations_hit": false,
+      "assistant_chars": 1089,
+      "error_message": null,
+      "response": {
+        "request_id": "conv-1776355091285690900",
+        "session_id": "our-method-report-file-discovery",
+        "intent": "research",
+        "selected_agent": {
+          "id": "research-strategist",
+          "name": "Research Strategist",
+          "description": "处理论文结构、研究问题、方案比较、路线设计和深度分析。",
+          "category": "research",
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "candidate_models": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000
+            }
+          ],
+          "candidate_states": [
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-reasoner",
+              "weight": 1,
+              "rpm_limit": 12,
+              "tpm_limit": 12000,
+              "safe_rpm_limit": 10,
+              "safe_tpm_limit": 10800,
+              "current_rpm": 0,
+              "current_tpm": 0,
+              "predicted_rpm": 1,
+              "predicted_tpm": 256,
+              "rpm_capacity_left": 0.9,
+              "tpm_capacity_left": 0.9762962962962963,
+              "latency_ms": 1750,
+              "latency_fit": 0.20454545454545459,
+              "selection_score": 0.679983164983165,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 0,
+              "failover_count": 0
+            },
+            {
+              "provider": "deepseek-primary",
+              "model": "deepseek-chat",
+              "weight": 0.75,
+              "rpm_limit": 24,
+              "tpm_limit": 24000,
+              "safe_rpm_limit": 21,
+              "safe_tpm_limit": 21600,
+              "current_rpm": 1,
+              "current_tpm": 256,
+              "predicted_rpm": 2,
+              "predicted_tpm": 614,
+              "rpm_capacity_left": 0.9047619047619048,
+              "tpm_capacity_left": 0.971574074074074,
+              "latency_ms": 900,
+              "latency_fit": 0.5909090909090908,
+              "selection_score": 0.7262539081289081,
+              "authorized": true,
+              "decision_reason": "candidate is ready within current strategy constraints",
+              "status": "ready",
+              "selected_count": 8,
+              "failover_count": 0
+            }
+          ],
+          "strategy": "lowest-latency",
+          "capabilities": [
+            "research",
+            "planning",
+            "analysis",
+            "thesis",
+            "strategy"
+          ],
+          "system_prompt": "你是研究与规划 Agent。请优先给出结构化分析、选项比较、方案拆解和明确下一步建议。",
+          "accent": "amber",
+          "tools": [
+            "preset-fetch-web",
+            "preset-browser-open",
+            "preset-filesystem-read",
+            "preset-filesystem-list"
+          ],
+          "enabled": true,
+          "created_at": "2026-04-16T22:19:14+08:00",
+          "updated_at": "2026-04-16T22:19:14+08:00"
+        },
+        "selected_candidate": {
+          "provider": "deepseek-primary",
+          "model": "deepseek-chat",
+          "weight": 0.75,
+          "rpm_limit": 24,
+          "tpm_limit": 24000
+        },
+        "candidate_failovers": [
+          {
+            "provider": "deepseek-primary",
+            "model": "deepseek-chat",
+            "outcome": "selected"
+          }
+        ],
+        "route_source": "score-router",
+        "routing_reasoning": [
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "constraint-aware score router selected the agent",
+          "routing_profile complexity=2 latency_budget_ms=2200",
+          "agent score-router selected research-strategist with capability_match=0.43 latency_fit=0.61",
+          "required_tools=preset-filesystem-list,preset-filesystem-read tool_coverage=1.00",
+          "该 expert agent 当前挂载 2 个候选模型，默认优先尝试 deepseek-primary/deepseek-reasoner",
+          "若首选候选命中 TPM/QPM/并发限制，将自动切换到同 agent 的下一候选模型",
+          "routing_profile required_tools=preset-filesystem-list,preset-filesystem-read"
+        ],
+        "memory_influence": "none",
+        "gateway_request": {
+          "experiment": {
+            "baseline_name": "tool-augmented-agent",
+            "experiment_group": "our-method",
+            "experiment_id": "exp23"
+          },
+          "messages": [
+            {
+              "role": "user",
+              "content": "请找出 docs 目录里当前已有的真实实验报告和项目理论提炼文档文件名。"
+            }
+          ],
+          "model": "deepseek-reasoner",
+          "resolved_mcp_tools": [
+            "fetch/fetch",
+            "filesystem/list_directory",
+            "filesystem/read_file",
+            "playwright/browser_navigate"
+          ],
+          "routing_profile": {
+            "candidate_strategy": "predictive",
+            "complexity": 2,
+            "latency_budget_ms": 2200,
+            "max_tool_iterations": 6,
+            "memory_reuse_enabled": false,
+            "organization_id": "",
+            "require_team": false,
+            "required_capabilities": [
+              "analysis",
+              "coding",
+              "research"
+            ],
+            "required_tools": [
+              "preset-filesystem-list",
+              "preset-filesystem-read"
+            ],
+            "team_routing_enabled": false,
+            "tenant_id": "",
+            "tool_injection_enabled": true,
+            "tool_scope_pruning_enabled": true
+          },
+          "tags": [
+            "conversation-router",
+            "research-strategist",
+            "research",
+            "lowest-latency"
+          ],
+          "tool_marketplace_ids": [
+            "preset-fetch-web",
+            "preset-browser-open",
+            "preset-filesystem-read",
+            "preset-filesystem-list"
+          ],
+          "user": "conversation-router"
+        },
+        "gateway_response": {
+          "id": "782e0495-dc9b-4686-ac44-b3dc5088e11a",
+          "object": "chat.completion",
+          "created": 1776355074,
+          "model": "deepseek-primary/deepseek-chat",
+          "choices": [
+            {
+              "index": 0,
+              "message": {
+                "role": "assistant",
+                "content": "基于对 docs 目录的分析，我为您整理出以下真实实验报告和项目理论提炼文档：\n\n## 📊 **真实实验报告文件：**\n\n1. **`REAL_EXPERIMENT_RESULTS_CN.md`** - 真实实验结果汇总（中文）\n   - 包含2026-04-16的真实端到端实验数据\n   - 涵盖Value Lab和Agent Router两类实验\n   - 每类实验运行10次，使用真实DeepSeek API\n   - 包含实验设计、结果数据、分析结论\n\n2. **`real_experiment_agent_router_runs.json`** - Agent Router真实实验运行数据\n   - JSON格式的实验原始数据\n\n3. **`real_experiment_value_lab_runs.json`** - Value Lab真实实验运行数据\n   - JSON格式的实验原始数据\n\n## 📚 **项目理论提炼文档：**\n\n1. **`PROJECT_CORE_THEORY_AND_EXPERIMENTS.md`** - 项目核心理论与实验数据（英文）\n   - 项目定位、理论框架、工程目标总结\n   - 从多个源文档提取的核心内容\n   - 包含实验数据的项目级摘要\n\n2. **`PROJECT_CORE_THEORY_AND_EXPERIMENTS_CN.md`** - 项目核心理论与实验数据（中文）\n   - 中文版本的核心理论文档\n\n3. **`AGENT_HETEROGENEOUS_GATEWAY_THESIS_PAPER.md`** - 异构大模型网关研究论文\n   - 完整的学术论文格式\n   - 包含摘要、绪论、相关工作、方法论、实现、实验分析等章节\n   - 详细的理论框架和研究方法\n\n4. **`AGENT_HETEROGENEOUS_GATEWAY_THESIS_DRAFT.md`** - 异构大模型网关论文草稿\n   - 论文的早期版本或草稿\n\n## 🔍 **其他相关文档：**\n\n- **`EXPERIMENT_SYSTEM_DESIGN_CN.md`** - 实验系统设计（中文）\n- **`LITELLM_PROVIDER_CHECKLIST.md`** - LiteLLM提供商检查清单\n- **`PRODUCTION_TEST_GUIDE.md`** - 生产测试指南\n\n## 📋 **总结：**\n\n**核心实验报告：**\n- `REAL_EXPERIMENT_RESULTS_CN.md`（主要"
+              },
+              "finish_reason": "length"
+            }
+          ],
+          "usage": {
+            "prompt_tokens": 2517,
+            "completion_tokens": 512,
+            "total_tokens": 3029
+          },
+          "system_fingerprint": "fp_eaab8d114b_prod0820_fp8_kvcache_new_kvcache_20260410"
+        },
+        "assistant_message": "基于对 docs 目录的分析，我为您整理出以下真实实验报告和项目理论提炼文档：\n\n## 📊 **真实实验报告文件：**\n\n1. **`REAL_EXPERIMENT_RESULTS_CN.md`** - 真实实验结果汇总（中文）\n   - 包含2026-04-16的真实端到端实验数据\n   - 涵盖Value Lab和Agent Router两类实验\n   - 每类实验运行10次，使用真实DeepSeek API\n   - 包含实验设计、结果数据、分析结论\n\n2. **`real_experiment_agent_router_runs.json`** - Agent Router真实实验运行数据\n   - JSON格式的实验原始数据\n\n3. **`real_experiment_value_lab_runs.json`** - Value Lab真实实验运行数据\n   - JSON格式的实验原始数据\n\n## 📚 **项目理论提炼文档：**\n\n1. **`PROJECT_CORE_THEORY_AND_EXPERIMENTS.md`** - 项目核心理论与实验数据（英文）\n   - 项目定位、理论框架、工程目标总结\n   - 从多个源文档提取的核心内容\n   - 包含实验数据的项目级摘要\n\n2. **`PROJECT_CORE_THEORY_AND_EXPERIMENTS_CN.md`** - 项目核心理论与实验数据（中文）\n   - 中文版本的核心理论文档\n\n3. **`AGENT_HETEROGENEOUS_GATEWAY_THESIS_PAPER.md`** - 异构大模型网关研究论文\n   - 完整的学术论文格式\n   - 包含摘要、绪论、相关工作、方法论、实现、实验分析等章节\n   - 详细的理论框架和研究方法\n\n4. **`AGENT_HETEROGENEOUS_GATEWAY_THESIS_DRAFT.md`** - 异构大模型网关论文草稿\n   - 论文的早期版本或草稿\n\n## 🔍 **其他相关文档：**\n\n- **`EXPERIMENT_SYSTEM_DESIGN_CN.md`** - 实验系统设计（中文）\n- **`LITELLM_PROVIDER_CHECKLIST.md`** - LiteLLM提供商检查清单\n- **`PRODUCTION_TEST_GUIDE.md`** - 生产测试指南\n\n## 📋 **总结：**\n\n**核心实验报告：**\n- `REAL_EXPERIMENT_RESULTS_CN.md`（主要",
+        "recorded_memory": {
+          "id": "route-1776354957864390900",
+          "session_id": "our-method-report-file-discovery",
+          "query": "请找出 docs 目录里当前已有的真实实验报告和项目理论提炼文档文件名。",
+          "intent": "research",
+          "selected_agent_id": "research-strategist",
+          "selected_model": "deepseek-chat",
+          "selected_path": "research-strategist/deepseek-primary/deepseek-chat",
+          "route_source": "score-router",
+          "answer_preview": "基于对 docs 目录的分析，我为您整理出以下真实实验报告和项目理论提炼文档：\n\n## 📊 **真实实验报告文件：**\n\n1. **`REAL_EXPERIMENT_RESULTS_CN...",
+          "compressed_summary": "For research prompts around docs, deepseek-chat, 目录里当前已有的真实实验报告和项目理论提炼文档文件名。, 请找出, prefer agent=research-strategist model=deepseek-chat via score-router. Eviden...",
+          "distilled_learnings": [
+            "Prefer model deepseek-chat and path source score-router for similar follow-ups.",
+            "Route research prompts mentioning docs, deepseek-chat, 目录里当前已有的真实实验报告和项目理论提炼文档文件名。, 请找出 to research-strategist."
+          ],
+          "representative_queries": [
+            "请找出 docs 目录里当前已有的真实实验报告和项目理论提炼文档文件名。"
+          ],
+          "retrieval_hints": [
+            "docs",
+            "deepseek-chat",
+            "目录里当前已有的真实实验报告和项目理论提炼文档文件名。",
+            "请找出",
+            "##",
+            "**`real_experiment_results_cn",
+            "**tool",
+            "**真实实验报告文件：**"
+          ],
+          "memory_stage": "summary",
+          "source_count": 2,
+          "success_count": 2,
+          "compression_ratio": 0.8467023172905526,
+          "first_recorded_at": "2026-04-16T23:55:57.8643909+08:00",
+          "last_reinforced_at": "2026-04-16T23:58:11.2859453+08:00",
+          "succeeded": true,
+          "outcome_score": 0.87,
+          "created_at": "2026-04-16T23:58:11.2859453+08:00"
+        },
+        "succeeded": true,
+        "generated_at": "2026-04-16T23:58:11+08:00"
+      }
+    }
+  ]
+}

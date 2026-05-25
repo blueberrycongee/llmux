@@ -1,0 +1,126 @@
+# Runtime config for local dashboard startup in this workspace.
+# Uses the same admin port as local.yaml so the Next.js frontend can keep
+# proxying management traffic to http://localhost:8081.
+
+server:
+  port: 18080
+  admin_port: 18081
+  read_timeout: 30s
+  write_timeout: 120s
+  idle_timeout: 60s
+
+deployment:
+  mode: development
+
+providers:
+  - name: deepseek-primary
+    type: deepseek
+    api_key: sk-43811ddc6f894bc7bf3729dace4dec35
+    base_url: https://api.deepseek.com
+    models:
+      - deepseek-chat
+      - deepseek-reasoner
+    max_concurrent: 32
+    timeout: 90s
+
+routing:
+  default_provider: deepseek-primary
+  strategy: lowest-latency
+  fallback_enabled: true
+  retry_count: 2
+  cooldown_period: 45s
+
+rate_limit:
+  enabled: false
+  fail_open: true
+
+logging:
+  level: info
+  format: json
+
+metrics:
+  enabled: true
+  path: /metrics
+
+tracing:
+  enabled: false
+
+observability:
+  enabled_callbacks: []
+
+pricing_file: ./config/local.pricing.json
+
+mcp:
+  enabled: true
+  default_connection_timeout: 15s
+  default_execution_timeout: 60s
+  clients:
+    - id: filesystem
+      name: Filesystem MCP
+      type: stdio
+      command: npx
+      args:
+        - -y
+        - "@modelcontextprotocol/server-filesystem"
+        - C:\\Users\\1\\Desktop\\go_code\\llmux
+      tools_to_execute:
+        - "*"
+
+    - id: fetch
+      name: Fetch MCP
+      type: stdio
+      command: go
+      args:
+        - run
+        - ./cmd/mcp-fetch
+      tools_to_execute:
+        - "*"
+
+auth:
+  enabled: false
+  skip_paths:
+    - /health/ready
+    - /health/live
+    - /metrics
+
+cors:
+  enabled: true
+  allow_all_origins: false
+  allow_credentials: false
+  allow_methods:
+    - GET
+    - POST
+    - PUT
+    - PATCH
+    - DELETE
+    - OPTIONS
+  allow_headers:
+    - Content-Type
+    - Authorization
+    - Accept-Language
+    - X-LLMux-Locale
+  expose_headers: []
+  max_age: 10m
+  data_origins:
+    allowlist:
+      - http://localhost:3000
+      - http://localhost:3001
+    denylist: []
+  admin_origins:
+    allowlist:
+      - http://localhost:3000
+      - http://localhost:3001
+    denylist: []
+  admin_path_prefixes:
+    - /sandbox
+    - /key
+    - /team
+    - /user
+    - /organization
+    - /spend
+    - /global
+    - /audit
+    - /invitation
+    - /control
+    - /auth
+    - /ui

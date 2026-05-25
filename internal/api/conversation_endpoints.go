@@ -13,6 +13,7 @@ import (
 	"github.com/goccy/go-json"
 
 	llmux "github.com/blueberrycongee/llmux"
+	"github.com/blueberrycongee/llmux/internal/auth"
 	"github.com/blueberrycongee/llmux/internal/mcp"
 	llmerrors "github.com/blueberrycongee/llmux/pkg/errors"
 )
@@ -26,19 +27,29 @@ type CandidateModel struct {
 }
 
 type CandidateModelState struct {
-	Provider       string  `json:"provider"`
-	Model          string  `json:"model"`
-	Weight         float64 `json:"weight,omitempty"`
-	RPMLimit       int     `json:"rpm_limit,omitempty"`
-	TPMLimit       int     `json:"tpm_limit,omitempty"`
-	CurrentRPM     int     `json:"current_rpm"`
-	CurrentTPM     int     `json:"current_tpm"`
-	SelectionScore float64 `json:"selection_score,omitempty"`
-	Status         string  `json:"status"`
-	SelectedCount  int     `json:"selected_count"`
-	FailoverCount  int     `json:"failover_count"`
-	LastError      string  `json:"last_error,omitempty"`
-	CooldownUntil  string  `json:"cooldown_until,omitempty"`
+	Provider        string  `json:"provider"`
+	Model           string  `json:"model"`
+	Weight          float64 `json:"weight,omitempty"`
+	RPMLimit        int     `json:"rpm_limit,omitempty"`
+	TPMLimit        int     `json:"tpm_limit,omitempty"`
+	SafeRPMLimit    int     `json:"safe_rpm_limit,omitempty"`
+	SafeTPMLimit    int     `json:"safe_tpm_limit,omitempty"`
+	CurrentRPM      int     `json:"current_rpm"`
+	CurrentTPM      int     `json:"current_tpm"`
+	PredictedRPM    int     `json:"predicted_rpm"`
+	PredictedTPM    int     `json:"predicted_tpm"`
+	RPMCapacityLeft float64 `json:"rpm_capacity_left,omitempty"`
+	TPMCapacityLeft float64 `json:"tpm_capacity_left,omitempty"`
+	LatencyMS       int     `json:"latency_ms,omitempty"`
+	LatencyFit      float64 `json:"latency_fit,omitempty"`
+	SelectionScore  float64 `json:"selection_score,omitempty"`
+	Authorized      bool    `json:"authorized"`
+	DecisionReason  string  `json:"decision_reason,omitempty"`
+	Status          string  `json:"status"`
+	SelectedCount   int     `json:"selected_count"`
+	FailoverCount   int     `json:"failover_count"`
+	LastError       string  `json:"last_error,omitempty"`
+	CooldownUntil   string  `json:"cooldown_until,omitempty"`
 }
 
 type CandidateFailover struct {
@@ -67,6 +78,7 @@ type ConversationAgent struct {
 	SystemPrompt    string                `json:"system_prompt"`
 	Accent          string                `json:"accent"`
 	Tools           []string              `json:"tools,omitempty"`
+	TenantScopes    []string              `json:"tenant_scopes,omitempty"`
 	Enabled         bool                  `json:"enabled"`
 	CreatedAt       string                `json:"created_at"`
 	UpdatedAt       string                `json:"updated_at"`
@@ -78,48 +90,81 @@ type ConversationTurn struct {
 }
 
 type RouteMemoryRecord struct {
-	ID              string    `json:"id"`
-	SessionID       string    `json:"session_id"`
-	Query           string    `json:"query"`
-	Intent          string    `json:"intent"`
-	SelectedAgentID string    `json:"selected_agent_id"`
-	SelectedModel   string    `json:"selected_model"`
-	SelectedPath    string    `json:"selected_path"`
-	RouteSource     string    `json:"route_source"`
-	AnswerPreview   string    `json:"answer_preview"`
-	Succeeded       bool      `json:"succeeded"`
-	OutcomeScore    float64   `json:"outcome_score"`
-	CreatedAt       time.Time `json:"created_at"`
+	ID                    string    `json:"id"`
+	SessionID             string    `json:"session_id"`
+	Query                 string    `json:"query"`
+	Intent                string    `json:"intent"`
+	SelectedAgentID       string    `json:"selected_agent_id"`
+	SelectedModel         string    `json:"selected_model"`
+	SelectedPath          string    `json:"selected_path"`
+	RouteSource           string    `json:"route_source"`
+	AnswerPreview         string    `json:"answer_preview"`
+	CompressedSummary     string    `json:"compressed_summary,omitempty"`
+	DistilledLearnings    []string  `json:"distilled_learnings,omitempty"`
+	RepresentativeQueries []string  `json:"representative_queries,omitempty"`
+	RetrievalHints        []string  `json:"retrieval_hints,omitempty"`
+	MemoryStage           string    `json:"memory_stage,omitempty"`
+	SourceCount           int       `json:"source_count,omitempty"`
+	SuccessCount          int       `json:"success_count,omitempty"`
+	ConsultCount          int       `json:"consult_count,omitempty"`
+	ReuseCount            int       `json:"reuse_count,omitempty"`
+	CompressionRatio      float64   `json:"compression_ratio,omitempty"`
+	FirstRecordedAt       time.Time `json:"first_recorded_at,omitempty"`
+	LastReinforcedAt      time.Time `json:"last_reinforced_at,omitempty"`
+	Succeeded             bool      `json:"succeeded"`
+	OutcomeScore          float64   `json:"outcome_score"`
+	CreatedAt             time.Time `json:"created_at"`
 }
 
 type AgentChatRequest struct {
-	SessionID string             `json:"session_id"`
-	Messages  []ConversationTurn `json:"messages"`
+	SessionID            string             `json:"session_id"`
+	Messages             []ConversationTurn `json:"messages"`
+	ComplexityHint       int                `json:"complexity_hint,omitempty"`
+	RequireTeam          *bool              `json:"require_team,omitempty"`
+	RequiredTools        []string           `json:"required_tools,omitempty"`
+	RequiredCapabilities []string           `json:"required_capabilities,omitempty"`
+	LatencyBudgetMS      int                `json:"latency_budget_ms,omitempty"`
+	TenantID             string             `json:"tenant_id,omitempty"`
+	OrganizationID       string             `json:"organization_id,omitempty"`
+	TokenOptimization    bool               `json:"token_optimization,omitempty"`
+	CostOptimization     bool               `json:"cost_optimization,omitempty"`
+	DisableToolInference bool               `json:"disable_tool_inference,omitempty"`
+	Experiment           ExperimentOptions  `json:"experiment,omitempty"`
 }
 
 type AgentChatResponse struct {
-	RequestID             string              `json:"request_id"`
-	SessionID             string              `json:"session_id"`
-	Intent                string              `json:"intent"`
-	SelectedTeam          *AgentTeam          `json:"selected_team,omitempty"`
-	TeamParticipants      []ConversationAgent `json:"team_participants,omitempty"`
-	SelectedAgent         ConversationAgent   `json:"selected_agent"`
-	SelectedCandidate     *CandidateModel     `json:"selected_candidate,omitempty"`
-	CandidateFailovers    []CandidateFailover `json:"candidate_failovers,omitempty"`
-	RouteSource           string              `json:"route_source"`
-	RoutingReasoning      []string            `json:"routing_reasoning"`
-	MemoryInfluence       string              `json:"memory_influence,omitempty"`
-	ConsultedMemories     []RouteMemoryRecord `json:"consulted_memories,omitempty"`
-	MemoryHit             *RouteMemoryRecord  `json:"memory_hit,omitempty"`
-	TeamConsultedMemories []TeamMemoryRecord  `json:"team_consulted_memories,omitempty"`
-	TeamMemoryHit         *TeamMemoryRecord   `json:"team_memory_hit,omitempty"`
-	GatewayRequest        map[string]any      `json:"gateway_request"`
-	GatewayResponse       any                 `json:"gateway_response,omitempty"`
-	AssistantMessage      string              `json:"assistant_message,omitempty"`
-	RecordedMemory        RouteMemoryRecord   `json:"recorded_memory"`
-	Succeeded             bool                `json:"succeeded"`
-	ErrorMessage          string              `json:"error_message,omitempty"`
-	GeneratedAt           string              `json:"generated_at"`
+	RequestID                string                              `json:"request_id"`
+	SessionID                string                              `json:"session_id"`
+	Intent                   string                              `json:"intent"`
+	SelectedTeam             *AgentTeam                          `json:"selected_team,omitempty"`
+	TeamParticipants         []ConversationAgent                 `json:"team_participants,omitempty"`
+	SelectedAgent            ConversationAgent                   `json:"selected_agent"`
+	SelectedCandidate        *CandidateModel                     `json:"selected_candidate,omitempty"`
+	CandidateFailovers       []CandidateFailover                 `json:"candidate_failovers,omitempty"`
+	RouteSource              string                              `json:"route_source"`
+	RoutingReasoning         []string                            `json:"routing_reasoning"`
+	MemoryInfluence          string                              `json:"memory_influence,omitempty"`
+	ConsultedMemories        []RouteMemoryRecord                 `json:"consulted_memories,omitempty"`
+	MemoryHit                *RouteMemoryRecord                  `json:"memory_hit,omitempty"`
+	TeamConsultedMemories    []TeamMemoryRecord                  `json:"team_consulted_memories,omitempty"`
+	TeamMemoryHit            *TeamMemoryRecord                   `json:"team_memory_hit,omitempty"`
+	GatewayRequest           map[string]any                      `json:"gateway_request"`
+	GatewayResponse          any                                 `json:"gateway_response,omitempty"`
+	AssistantMessage         string                              `json:"assistant_message,omitempty"`
+	RecordedMemory           RouteMemoryRecord                   `json:"recorded_memory"`
+	ExecutionTrace           *ConversationExecutionTraceResponse `json:"execution_trace,omitempty"`
+	Succeeded                bool                                `json:"succeeded"`
+	ErrorMessage             string                              `json:"error_message,omitempty"`
+	TokenOptimizationEnabled bool                                `json:"token_optimization_enabled,omitempty"`
+	OptimizationNotes        []string                            `json:"optimization_notes,omitempty"`
+	GeneratedAt              string                              `json:"generated_at"`
+}
+
+type ConversationExecutionTraceResponse struct {
+	Iterations       int      `json:"iterations"`
+	ToolCalls        int      `json:"tool_calls"`
+	ToolNames        []string `json:"tool_names,omitempty"`
+	MaxIterationsHit bool     `json:"max_iterations_hit,omitempty"`
 }
 
 type AgentToolOption struct {
@@ -140,6 +185,11 @@ type ToolMarketplaceItem struct {
 	Enabled        bool     `json:"enabled"`
 	CreatedAt      string   `json:"created_at"`
 	UpdatedAt      string   `json:"updated_at"`
+}
+
+type conversationRequestBuildOptions struct {
+	CompactToolInventory bool
+	MaxTokens            int
 }
 
 type UpsertToolMarketplaceRequest struct {
@@ -170,6 +220,7 @@ type UpsertConversationAgentRequest struct {
 	SystemPrompt    string           `json:"system_prompt"`
 	Accent          string           `json:"accent"`
 	Tools           []string         `json:"tools"`
+	TenantScopes    []string         `json:"tenant_scopes"`
 	Enabled         *bool            `json:"enabled"`
 }
 
@@ -262,8 +313,10 @@ var toolMarketplaceStore = struct {
 
 var conversationMemoryStore = struct {
 	sync.RWMutex
-	records []RouteMemoryRecord
-}{records: []RouteMemoryRecord{}}
+	episodes []RouteMemoryRecord
+	records  []RouteMemoryRecord
+	stats    map[string]routeMemoryAccessStats
+}{episodes: []RouteMemoryRecord{}, records: []RouteMemoryRecord{}, stats: map[string]routeMemoryAccessStats{}}
 
 var agentModelCooldownStore = struct {
 	sync.RWMutex
@@ -419,10 +472,7 @@ func (h *ManagementHandler) ImportConversationTool(w http.ResponseWriter, r *htt
 }
 
 func (h *ManagementHandler) ListConversationMemory(w http.ResponseWriter, r *http.Request) {
-	conversationMemoryStore.RLock()
-	defer conversationMemoryStore.RUnlock()
-	items := make([]RouteMemoryRecord, len(conversationMemoryStore.records))
-	copy(items, conversationMemoryStore.records)
+	items := conversationMemorySnapshot()
 	h.writeJSON(w, http.StatusOK, map[string]any{"data": items})
 }
 
@@ -447,18 +497,19 @@ func (h *ManagementHandler) ConversationChat(w http.ResponseWriter, r *http.Requ
 	}
 
 	intent := inferConversationIntent(lastUserMessage)
+	profile := buildRoutingProfile(req, lastUserMessage, intent, auth.GetAuthContext(r.Context()))
 	client, release := h.acquireClient()
 	defer release()
 	if client == nil {
 		h.writeError(w, r, http.StatusServiceUnavailable, "client not available")
 		return
 	}
-	selectedAgent, routeSource, reasons, hit, consulted := selectConversationAgent(r.Context(), client, lastUserMessage, intent)
+	selectedAgent, routeSource, reasons, hit, consulted := selectConversationAgentForProfile(r.Context(), client, profile)
 	var selectedTeam *AgentTeam
 	var teamParticipants []ConversationAgent
 	var teamConsulted []TeamMemoryRecord
 	var teamMemoryHit *TeamMemoryRecord
-	if team, participants, lead, teamReasons, teamRouteSource, consultedTeamMemory, hitTeamMemory, ok := teamRouteConversation(lastUserMessage, intent); ok {
+	if team, participants, lead, teamReasons, teamRouteSource, consultedTeamMemory, hitTeamMemory, ok := teamRouteConversationWithProfile(profile); ok {
 		selectedTeam = team
 		teamParticipants = participants
 		teamConsulted = consultedTeamMemory
@@ -466,6 +517,8 @@ func (h *ManagementHandler) ConversationChat(w http.ResponseWriter, r *http.Requ
 		selectedAgent = lead
 		routeSource = teamRouteSource
 		reasons = append(teamReasons, reasons...)
+	} else if profile.RequireTeam {
+		reasons = append([]string{"team routing requested but no eligible team was found; falling back to single-agent execution"}, reasons...)
 	}
 	memoryInfluence := "none"
 	if len(consulted) > 0 || len(teamConsulted) > 0 {
@@ -474,25 +527,71 @@ func (h *ManagementHandler) ConversationChat(w http.ResponseWriter, r *http.Requ
 	if hit != nil || teamMemoryHit != nil {
 		memoryInfluence = "reused"
 	}
+	noteRouteMemoryConsulted(consulted)
+	if hit != nil {
+		noteRouteMemoryReused(hit)
+	}
+	optimizationPlan := buildConversationOptimizationPlan(profile)
+	optimizationNotes := []string{}
+	if optimizationPlan.Enabled {
+		var messageNotes []string
+		req.Messages, messageNotes = optimizeConversationTurns(req.Messages, true)
+		optimizationNotes = append(optimizationNotes, messageNotes...)
+		var costNotes []string
+		selectedAgent, costNotes = optimizeAgentForCost(selectedAgent, true)
+		optimizationNotes = append(optimizationNotes, costNotes...)
+		optimizationNotes = append(optimizationNotes, optimizationPlan.Notes...)
+	}
 	selectedAgent, executionTrail := prepareAgentExecution(selectedAgent)
 	reasons = append(reasons, executionTrail...)
 	marketplaceTools := resolveMarketplaceTools(selectedAgent.Tools)
 	toolSummaries := resolveMarketplaceToolSummaries(selectedAgent.Tools)
+	if !profile.ToolInjectionEnabled {
+		selectedAgent.Tools = nil
+		marketplaceTools = nil
+		toolSummaries = nil
+	}
+	if optimizationPlan.Enabled && profile.ToolScopePruningEnabled {
+		var toolOptimizationNotes []string
+		toolSummaries, marketplaceTools, toolOptimizationNotes = filterToolSummariesForRequiredTools(toolSummaries, marketplaceTools, profile.RequiredTools)
+		optimizationNotes = append(optimizationNotes, toolOptimizationNotes...)
+	}
 	gatewayReq := buildConversationGatewayRequest(req.Messages, selectedAgent, toolSummaries, marketplaceTools)
+	if optimizationPlan.Enabled {
+		gatewayReq = buildConversationGatewayRequestOptimized(req.Messages, selectedAgent, toolSummaries, marketplaceTools, optimizationPlan)
+	}
 	ctx := r.Context()
-	if len(marketplaceTools) > 0 {
+	if profile.MaxToolIterations > 0 {
+		ctx = mcp.WithMaxToolIterations(ctx, profile.MaxToolIterations)
+	}
+	if profile.ToolInjectionEnabled && len(marketplaceTools) > 0 {
 		ctx = mcp.WithIncludeTools(ctx, marketplaceTools)
 	}
-	if manager := mcp.GetManager(ctx); manager != nil && len(marketplaceTools) > 0 {
+	if manager := mcp.GetManager(ctx); manager != nil && profile.ToolInjectionEnabled && len(marketplaceTools) > 0 {
 		gatewayReq.Tools = manager.GetAvailableTools(ctx)
 	}
 
-	estimatedTokens := estimateConversationTokens(req.Messages)
-	resp, selectedCandidate, failovers, err := executeConversationWithCandidates(ctx, client, gatewayReq, selectedAgent, estimatedTokens)
-	selectedAgent.CandidateStates = buildCandidateStates(selectedAgent)
+	var modelAccess *auth.ModelAccess
+	if h.store != nil {
+		access, err := auth.NewModelAccess(r.Context(), h.store, auth.GetAuthContext(r.Context()))
+		if err != nil {
+			h.writeError(w, r, http.StatusInternalServerError, "failed to evaluate model access")
+			return
+		}
+		modelAccess = access
+	}
+
+	resp, selectedCandidate, failovers, trace, err := executeConversationWithProfileCandidates(ctx, client, gatewayReq, selectedAgent, profile, modelAccess)
+	selectedAgent.CandidateStates = buildCandidateStatesForProfile(selectedAgent, profile, modelAccess)
 	if selectedCandidate != nil {
 		selectedAgent.Provider = selectedCandidate.Provider
 		selectedAgent.Model = selectedCandidate.Model
+	}
+	reasons = append([]string{
+		fmt.Sprintf("routing_profile complexity=%d latency_budget_ms=%d", profile.Complexity, profile.LatencyBudgetMS),
+	}, reasons...)
+	if len(profile.RequiredTools) > 0 {
+		reasons = append(reasons, fmt.Sprintf("routing_profile required_tools=%s", strings.Join(profile.RequiredTools, ",")))
 	}
 	result := AgentChatResponse{
 		RequestID:             fmt.Sprintf("conv-%d", time.Now().UnixNano()),
@@ -515,10 +614,33 @@ func (h *ManagementHandler) ConversationChat(w http.ResponseWriter, r *http.Requ
 			"tags":                 gatewayReq.Tags,
 			"tool_marketplace_ids": selectedAgent.Tools,
 			"resolved_mcp_tools":   marketplaceTools,
-			"user":                 gatewayReq.User,
-			"messages":             req.Messages,
+			"routing_profile": map[string]any{
+				"complexity":                 profile.Complexity,
+				"require_team":               profile.RequireTeam,
+				"required_tools":             profile.RequiredTools,
+				"required_capabilities":      profile.RequiredCapabilities,
+				"latency_budget_ms":          profile.LatencyBudgetMS,
+				"tenant_id":                  profile.TenantID,
+				"organization_id":            profile.OrganizationID,
+				"memory_reuse_enabled":       profile.MemoryReuseEnabled,
+				"team_routing_enabled":       profile.TeamRoutingEnabled,
+				"candidate_strategy":         profile.CandidateStrategy,
+				"tool_injection_enabled":     profile.ToolInjectionEnabled,
+				"tool_scope_pruning_enabled": profile.ToolScopePruningEnabled,
+				"max_tool_iterations":        profile.MaxToolIterations,
+			},
+			"experiment": map[string]any{
+				"experiment_id":    profile.ExperimentID,
+				"experiment_group": profile.ExperimentGroup,
+				"baseline_name":    profile.BaselineName,
+			},
+			"user":     gatewayReq.User,
+			"messages": req.Messages,
 		},
-		GeneratedAt: time.Now().Format(time.RFC3339),
+		TokenOptimizationEnabled: profile.TokenOptimizationEnabled,
+		OptimizationNotes:        cleanStringList(optimizationNotes),
+		ExecutionTrace:           buildConversationExecutionTraceResponse(trace),
+		GeneratedAt:              time.Now().Format(time.RFC3339),
 	}
 
 	recorded := RouteMemoryRecord{
@@ -580,7 +702,7 @@ func prepareAgentExecution(agent ConversationAgent) (ConversationAgent, []string
 func executeConversationWithCandidates(ctx context.Context, client *llmux.Client, gatewayReq *llmux.ChatRequest, agent ConversationAgent, estimatedTokens int) (*llmux.ChatResponse, *CandidateModel, []CandidateFailover, error) {
 	candidates := rankCandidateModels(agent, estimatedTokens)
 	if len(candidates) == 0 {
-		resp, err := client.ChatCompletion(ctx, gatewayReq)
+		resp, err := executeConversationChatCompletion(ctx, client, gatewayReq)
 		return resp, nil, nil, err
 	}
 	trail := make([]CandidateFailover, 0, len(candidates))
@@ -603,7 +725,7 @@ func executeConversationWithCandidates(ctx context.Context, client *llmux.Client
 		}
 		candidateReq := *gatewayReq
 		candidateReq.Model = candidate.Provider + "/" + candidate.Model
-		resp, err := client.ChatCompletion(ctx, &candidateReq)
+		resp, err := executeConversationChatCompletion(ctx, client, &candidateReq)
 		if err == nil {
 			recordCandidateUsage(candidate, estimatedTokens)
 			trail = append(trail, CandidateFailover{Provider: candidate.Provider, Model: candidate.Model, Outcome: "selected"})
@@ -697,42 +819,49 @@ func stateRank(status string) int {
 		return 0
 	case "warm":
 		return 1
-	case "cooling_down":
+	case "latency_exceeded":
 		return 2
-	case "predicted_saturated":
+	case "cooling_down":
 		return 3
-	case "degraded":
+	case "predicted_saturated":
 		return 4
-	default:
+	case "unauthorized":
 		return 5
+	case "degraded":
+		return 6
+	default:
+		return 7
 	}
 }
 
 func describeCandidateState(candidate CandidateModel, estimatedTokens int) CandidateModelState {
 	rpm, tpm := getCandidateUsage(candidate)
-	state := CandidateModelState{Provider: candidate.Provider, Model: candidate.Model, Weight: candidate.Weight, RPMLimit: candidate.RPMLimit, TPMLimit: candidate.TPMLimit, CurrentRPM: rpm, CurrentTPM: tpm, Status: "ready"}
+	predictedRPM, predictedTPM := predictCandidateUsage(candidate, estimatedTokens)
+	latencyMS := estimateCandidateLatency(candidate)
+	latencyFit := candidateLatencyFit(candidate, estimatedTokens)
+	state := CandidateModelState{Provider: candidate.Provider, Model: candidate.Model, Weight: candidate.Weight, RPMLimit: candidate.RPMLimit, TPMLimit: candidate.TPMLimit, CurrentRPM: rpm, CurrentTPM: tpm, PredictedRPM: predictedRPM, PredictedTPM: predictedTPM, LatencyMS: latencyMS, LatencyFit: latencyFit, Status: "ready"}
+	rpmCapacityLeft := 1.0
+	if candidate.RPMLimit > 0 {
+		rpmCapacityLeft = clamp01(1 - float64(predictedRPM)/float64(candidate.RPMLimit))
+	}
+	tpmCapacityLeft := 1.0
+	if candidate.TPMLimit > 0 {
+		tpmCapacityLeft = clamp01(1 - float64(predictedTPM)/float64(candidate.TPMLimit))
+	}
+	state.RPMCapacityLeft = rpmCapacityLeft
+	state.TPMCapacityLeft = tpmCapacityLeft
+	state.SelectionScore = 0.35*candidate.Weight + 0.25*rpmCapacityLeft + 0.25*tpmCapacityLeft + 0.15*latencyFit
 	if until, ok := candidateCooldownUntil(candidate); ok {
 		state.Status = "cooling_down"
 		state.CooldownUntil = until.Format(time.RFC3339)
 	}
-	rpmPressure := 0.0
-	if candidate.RPMLimit > 0 {
-		rpmPressure = float64(rpm+1) / float64(candidate.RPMLimit)
-	}
-	tpmPressure := 0.0
-	if candidate.TPMLimit > 0 {
-		tpmPressure = float64(tpm+estimatedTokens) / float64(candidate.TPMLimit)
-	}
-	maxPressure := rpmPressure
-	if tpmPressure > maxPressure {
-		maxPressure = tpmPressure
-	}
-	state.SelectionScore = candidate.Weight*100 - maxPressure*100
 	if state.Status != "cooling_down" {
 		switch {
-		case maxPressure >= 1:
+		case candidate.RPMLimit > 0 && predictedRPM > candidate.RPMLimit:
 			state.Status = "predicted_saturated"
-		case maxPressure >= 0.8:
+		case candidate.TPMLimit > 0 && predictedTPM > candidate.TPMLimit:
+			state.Status = "predicted_saturated"
+		case rpmCapacityLeft < 0.2 || tpmCapacityLeft < 0.2:
 			state.Status = "warm"
 		default:
 			state.Status = "ready"
@@ -748,7 +877,9 @@ func describeCandidateState(candidate CandidateModel, estimatedTokens int) Candi
 
 func getCandidateUsage(candidate CandidateModel) (int, int) {
 	key := candidate.Provider + "/" + candidate.Model
-	cutoff := time.Now().Add(-1 * time.Minute)
+	now := time.Now()
+	currentCutoff := now.Add(-1 * time.Minute)
+	historyCutoff := now.Add(-5 * time.Minute)
 	candidateUsageStore.Lock()
 	defer candidateUsageStore.Unlock()
 	entries := candidateUsageStore.entries[key]
@@ -756,15 +887,86 @@ func getCandidateUsage(candidate CandidateModel) (int, int) {
 	rpm := 0
 	tpm := 0
 	for _, entry := range entries {
-		if entry.At.Before(cutoff) {
+		if entry.At.Before(historyCutoff) {
 			continue
 		}
 		filtered = append(filtered, entry)
+		if entry.At.Before(currentCutoff) {
+			continue
+		}
 		rpm++
 		tpm += entry.Tokens
 	}
 	candidateUsageStore.entries[key] = append([]candidateUsageEvent(nil), filtered...)
 	return rpm, tpm
+}
+
+func predictCandidateUsage(candidate CandidateModel, estimatedTokens int) (int, int) {
+	key := candidate.Provider + "/" + candidate.Model
+	cutoff := time.Now().Add(-5 * time.Minute)
+	candidateUsageStore.RLock()
+	entries := append([]candidateUsageEvent(nil), candidateUsageStore.entries[key]...)
+	candidateUsageStore.RUnlock()
+	rpmBuckets := [5]int{}
+	tpmBuckets := [5]int{}
+	now := time.Now()
+	for _, entry := range entries {
+		if entry.At.Before(cutoff) {
+			continue
+		}
+		ageMinutes := int(now.Sub(entry.At) / time.Minute)
+		if ageMinutes < 0 || ageMinutes >= len(rpmBuckets) {
+			continue
+		}
+		bucket := len(rpmBuckets) - 1 - ageMinutes
+		rpmBuckets[bucket]++
+		tpmBuckets[bucket] += entry.Tokens
+	}
+	predictedRPM := averageIntWindow(rpmBuckets[:]) + 1
+	predictedTPM := averageIntWindow(tpmBuckets[:]) + estimatedTokens
+	return predictedRPM, predictedTPM
+}
+
+func averageIntWindow(values []int) int {
+	if len(values) == 0 {
+		return 0
+	}
+	total := 0
+	for _, value := range values {
+		total += value
+	}
+	return total / len(values)
+}
+
+func estimateCandidateLatency(candidate CandidateModel) int {
+	model := strings.ToLower(candidate.Model)
+	switch {
+	case strings.Contains(model, "reasoner"):
+		return 1750
+	case strings.Contains(model, "chat"):
+		return 900
+	default:
+		return 1200
+	}
+}
+
+func candidateLatencyFit(candidate CandidateModel, estimatedTokens int) float64 {
+	budget := 1800
+	if estimatedTokens > 1200 {
+		budget = 2600
+	}
+	return candidateLatencyFitWithBudget(candidate, budget)
+}
+
+func candidateLatencyFitWithBudget(candidate CandidateModel, budget int) float64 {
+	if budget <= 0 {
+		return 0.5
+	}
+	fit := 1 - float64(estimateCandidateLatency(candidate))/float64(budget)
+	if fit < 0.05 {
+		return 0.05
+	}
+	return clamp01(fit)
 }
 
 func recordCandidateUsage(candidate CandidateModel, estimatedTokens int) {
@@ -894,6 +1096,52 @@ func buildConversationGatewayRequest(messages []ConversationTurn, agent Conversa
 		Temperature: &temperature,
 		MaxTokens:   512,
 		Tags:        []string{"conversation-router", agent.ID, agent.Category, agent.Strategy},
+		User:        "conversation-router",
+	}
+}
+
+func buildConversationGatewayRequestOptimized(messages []ConversationTurn, agent ConversationAgent, toolSummaries, resolvedTools []string, plan conversationOptimizationPlan) *llmux.ChatRequest {
+	inventory := map[string]any{
+		"agent_id":             agent.ID,
+		"agent_name":           agent.Name,
+		"tool_marketplace_ids": agent.Tools,
+		"resolved_mcp_tools":   resolvedTools,
+	}
+	if !plan.CompactToolInventory {
+		inventory["tool_marketplace_summaries"] = toolSummaries
+	}
+
+	inventoryJSON, _ := json.MarshalIndent(inventory, "", "  ")
+	systemPrompt := agent.SystemPrompt + "\n\n[TOOL INVENTORY / CURRENT CAPABILITIES]\n" + string(inventoryJSON) + "\n\n浣犲繀椤绘妸涓婇潰鐨?TOOL INVENTORY 褰撲綔褰撳墠鍞竴鏈夋晥鐨勫伐鍏疯兘鍔涜竟鐣屻€俓n1. 濡傛灉鐢ㄦ埛闂綘褰撳墠鏈夊摢浜涘伐鍏枫€佽兘鍋氫粈涔堝伐鍏疯皟鐢紝蹇呴』涓ユ牸鏍规嵁 TOOL INVENTORY 鍥炵瓟銆俓n2. 濡傛灉鏌愪釜宸ュ叿涓嶅湪 TOOL INVENTORY 閲岋紝灏辨槑纭褰撳墠娌℃湁璇ュ伐鍏枫€俓n3. 涓嶈铏氭瀯娴忚鍣ㄣ€佹暟鎹簱銆佷唬鐮佹墽琛屽櫒銆佹悳绱€佹枃浠剁郴缁熺瓑浠讳綍鏈垪鍑虹殑宸ュ叿銆俓n4. 濡傛灉瀛樺湪 tools schema锛屽垯鍙厑璁歌皟鐢ㄥ綋鍓嶈姹備腑鎻愪緵鐨勯偅浜?tools銆?\n\nToken optimization mode is enabled. Keep the answer concise, avoid redundant restatement, and prefer the minimum tool usage needed to ground the answer."
+
+	gatewayMessages := []llmux.ChatMessage{{
+		Role:    "system",
+		Content: json.RawMessage(fmt.Sprintf("%q", systemPrompt)),
+	}}
+	for _, msg := range messages {
+		if strings.TrimSpace(msg.Content) == "" {
+			continue
+		}
+		role := msg.Role
+		if role == "" {
+			role = "user"
+		}
+		gatewayMessages = append(gatewayMessages, llmux.ChatMessage{
+			Role:    role,
+			Content: json.RawMessage(fmt.Sprintf("%q", msg.Content)),
+		})
+	}
+	temperature := 0.1
+	maxTokens := plan.MaxTokens
+	if maxTokens <= 0 {
+		maxTokens = 320
+	}
+	return &llmux.ChatRequest{
+		Model:       agent.Model,
+		Messages:    gatewayMessages,
+		Temperature: &temperature,
+		MaxTokens:   maxTokens,
+		Tags:        []string{"conversation-router", agent.ID, agent.Category, agent.Strategy, "token-optimized"},
 		User:        "conversation-router",
 	}
 }
@@ -1080,55 +1328,42 @@ func findBestMemoryHit(query, intent string) *RouteMemoryRecord {
 }
 
 func findRelevantMemoryCandidates(query, intent string, limit int) []RouteMemoryRecord {
-	queryTokens := tokenizeQuery(query)
-	if len(queryTokens) == 0 || limit <= 0 {
-		return nil
+	profile := RoutingProfile{
+		Query:              query,
+		Intent:             intent,
+		QueryTokens:        tokenizeQuery(query),
+		MemoryReuseEnabled: true,
 	}
-	type candidate struct {
-		record RouteMemoryRecord
-		score  float64
-	}
-	conversationMemoryStore.RLock()
-	defer conversationMemoryStore.RUnlock()
-	matches := make([]candidate, 0, limit)
-	for i := range conversationMemoryStore.records {
-		item := conversationMemoryStore.records[i]
-		if !item.Succeeded {
-			continue
-		}
-		score := tokenOverlapScore(queryTokens, tokenizeQuery(item.Query))
-		if score < 0.34 {
-			continue
-		}
-		if item.Intent == intent {
-			score += 0.08
-		}
-		matches = append(matches, candidate{record: item, score: score})
-	}
-	sort.Slice(matches, func(i, j int) bool {
-		if matches[i].score == matches[j].score {
-			return matches[i].record.OutcomeScore > matches[j].record.OutcomeScore
-		}
-		return matches[i].score > matches[j].score
-	})
-	if len(matches) > limit {
-		matches = matches[:limit]
-	}
-	result := make([]RouteMemoryRecord, 0, len(matches))
-	for _, item := range matches {
-		result = append(result, item.record)
-	}
-	return result
+	return findRelevantMemoryCandidatesForProfile(profile, limit)
 }
 
 func persistConversationMemory(record RouteMemoryRecord) RouteMemoryRecord {
 	conversationMemoryStore.Lock()
 	defer conversationMemoryStore.Unlock()
-	conversationMemoryStore.records = append([]RouteMemoryRecord{record}, conversationMemoryStore.records...)
-	if len(conversationMemoryStore.records) > 60 {
-		conversationMemoryStore.records = conversationMemoryStore.records[:60]
+	now := time.Now()
+	episode := normalizeRouteMemoryEpisode(record)
+	conversationMemoryStore.episodes = append(conversationMemoryStore.episodes, episode)
+	pruneRouteMemoryLocked(now)
+	records := rebuildRouteMemoryRecordsLocked()
+	profile := RoutingProfile{
+		Query:              episode.Query,
+		Intent:             episode.Intent,
+		QueryTokens:        tokenizeQuery(episode.Query),
+		MemoryReuseEnabled: true,
 	}
-	return record
+	best := episode
+	bestScore := 0.0
+	for _, item := range records {
+		if item.SelectedAgentID != episode.SelectedAgentID {
+			continue
+		}
+		score := scoreRouteMemorySimilarity(profile, item)
+		if score >= bestScore {
+			best = item
+			bestScore = score
+		}
+	}
+	return best
 }
 
 func getConversationAgents() []ConversationAgent {
@@ -1175,7 +1410,7 @@ func upsertConversationAgent(req UpsertConversationAgentRequest, mustExist bool)
 		if req.Enabled != nil {
 			enabled = *req.Enabled
 		}
-		updated := ConversationAgent{ID: req.ID, Name: req.Name, Description: req.Description, Category: req.Category, Provider: req.Provider, Model: req.Model, CandidateModels: cleanCandidateModels(ConversationAgent{Provider: req.Provider, Model: req.Model, CandidateModels: req.CandidateModels}), Strategy: req.Strategy, Capabilities: cleanStringList(req.Capabilities), SystemPrompt: req.SystemPrompt, Accent: req.Accent, Tools: cleanStringList(req.Tools), Enabled: enabled, CreatedAt: agent.CreatedAt, UpdatedAt: now}
+		updated := ConversationAgent{ID: req.ID, Name: req.Name, Description: req.Description, Category: req.Category, Provider: req.Provider, Model: req.Model, CandidateModels: cleanCandidateModels(ConversationAgent{Provider: req.Provider, Model: req.Model, CandidateModels: req.CandidateModels}), Strategy: req.Strategy, Capabilities: cleanStringList(req.Capabilities), SystemPrompt: req.SystemPrompt, Accent: req.Accent, Tools: cleanStringList(req.Tools), TenantScopes: cleanStringList(req.TenantScopes), Enabled: enabled, CreatedAt: agent.CreatedAt, UpdatedAt: now}
 		conversationAgentStore.agents[i] = updated
 		return updated, nil
 	}
@@ -1186,7 +1421,7 @@ func upsertConversationAgent(req UpsertConversationAgentRequest, mustExist bool)
 	if req.Enabled != nil {
 		enabled = *req.Enabled
 	}
-	created := ConversationAgent{ID: req.ID, Name: req.Name, Description: req.Description, Category: req.Category, Provider: req.Provider, Model: req.Model, CandidateModels: cleanCandidateModels(ConversationAgent{Provider: req.Provider, Model: req.Model, CandidateModels: req.CandidateModels}), Strategy: req.Strategy, Capabilities: cleanStringList(req.Capabilities), SystemPrompt: req.SystemPrompt, Accent: req.Accent, Tools: cleanStringList(req.Tools), Enabled: enabled, CreatedAt: now, UpdatedAt: now}
+	created := ConversationAgent{ID: req.ID, Name: req.Name, Description: req.Description, Category: req.Category, Provider: req.Provider, Model: req.Model, CandidateModels: cleanCandidateModels(ConversationAgent{Provider: req.Provider, Model: req.Model, CandidateModels: req.CandidateModels}), Strategy: req.Strategy, Capabilities: cleanStringList(req.Capabilities), SystemPrompt: req.SystemPrompt, Accent: req.Accent, Tools: cleanStringList(req.Tools), TenantScopes: cleanStringList(req.TenantScopes), Enabled: enabled, CreatedAt: now, UpdatedAt: now}
 	conversationAgentStore.agents = append([]ConversationAgent{created}, conversationAgentStore.agents...)
 	return created, nil
 }
@@ -1304,7 +1539,7 @@ func extractAssistantText(resp *llmux.ChatResponse) string {
 	if resp == nil || len(resp.Choices) == 0 {
 		return ""
 	}
-	return string(resp.Choices[0].Message.Content)
+	return decodeChatMessageContent(resp.Choices[0].Message.Content)
 }
 
 func unmarshalAssistantJSON(raw string, target any) error {

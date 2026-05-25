@@ -17,7 +17,7 @@ export default function RouteMemoryPage() {
   useEffect(() => { void apiClient.getConversationMemory().then((res) => setItems(res.data ?? [])); }, []);
 
   const filtered = useMemo(() => items.filter((item) => {
-    const matchesKeyword = !keyword || [item.query, item.selected_agent_id, item.selected_model, item.route_source, item.answer_preview].join(" ").toLowerCase().includes(keyword.toLowerCase());
+    const matchesKeyword = !keyword || [item.query, item.selected_agent_id, item.selected_model, item.route_source, item.answer_preview, item.compressed_summary, ...(item.retrieval_hints ?? [])].join(" ").toLowerCase().includes(keyword.toLowerCase());
     const matchesSource = source === "all" || item.route_source === source;
     return matchesKeyword && matchesSource;
   }), [items, keyword, source]);
@@ -83,11 +83,21 @@ export default function RouteMemoryPage() {
             </TableHeader>
             <TableBody>
               {filtered.map((item) => <TableRow key={item.id}>
-                <TableCell className="max-w-[360px] align-top"><div className="font-medium leading-6">{item.query}</div><div className="mt-2 text-xs text-muted-foreground line-clamp-2">{item.answer_preview || "No preview"}</div></TableCell>
+                <TableCell className="max-w-[360px] align-top">
+                  <div className="font-medium leading-6">{item.query}</div>
+                  <div className="mt-2 text-xs text-muted-foreground line-clamp-2">{item.compressed_summary || item.answer_preview || "No preview"}</div>
+                  {(item.source_count || item.memory_stage) && <div className="mt-2 flex flex-wrap gap-2">
+                    {item.memory_stage && <Badge variant="info">{item.memory_stage}</Badge>}
+                    {typeof item.source_count === "number" && item.source_count > 0 && <Badge variant="outline">{item.source_count} episodes</Badge>}
+                  </div>}
+                </TableCell>
                 <TableCell className="align-top"><div className="font-semibold">{item.selected_agent_id}</div><div className="text-xs text-muted-foreground">{item.selected_model}</div></TableCell>
                 <TableCell className="align-top text-xs text-muted-foreground">{item.selected_path}</TableCell>
                 <TableCell className="align-top"><Badge variant="outline">{item.route_source}</Badge></TableCell>
-                <TableCell className="align-top"><span className="font-semibold">{item.outcome_score.toFixed(2)}</span></TableCell>
+                <TableCell className="align-top">
+                  <div className="font-semibold">{item.outcome_score.toFixed(2)}</div>
+                  {typeof item.reuse_count === "number" && item.reuse_count > 0 && <div className="mt-1 text-xs text-muted-foreground">reuse {item.reuse_count}</div>}
+                </TableCell>
                 <TableCell className="align-top"><Badge variant={item.succeeded ? "success" : "destructive"}>{item.succeeded ? "success" : "failed"}</Badge></TableCell>
                 <TableCell className="align-top text-xs text-muted-foreground">{new Date(item.created_at).toLocaleString()}</TableCell>
               </TableRow>)}
